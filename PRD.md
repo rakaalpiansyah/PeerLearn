@@ -11,7 +11,7 @@
 | **Nama Produk** | **PeerLearn (FST UIN SGD Edition)** |
 | **Deskripsi** | Platform pembelajaran kolaboratif sebaya (*peer-assisted learning*) nir-biaya (*zero-fee*) yang dirancang khusus untuk memfasilitasi mahasiswa 8 Program Studi di lingkungan Fakultas Sains dan Teknologi, UIN Sunan Gunung Djati Bandung. |
 | **Versi Dokumen** | **2.0 (FST UIN SGD Production Specification)** |
-| **Dokumen Teknis Terkait** | • [Software Requirements Specification (SRS)](./docs/SRS.md)<br>• [Engineering Guidelines (AGENTS.md)](./AGENTS.md)<br>• [Repository Overview (README.md)](./README.md) |
+| **Dokumen Teknis Terkait** | • [Software Requirements Specification (SRS)](./docs/SRS.md)<br>• [Repository Overview (README.md)](./README.md) |
 | **Target Pengguna** | Mahasiswa S1, Asisten Laboratorium, dan Peer Tutor FST UIN SGD Bandung |
 | **Arsitektur Teknis** | **Backend:** Golang (Fiber v2, Clean Architecture)<br>**Frontend:** React (Vite SPA), Component-Driven, Tailwind CSS<br>**Basis Data:** PostgreSQL (Neon Tech Serverless, PgBouncer Pooled)<br>**Konektivitas Kampus:** OpenStreetMap & Geolocation GPS Kampus 1 Cipadung & Kampus 2 Soekarno-Hatta |
 
@@ -267,7 +267,7 @@ erDiagram
 
 ## 9. Rencana Verifikasi Kualitas & Standardisasi Rekayasa
 
-Berdasarkan pedoman baku [AGENTS.md](./AGENTS.md):
+Berdasarkan standar penjaminan mutu rekayasa perangkat lunak:
 1. **Pengujian Unit Backend:** Pengujian unit Go (`go test -v ./...`) mencakup otentikasi role, pembuatan sesi belajar, resolusi koordinat peta, dan konsistensi data anggota (100% lulus).
 2. **Pengujian Unit Frontend:** Pengujian Vitest React (`npm test`) mencakup 15 berkas uji coba (176 tests) dengan validasi form, penanganan galat jaringan, dan aksesibilitas dialog modal (100% lulus).
 3. **Kompilasi Bersih:** `go vet ./...` bersih tanpa peringatan dan `npm run build` sukses dalam hitungan milidetik.

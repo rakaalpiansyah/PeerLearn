@@ -67,7 +67,6 @@ Sistem tidak mencakup pemrosesan transaksi pembayaran komersial karena berprinsi
 2. Buku Pedoman Akademik Fakultas Sains dan Teknologi UIN Sunan Gunung Djati Bandung Tahun Akademik 2024–2026.
 3. Panduan Pengajuan Poin Surat Keterangan Pendamping Ijazah (SKPI) Bidang Penalaran dan Keorganisasian Mahasiswa UIN SGD Bandung.
 4. *Product Requirements Document (PRD) PeerLearn Version 2.0 (FST UIN SGD Edition)*.
-5. *AGENTS.md: Professional Engineering Guidelines for PeerLearn*.
 
 ### 1.5 Gambaran Umum Dokumen
 Dokumen ini disusun dalam tujuh bab utama: Bab 1 memuat pendahuluan dan batasan; Bab 2 mendeskripsikan perspektif umum sistem dan karakteristik pengguna; Bab 3 merinci kebutuhan antarmuka eksternal; Bab 4 menjabarkan seluruh kebutuhan fungsional secara terperinci (use-case, prakondisi, alur normal, alur alternatif, dan pascakondisi); Bab 5 mendefinisikan kebutuhan non-fungsional; Bab 6 menyajikan desain dan kamus data basis data PostgreSQL; serta Bab 7 menyajikan Matriks Keterlacakan Kebutuhan (*Traceability Matrix*).

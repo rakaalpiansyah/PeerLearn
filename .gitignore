@@ -117,6 +117,12 @@ env/
 .gemini/
 .taste-skill/
 */.taste-skill/
+AGENTS.md
+GEMINI.md
+
+# Local Scratch Scripts & Root Images
+apply_edits.py
+image*.png
 
 # ------------------------------------------------------------------------------
 # 9. Operating System Files

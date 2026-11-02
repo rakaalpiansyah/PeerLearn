@@ -19,7 +19,6 @@ Untuk mempermudah peninjauan teknis, akademik, dan arsitektural sistem, dokument
 | :--- | :--- | :--- |
 | 📘 **[PRD.md](./PRD.md)** | Product Requirements Document v2.0 | Visi produk, latar belakang akademik FST, persona mahasiswa, modul fungsional FR-1 s/d FR-5, Entity-Relationship Diagram (ERD), dan kontrak endpoint REST API. |
 | 📑 **[docs/SRS.md](./docs/SRS.md)** | Software Requirements Specification (IEEE Std 830) | Spesifikasi formal rekayasa, use-case rinci SRS-FR-01 s/d 11 (prakondisi, alur normal, eksepsi, pascakondisi), kebutuhan non-fungsional, kamus data PostgreSQL, dan Traceability Matrix. |
-| 🛠️ **[AGENTS.md](./AGENTS.md)** | Professional Engineering Standard | Standar Clean Architecture Go, pola Component-Driven React, prinsip Anti-Slop (larangan AI-boilerplate), dan protokol pengujian mutu. |
 
 ---
 
@@ -156,7 +155,6 @@ peerlearn/
 ├── docs/                                 # Dokumentasi Spesifikasi & Panduan
 │   └── SRS.md                            # Software Requirements Specification Formal (IEEE 830)
 ├── PRD.md                                # Product Requirements Document v2.0
-├── AGENTS.md                             # Pedoman Mutu Rekayasa Perangkat Lunak
 └── README.md                             # Berkas Panduan Utama Repositori
 ```
 
