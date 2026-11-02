@@ -238,8 +238,8 @@ go vet ./...
 
 ---
 
-## 7. Lisensi & Tim Pengembang
+## 7. Lisensi & Kontributor
 
-Proyek ini dikembangkan oleh **Kelompok 5 (Mata Kuliah Sosiologi Komputasi / Proyek Rekayasa Perangkat Lunak Mahasiswa)** untuk civitas akademika **Fakultas Sains dan Teknologi, UIN Sunan Gunung Djati Bandung**.
+Proyek ini dikembangkan secara nirlaba sebagai wadah kolaborasi akademik sebaya (*Peer-Assisted Learning*) untuk civitas akademika **Fakultas Sains dan Teknologi, UIN Sunan Gunung Djati Bandung**.
 
 Lisensi: [MIT License](LICENSE) — Bebas digunakan dan dikembangkan untuk kepentingan edukasi kampus.

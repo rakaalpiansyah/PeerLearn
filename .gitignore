@@ -114,6 +114,8 @@ env/
 
 # AI Agent / Temporary Local Tool Directories
 .superpowers/
+docs/superpowers/
+*/superpowers/
 .gemini/
 .taste-skill/
 */.taste-skill/

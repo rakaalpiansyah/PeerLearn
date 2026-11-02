@@ -578,10 +578,6 @@ Tabel berikut memetakan keterhubungan langsung antara Kebutuhan Bisnis PRD, Kebu
 
 ---
 
-## BAB 8: PENUTUP & PENGESAHAN DOKUMEN
+## BAB 8: PENUTUP
 
-Dokumen Spesifikasi Kebutuhan Perangkat Lunak (**SRS**) ini telah ditinjau dan divalidasi dengan kesesuaian menyeluruh terhadap implementasi kode sumber repositori PeerLearn. Seluruh kebutuhan fungsional dan non-fungsional telah terikat dengan bukti pengujian unit dan verifikasi kompilasi produksi, siap dijadikan dokumen rujukan resmi akademik dan pengembangan lanjutan di Fakultas Sains dan Teknologi UIN Sunan Gunung Djati Bandung.
-
-*Disahkan pada:* 2 November 2026  
-*Tim Pengembang:* Mahasiswa Pengembang Aplikasi PeerLearn (Kelompok 5)  
-*Afiliasi:* Fakultas Sains dan Teknologi, Universitas Islam Negeri Sunan Gunung Djati Bandung
+Dokumen Spesifikasi Kebutuhan Perangkat Lunak (**SRS**) ini telah ditinjau dan divalidasi dengan kesesuaian menyeluruh terhadap implementasi kode sumber repositori PeerLearn. Seluruh kebutuhan fungsional dan non-fungsional telah terikat dengan bukti pengujian unit dan verifikasi kompilasi produksi, siap dijadikan dokumen rujukan resmi akademik dan pengembangan lanjutan di lingkungan Fakultas Sains dan Teknologi UIN Sunan Gunung Djati Bandung.
