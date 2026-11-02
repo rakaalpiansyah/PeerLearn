@@ -119,6 +119,7 @@ env/
 */.taste-skill/
 AGENTS.md
 GEMINI.md
+THEME.md
 
 # Local Scratch Scripts & Root Images
 apply_edits.py
