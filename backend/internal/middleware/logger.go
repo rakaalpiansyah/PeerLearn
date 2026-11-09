@@ -8,9 +8,12 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func SetupCORS() fiber.Handler {
+func SetupCORS(allowedOrigins string) fiber.Handler {
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:5173,http://localhost:4173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:4173"
+	}
 	return cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173",
+		AllowOrigins:     allowedOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowMethods:     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
 		AllowCredentials: true,

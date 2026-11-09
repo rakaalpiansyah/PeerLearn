@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -24,9 +25,14 @@ func main() {
 	app := fiber.New(fiber.Config{
 		AppName:               "PeerLearn Community API v1",
 		DisableStartupMessage: false,
+		BodyLimit:             4 * 1024 * 1024,
+		ReadTimeout:           10 * time.Second,
+		WriteTimeout:          15 * time.Second,
+		IdleTimeout:           60 * time.Second,
 	})
 
-	app.Use(middleware.SetupCORS())
+	app.Use(middleware.SetupCORS(cfg.AllowedOrigins))
+	app.Use(middleware.SecurityHeaders())
 	app.Use(middleware.RequestLogger())
 
 	// Connect to Neon PostgreSQL
@@ -77,13 +83,14 @@ func main() {
 	jwtAuth := middleware.JWTMiddleware(cfg.JWTSecret)
 
 	// Routing
-	api := app.Group("/api/v1")
+	api := app.Group("/api/v1", middleware.APIRateLimiter())
 	api.Get("/health", healthHandler.Check)
 	api.Get("/skills", userHandler.GetSkills)
 	api.Get("/users/:id/profile", userHandler.GetPublicProfile)
+	api.Get("/users/:id/public", userHandler.GetPublicProfile)
 
 	// Auth Endpoints
-	auth := api.Group("/auth")
+	auth := api.Group("/auth", middleware.AuthRateLimiter())
 	auth.Post("/register", authHandler.Register)
 	auth.Post("/login", authHandler.Login)
 	auth.Get("/me", jwtAuth, authHandler.Me)
@@ -111,6 +118,8 @@ func main() {
 	protectedGroups.Post("/:id/feedback", engagementHandler.CreateFeedback)
 	protectedGroups.Get("/:id/messages", messageHandler.GetMessages)
 	protectedGroups.Post("/:id/messages", messageHandler.SendMessage)
+	protectedGroups.Post("/:id/messages/:messageId/reactions", messageHandler.ToggleReaction)
+	protectedGroups.Post("/:id/messages/:messageId/pin", messageHandler.TogglePin)
 
 	// Protected Memberships & Sessions
 	api.Patch("/memberships/:id/status", jwtAuth, membershipHandler.UpdateStatus)
@@ -120,6 +129,7 @@ func main() {
 	api.Post("/reports", jwtAuth, engagementHandler.CreateReport)
 	admin := api.Group("/admin", jwtAuth, middleware.RequireRole(domain.RoleAdmin))
 	admin.Get("/reports", engagementHandler.ListReports)
+	admin.Get("/moderation/reports", engagementHandler.ListReports)
 	admin.Patch("/reports/:id", engagementHandler.ResolveReport)
 	admin.Patch("/users/:id/moderation", engagementHandler.ModerateUser)
 

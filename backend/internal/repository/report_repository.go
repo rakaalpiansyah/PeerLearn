@@ -118,7 +118,7 @@ func (r *reportRepository) ListWithDetails(ctx context.Context) ([]domain.Modera
 	}
 	defer rows.Close()
 
-	var items []domain.ModerationReportItem
+	items := make([]domain.ModerationReportItem, 0)
 	for rows.Next() {
 		var rep domain.Report
 		var repUser domain.UserResponse

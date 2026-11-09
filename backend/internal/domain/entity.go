@@ -99,12 +99,23 @@ type LearningGroup struct {
 }
 
 type GroupMessage struct {
+	ID                 uuid.UUID  `json:"id"`
+	GroupID            uuid.UUID  `json:"group_id"`
+	SenderID           uuid.UUID  `json:"sender_id"`
+	Message            string     `json:"message"`
+	IsPinned           bool       `json:"is_pinned"`
+	ReplyToMessageID   *uuid.UUID `json:"reply_to_message_id,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	Sender             *User      `json:"sender,omitempty"`
+}
+
+type MessageReaction struct {
 	ID        uuid.UUID `json:"id"`
-	GroupID   uuid.UUID `json:"group_id"`
-	SenderID  uuid.UUID `json:"sender_id"`
-	Message   string    `json:"message"`
+	MessageID uuid.UUID `json:"message_id"`
+	UserID    uuid.UUID `json:"user_id"`
+	Emoji     string    `json:"emoji"`
 	CreatedAt time.Time `json:"created_at"`
-	Sender    *User     `json:"sender,omitempty"`
+	User      *User     `json:"user,omitempty"`
 }
 
 type MembershipStatus string
