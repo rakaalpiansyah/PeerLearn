@@ -21,11 +21,15 @@ import {
   Compass,
   FileText,
   Sparkles,
+  Pin,
+  Reply,
+  Smile,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
 import { UserAvatar } from "../ui/UserAvatar";
+import LinkifiedText from "../common/LinkifiedText";
 import { groupApi, membershipApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 
@@ -68,6 +72,8 @@ export function GroupDetailModal({
   const [rescheduleNextTopic, setRescheduleNextTopic] = useState("");
   const [savingReschedule, setSavingReschedule] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [activeEmojiPicker, setActiveEmojiPicker] = useState(null);
   const chatBottomRef = useRef(null);
 
   const isHost = isAuthenticated && user?.id === group?.host_id;
@@ -115,15 +121,59 @@ export function GroupDetailModal({
     try {
       const res = await groupApi.getMessages(group.id);
       if (res.success && res.data) {
-        setMessages((prev) => {
-          if (res.data.length !== prev.length) {
-            return res.data;
-          }
-          return prev;
-        });
+        setMessages(res.data);
       }
     } catch {
       // Silent poll failover
+    }
+  };
+
+  const scrollToMessage = (msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-emerald-400", "rounded-2xl");
+      setTimeout(() => {
+        el.classList.remove("ring-2", "ring-emerald-400", "rounded-2xl");
+      }, 2000);
+    }
+  };
+
+  const handleToggleReaction = async (messageId, emoji) => {
+    if (!group?.id) return;
+    try {
+      const res = await groupApi.toggleReaction(group.id, messageId, emoji);
+      if (res.success) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, reactions: res.data } : m
+          )
+        );
+      }
+    } catch {
+      // Silent reaction failover
+    } finally {
+      setActiveEmojiPicker(null);
+    }
+  };
+
+  const handleTogglePin = async (messageId) => {
+    if (!group?.id || !isHost) return;
+    try {
+      const res = await groupApi.togglePinMessage(group.id, messageId);
+      if (res.success) {
+        const isNowPinned = res.data.is_pinned;
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id === messageId) {
+              return { ...m, is_pinned: isNowPinned };
+            }
+            return isNowPinned ? { ...m, is_pinned: false } : m;
+          })
+        );
+      }
+    } catch (err) {
+      setActionError(err.message || "Gagal mengubah status sematan pesan");
     }
   };
 
@@ -316,10 +366,15 @@ export function GroupDetailModal({
 
     setSendingMessage(true);
     try {
-      const res = await groupApi.sendMessage(group.id, text);
+      const res = await groupApi.sendMessage(
+        group.id,
+        text,
+        replyingTo?.id || null
+      );
       if (res.success) {
         setMessages((prev) => [...prev, res.data]);
         setNewMessage("");
+        setReplyingTo(null);
       } else {
         throw new Error(res.message || "Gagal mengirim pesan");
       }
@@ -368,17 +423,17 @@ export function GroupDetailModal({
         <div className="flex items-start justify-between p-4 sm:p-6 border-b border-slate-100 bg-white">
           <div className="space-y-1.5 pr-3 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+              <Badge variant="neutral" className="text-xs font-medium">
                 {group.category}
-              </span>
+              </Badge>
               {group.format === "online" ? (
-                <Badge variant="purple">
+                <Badge variant="primary">
                   <Video className="w-3 h-3" />
                   Daring (Online)
                 </Badge>
               ) : (
                 <Badge variant="neutral">
-                  <MapPin className="w-3 h-3 text-emerald-600" />
+                  <MapPin className="w-3 h-3 text-emerald-700" />
                   Luring Kampus
                 </Badge>
               )}
@@ -396,7 +451,7 @@ export function GroupDetailModal({
             type="button"
             aria-label="Tutup dialog"
             onClick={onClose}
-            className="min-w-10 min-h-10 shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
           >
             <X className="w-5 h-5" />
           </button>
@@ -409,11 +464,11 @@ export function GroupDetailModal({
             onClick={() => setActiveTab("info")}
             className={`py-3 px-2 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 whitespace-nowrap ${
               activeTab === "info"
-                ? "border-blue-600 text-blue-700"
+                ? "border-emerald-700 text-emerald-800"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <ListOrdered className="w-3.5 h-3.5 shrink-0" />
+            <ListOrdered className={`w-3.5 h-3.5 shrink-0 ${activeTab === "info" ? "text-emerald-700" : "text-slate-400"}`} />
             <span className="truncate">Informasi & Agenda Sesi</span>
           </button>
 
@@ -422,14 +477,14 @@ export function GroupDetailModal({
             onClick={() => setActiveTab("chat")}
             className={`py-3 px-2 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 whitespace-nowrap ${
               activeTab === "chat"
-                ? "border-blue-600 text-blue-700"
+                ? "border-emerald-700 text-emerald-800"
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+            <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${activeTab === "chat" ? "text-emerald-700" : "text-slate-400"}`} />
             <span className="truncate">Ruang Diskusi</span>
             {hasAccessToPrivate && messages.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 text-blue-700 font-bold border border-blue-200 shrink-0">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-200 shrink-0">
                 {messages.length}
               </span>
             )}
@@ -479,10 +534,10 @@ export function GroupDetailModal({
             <>
               {/* Reschedule Form (Only visible to Host when activated) */}
               {isRescheduling && (
-                <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-3 text-xs">
+                <div className="p-4 rounded-xl bg-emerald-50/40 border border-emerald-200/80 space-y-3 text-xs shadow-2xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-amber-900 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-amber-700" />
+                    <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-emerald-700" />
                       Jadwalkan Ulang / Reschedule Sesi
                     </span>
                     <button
@@ -506,7 +561,7 @@ export function GroupDetailModal({
                         <button
                           type="button"
                           onClick={advanceOneWeek}
-                          className="text-[10px] text-blue-700 hover:underline font-semibold"
+                          className="text-[10px] text-emerald-700 hover:text-emerald-900 hover:underline font-semibold"
                           title="Majukan 7 hari ke pekan depan"
                         >
                           +7 Hari
@@ -516,7 +571,7 @@ export function GroupDetailModal({
                         type="date"
                         value={rescheduleDate}
                         onChange={(e) => setRescheduleDate(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
                       />
                     </div>
                     <div>
@@ -527,7 +582,7 @@ export function GroupDetailModal({
                         type="time"
                         value={rescheduleStart}
                         onChange={(e) => setRescheduleStart(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
                       />
                     </div>
                     <div>
@@ -538,7 +593,7 @@ export function GroupDetailModal({
                         type="time"
                         value={rescheduleEnd}
                         onChange={(e) => setRescheduleEnd(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
                       />
                     </div>
                   </div>
@@ -553,7 +608,7 @@ export function GroupDetailModal({
                         placeholder="cth. Lab Komputer FST Lt. 3 atau https://meet.google.com/..."
                         value={rescheduleLocation}
                         onChange={(e) => setRescheduleLocation(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
                       />
                     </div>
                     <div>
@@ -565,7 +620,7 @@ export function GroupDetailModal({
                         placeholder="cth. Bab 2: Stack & Queue atau Latihan Praktikum"
                         value={rescheduleNextTopic}
                         onChange={(e) => setRescheduleNextTopic(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
                       />
                     </div>
                   </div>
@@ -583,7 +638,6 @@ export function GroupDetailModal({
                       size="sm"
                       onClick={handleSaveReschedule}
                       isLoading={savingReschedule}
-                      className="bg-amber-600 hover:bg-amber-700 text-white"
                     >
                       Simpan Jadwal Baru
                     </Button>
@@ -593,47 +647,34 @@ export function GroupDetailModal({
 
               {/* Schedule & Location Box */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                      Jadwal Pertemuan
-                    </span>
-                    {isHost &&
-                      group.status !== "completed" &&
-                      group.status !== "cancelled" && (
-                        <button
-                          type="button"
-                          onClick={handleOpenReschedule}
-                          className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold underline underline-offset-2"
-                        >
-                          Reschedule
-                        </button>
-                      )}
-                  </div>
-                  <p className="font-semibold text-slate-900">{dateStr}</p>
-                  <p className="text-slate-600">{timeStr}</p>
+                <div className="space-y-1.5">
+                  <span className="text-slate-500 font-semibold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                    Jadwal Pertemuan
+                  </span>
+                  <p className="font-bold text-slate-900 text-sm">{dateStr}</p>
+                  <p className="text-slate-600 text-xs">{timeStr}</p>
 
                   {hasAccessToPrivate && (
                     <a
                       href={googleCalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 pt-1.5 text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                      className="inline-flex items-center gap-1.5 pt-1 text-emerald-800 hover:text-emerald-950 font-medium transition-colors"
                     >
-                      <Calendar className="w-3 h-3" />
+                      <Calendar className="w-3 h-3 text-emerald-700" />
                       Simpan ke Google Calendar
                       <ExternalLink className="w-2.5 h-2.5" />
                     </a>
                   )}
                 </div>
 
-                <div className="space-y-1">
-                  <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                <div className="space-y-1.5">
+                  <span className="text-slate-500 font-semibold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
                     {group.format === "online" ? (
-                      <Video className="w-3.5 h-3.5 text-indigo-600" />
+                      <Video className="w-3.5 h-3.5 text-emerald-700" />
                     ) : (
-                      <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                      <MapPin className="w-3.5 h-3.5 text-emerald-700" />
                     )}
                     {group.format === "online"
                       ? "Media Pertemuan"
@@ -650,17 +691,17 @@ export function GroupDetailModal({
                         }
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-blue-600 hover:underline font-medium break-all"
+                        className="inline-flex items-center gap-1 text-emerald-800 hover:text-emerald-950 hover:underline font-medium break-all pt-0.5"
                       >
-                        Buka Tautan Pertemuan <ExternalLink className="w-3 h-3" />
+                        Buka Tautan Pertemuan <ExternalLink className="w-3 h-3 shrink-0" />
                       </a>
                     ) : (
                       <div className="space-y-1">
-                        <p className="font-semibold text-emerald-800">
+                        <p className="font-semibold text-slate-900">
                           {group.location_or_link}
                         </p>
                         {group.building_details && (
-                          <p className="text-slate-700 text-[11px] bg-white p-2 rounded border border-slate-200">
+                          <p className="text-slate-700 text-[11px] bg-white p-2 rounded-lg border border-slate-200">
                             <span className="text-slate-500 font-medium">Gedung / Ruangan: </span>
                             {group.building_details}
                           </p>
@@ -668,11 +709,31 @@ export function GroupDetailModal({
                       </div>
                     )
                   ) : (
-                    <p className="text-slate-500 italic">
+                    <p className="text-slate-500 italic text-xs pt-0.5">
                       Tautan/lokasi akan terbuka otomatis setelah disetujui host
                     </p>
                   )}
                 </div>
+
+                {/* Host Reschedule Action Bar */}
+                {isHost &&
+                  group.status !== "completed" &&
+                  group.status !== "cancelled" && (
+                    <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        Perlu menyesuaikan jadwal atau tautan sesi ini?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleOpenReschedule}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50/60 shadow-2xs transition-colors"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                        Jadwalkan Ulang / Reschedule
+                      </button>
+                    </div>
+                  )}
               </div>
 
               {/* Offline Map Preview & Google Maps Navigation */}
@@ -691,7 +752,7 @@ export function GroupDetailModal({
                         href={`https://www.google.com/maps/search/?api=1&query=${group.latitude},${group.longitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                        className="inline-flex items-center gap-1 text-xs text-emerald-800 hover:text-emerald-950 font-medium transition-colors"
                       >
                         Buka di Google Maps
                         <ExternalLink className="w-3 h-3" />
@@ -725,7 +786,7 @@ export function GroupDetailModal({
               {group.agenda && group.agenda.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <ListOrdered className="w-4 h-4 text-blue-600" />
+                    <ListOrdered className="w-4 h-4 text-emerald-700" />
                     Silabus / Rencana Pembahasan ({group.agenda.length} Agenda)
                   </h3>
                   <div className="space-y-2">
@@ -734,7 +795,7 @@ export function GroupDetailModal({
                         key={idx}
                         className="p-3 rounded-lg bg-slate-50 border border-slate-200/90 flex items-start gap-3"
                       >
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-[11px] border border-blue-200 mt-0.5">
+                        <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center shrink-0 text-[11px] border border-emerald-200/80 mt-0.5">
                           {idx + 1}
                         </span>
                         <p className="text-xs text-slate-700 leading-relaxed">
@@ -779,18 +840,18 @@ export function GroupDetailModal({
                     group.host?.id &&
                     onOpenPublicProfile(group.host.id, group.host)
                   }
-                  className="flex items-start sm:items-center gap-3 text-left hover:opacity-85 transition-opacity rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 w-full min-w-0"
+                  className="flex items-start sm:items-center gap-3 text-left hover:opacity-85 transition-opacity rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 w-full min-w-0"
                   aria-label={`Lihat profil ${group.host?.full_name || "tutor"}`}
                 >
                   <UserAvatar user={group.host} size="md" className="shrink-0 mt-0.5 sm:mt-0" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-bold text-slate-900 hover:text-blue-600">
+                      <span className="text-sm font-bold text-slate-900 hover:text-emerald-800">
                         {group.host?.full_name}
                       </span>
                       {group.host?.role === "student" && (
-                        <Badge variant="info" className="text-[10px] py-0.5 max-w-full">
-                          <GraduationCap className="w-3 h-3 shrink-0" />
+                        <Badge variant="neutral" className="text-[10px] py-0.5 max-w-full">
+                          <GraduationCap className="w-3 h-3 shrink-0 text-emerald-700" />
                           <span className="truncate">{group.host?.campus_name || "Mahasiswa"}</span>
                         </Badge>
                       )}
@@ -805,22 +866,29 @@ export function GroupDetailModal({
 
               {/* Host Management Panel (Only visible to Host) */}
               {isHost && (
-                <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200 space-y-4">
+                <div className="p-4 rounded-xl bg-slate-50/90 border border-slate-200 space-y-3.5 shadow-2xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <h3 className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-2">
-                      <Users className="w-4 h-4 text-blue-600 shrink-0" />
-                      <span>Permohonan Masuk Peserta ({pendingMembers.length})</span>
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                        Permohonan Masuk Peserta
+                      </h3>
+                      {pendingMembers.length > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-200">
+                          {pendingMembers.length}
+                        </span>
+                      )}
+                    </div>
 
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-slate-600 whitespace-nowrap">
-                        Ubah Status Sesi:
+                      <span className="text-xs text-slate-600 whitespace-nowrap font-medium">
+                        Status Sesi:
                       </span>
                       <select
                         aria-label="Ubah status sesi belajar"
                         value={group.status}
                         onChange={(e) => handleGroupStatus(e.target.value)}
-                        className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-medium shadow-2xs flex-1 sm:flex-initial"
+                        className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-medium shadow-2xs flex-1 sm:flex-initial focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
                       >
                         <option value="open">Buka (Pendaftaran Aktif)</option>
                         <option value="ongoing">Sedang Berlangsung</option>
@@ -869,6 +937,7 @@ export function GroupDetailModal({
                                 handleMemberStatus(m.id, "rejected")
                               }
                               disabled={updatingStatus === m.id}
+                              className="text-rose-600 hover:bg-rose-50"
                             >
                               <XCircle className="w-3.5 h-3.5 text-rose-500" />
                               Tolak
@@ -915,7 +984,7 @@ export function GroupDetailModal({
                               m.user?.id &&
                               onOpenPublicProfile(m.user.id, m.user)
                             }
-                            className="text-xs font-medium text-slate-800 truncate hover:text-blue-600 transition-colors text-left block w-full"
+                            className="text-xs font-medium text-slate-800 truncate hover:text-emerald-800 transition-colors text-left block w-full"
                           >
                             {m.user?.full_name}
                           </button>
@@ -980,6 +1049,49 @@ export function GroupDetailModal({
                 </div>
               ) : (
                 <div className="flex flex-col flex-1 min-h-0">
+                  {/* Pinned Announcement Banner */}
+                  {messages.find((m) => m.is_pinned) && (() => {
+                    const pinnedMsg = messages.find((m) => m.is_pinned);
+                    return (
+                      <div className="mb-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/90 flex items-start justify-between gap-2 text-xs shadow-2xs">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <Pin className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 text-[10px] text-amber-900 font-semibold mb-0.5">
+                              <span>Pesan Disematkan Tutor</span>
+                              <span>•</span>
+                              <span className="font-normal text-amber-800">
+                                {pinnedMsg.sender?.full_name || "Tutor"}
+                              </span>
+                            </div>
+                            <p className="text-slate-800 text-[11px] line-clamp-2 leading-relaxed">
+                              <LinkifiedText text={pinnedMsg.message} />
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 self-center">
+                          <button
+                            type="button"
+                            onClick={() => scrollToMessage(pinnedMsg.id)}
+                            className="text-[10px] text-amber-800 hover:text-amber-950 font-semibold px-2 py-0.5 rounded hover:bg-amber-100 transition-colors"
+                          >
+                            Lihat
+                          </button>
+                          {isHost && (
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePin(pinnedMsg.id)}
+                              className="text-[10px] text-slate-500 hover:text-rose-600 px-1.5 py-0.5 rounded hover:bg-rose-50 transition-colors"
+                              title="Lepas Sematan"
+                            >
+                              Lepas
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Messages list */}
                   <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                     {loadingMessages ? (
@@ -1010,7 +1122,8 @@ export function GroupDetailModal({
                         return (
                           <div
                             key={msg.id}
-                            className={`flex flex-col ${
+                            id={`msg-${msg.id}`}
+                            className={`flex flex-col transition-all duration-300 p-1 rounded-2xl ${
                               isMe ? "items-end" : "items-start"
                             }`}
                           >
@@ -1024,30 +1137,158 @@ export function GroupDetailModal({
                                 </span>
                               )}
                               {isMsgHost && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] bg-blue-50 text-blue-700 border border-blue-200">
+                                <span className="px-1.5 py-0.2 rounded text-[9px] bg-amber-50 text-amber-800 border border-amber-200 font-medium">
                                   Tutor
                                 </span>
                               )}
                               <span>• {msgTime}</span>
+
+                              {/* Action controls */}
+                              <div className="inline-flex items-center gap-1 ml-1 opacity-70 hover:opacity-100">
+                                <button
+                                  type="button"
+                                  onClick={() => setReplyingTo(msg)}
+                                  className="p-0.5 text-slate-400 hover:text-emerald-700 rounded transition-colors"
+                                  title="Balas pesan"
+                                  aria-label="Balas pesan"
+                                >
+                                  <Reply className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActiveEmojiPicker(
+                                      activeEmojiPicker === msg.id ? null : msg.id
+                                    )
+                                  }
+                                  className="p-0.5 text-slate-400 hover:text-amber-600 rounded transition-colors"
+                                  title="Beri reaksi"
+                                  aria-label="Beri reaksi"
+                                >
+                                  <Smile className="w-3 h-3" />
+                                </button>
+                                {isHost && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePin(msg.id)}
+                                    className={`p-0.5 rounded transition-colors ${
+                                      msg.is_pinned
+                                        ? "text-amber-600"
+                                        : "text-slate-400 hover:text-amber-600"
+                                    }`}
+                                    title={
+                                      msg.is_pinned
+                                        ? "Lepas sematan"
+                                        : "Sematkan pesan penting"
+                                    }
+                                    aria-label="Sematkan pesan"
+                                  >
+                                    <Pin className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
+
+                            {/* Quick Emoji Reaction Selector */}
+                            {activeEmojiPicker === msg.id && (
+                              <div className="flex items-center gap-1.5 p-1 mb-1 bg-white border border-slate-200 rounded-full shadow-sm text-xs z-10 animate-in fade-in">
+                                {["👍", "❤️", "💡", "🔥", "🙌"].map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => handleToggleReaction(msg.id, emoji)}
+                                    className="hover:scale-125 px-1 py-0.5 rounded-full transition-transform"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
 
                             <div
                               className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${
                                 isMe
-                                  ? "bg-blue-600 text-white rounded-br-xs shadow-2xs"
+                                  ? "bg-emerald-700 text-white rounded-br-xs shadow-2xs"
                                   : "bg-white text-slate-800 rounded-bl-xs border border-slate-200 shadow-2xs"
                               }`}
                             >
+                              {/* Quoted Reply Block */}
+                              {msg.reply_to && (
+                                <div
+                                  onClick={() => scrollToMessage(msg.reply_to.id)}
+                                  className={`mb-2 p-1.5 rounded-lg border-l-2 text-[10px] cursor-pointer transition-opacity hover:opacity-85 ${
+                                    isMe
+                                      ? "bg-emerald-800/80 border-emerald-300 text-emerald-50"
+                                      : "bg-slate-100 border-emerald-600 text-slate-700"
+                                  }`}
+                                >
+                                  <div className="font-semibold truncate">
+                                    {msg.reply_to.sender?.full_name || "Peserta"}
+                                  </div>
+                                  <p className="truncate opacity-90">{msg.reply_to.message}</p>
+                                </div>
+                              )}
+
                               <p className="whitespace-pre-wrap break-words">
-                                {msg.message}
+                                <LinkifiedText text={msg.message} />
                               </p>
                             </div>
+
+                            {/* Reactions Pill Display */}
+                            {msg.reactions && msg.reactions.length > 0 && (
+                              <div
+                                className={`flex flex-wrap gap-1 mt-1 px-1 ${
+                                  isMe ? "justify-end" : "justify-start"
+                                }`}
+                              >
+                                {msg.reactions.map((r) => (
+                                  <button
+                                    key={r.emoji}
+                                    type="button"
+                                    onClick={() => handleToggleReaction(msg.id, r.emoji)}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border transition-colors ${
+                                      r.reacted
+                                        ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-2xs"
+                                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <span>{r.emoji}</span>
+                                    <span>{r.count}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })
                     )}
                     <div ref={chatBottomRef} />
                   </div>
+
+                  {/* Active Replying Banner */}
+                  {replyingTo && (
+                    <div className="px-3 py-1.5 bg-slate-100/90 border-t border-slate-200 flex items-center justify-between text-xs text-slate-700">
+                      <div className="flex items-center gap-2 truncate">
+                        <Reply className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                        <span className="truncate">
+                          Membalas{" "}
+                          <strong className="text-slate-900">
+                            {replyingTo.sender?.full_name || "Peserta"}
+                          </strong>
+                          : "{replyingTo.message.slice(0, 45)}
+                          {replyingTo.message.length > 45 ? "…" : ""}"
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setReplyingTo(null)}
+                        className="p-1 text-slate-400 hover:text-slate-600 rounded-full shrink-0"
+                        aria-label="Batal membalas"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Send box */}
                   <form
@@ -1059,7 +1300,7 @@ export function GroupDetailModal({
                       placeholder="Tulis pesan untuk koordinasi sesi..."
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      className="flex-1 px-3 py-2 text-xs rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                      className="flex-1 px-3 py-2 text-xs rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
                     />
                     <Button
                       type="submit"

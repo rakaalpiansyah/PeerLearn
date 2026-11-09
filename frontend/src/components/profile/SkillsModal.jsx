@@ -211,7 +211,7 @@ export function SkillsModal({ isOpen, onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center">
                 <BookOpen className="w-4 h-4" />
               </div>
               <div>
@@ -222,7 +222,7 @@ export function SkillsModal({ isOpen, onClose }) {
                   Kelola Minat & Keahlian Belajar
                 </h2>
                 <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                  <span className="font-medium text-blue-700">
+                  <span className="font-medium text-emerald-800">
                     Fakultas Sains & Teknologi • UIN SGD Bandung
                   </span>
                   <span>•</span>
@@ -234,7 +234,7 @@ export function SkillsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
@@ -272,11 +272,11 @@ export function SkillsModal({ isOpen, onClose }) {
               onClick={() => setStatusFilter("learning")}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                 statusFilter === "learning"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
+                  ? "bg-teal-700 text-white shadow-xs"
+                  : "bg-white text-teal-800 hover:bg-teal-50 border border-teal-200"
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
               Ingin Belajar ({learningCount})
             </button>
           </div>
@@ -295,7 +295,7 @@ export function SkillsModal({ isOpen, onClose }) {
               placeholder="Cari mata kuliah FST UIN SGD atau ketik mata kuliah/keahlian baru..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-9 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all"
+              className="w-full pl-10 pr-9 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 transition-all"
             />
             {searchQuery && (
               <button
@@ -312,9 +312,9 @@ export function SkillsModal({ isOpen, onClose }) {
 
           {/* Instant Quick-Add Action Strip (Triggered directly as user types) */}
           {searchQuery.trim().length > 0 && !hasExactMatchInCatalog && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/90 border border-slate-200">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
                 <div className="text-xs">
                   <span className="text-slate-600">Keahlian baru:</span>{" "}
                   <span className="font-semibold text-slate-900">
@@ -333,7 +333,7 @@ export function SkillsModal({ isOpen, onClose }) {
                     )
                   }
                   disabled={addingCustom}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center gap-1 shadow-xs disabled:opacity-50"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-700 text-white hover:bg-emerald-800 transition-colors flex items-center gap-1 shadow-xs disabled:opacity-50"
                 >
                   <Check className="w-3.5 h-3.5" />
                   + Kuasai (Tutor)
@@ -348,7 +348,7 @@ export function SkillsModal({ isOpen, onClose }) {
                     )
                   }
                   disabled={addingCustom}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-xs disabled:opacity-50"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-teal-700 text-white hover:bg-teal-800 transition-colors flex items-center gap-1 shadow-xs disabled:opacity-50"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   + Ingin Pelajari
@@ -395,7 +395,7 @@ export function SkillsModal({ isOpen, onClose }) {
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors shrink-0 flex items-center gap-1.5 ${
                     isSelected
-                      ? "bg-blue-600 text-white shadow-xs"
+                      ? "bg-slate-900 text-white shadow-xs"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
@@ -403,7 +403,7 @@ export function SkillsModal({ isOpen, onClose }) {
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                       isSelected
-                        ? "bg-blue-500 text-white"
+                        ? "bg-slate-800 text-slate-200"
                         : "bg-slate-200 text-slate-600"
                     }`}
                   >
@@ -425,7 +425,7 @@ export function SkillsModal({ isOpen, onClose }) {
               className="w-full px-4 py-2.5 flex items-center justify-between text-left text-xs font-semibold text-slate-800 hover:bg-slate-100/60 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
                 <span>Form Tambah Keahlian dengan Kategori Khusus</span>
               </div>
               {showAdvancedForm ? (
@@ -446,12 +446,12 @@ export function SkillsModal({ isOpen, onClose }) {
                     placeholder="Contoh: Pemrograman Sistem Tertanam, Analisis Runtun Waktu..."
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    className="flex-1 px-3 py-2 text-xs rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                    className="flex-1 px-3 py-2 text-xs rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                   />
                   <select
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
-                    className="px-2.5 py-2 text-xs rounded-lg bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                    className="px-2.5 py-2 text-xs rounded-lg bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                   >
                     <option value="Teknologi">Teknologi (Informatika)</option>
                     <option value="Teknik Elektro">Teknik Elektro</option>
@@ -476,7 +476,7 @@ export function SkillsModal({ isOpen, onClose }) {
                       handleQuickAdd(customName, "mastered", customCategory)
                     }
                     disabled={addingCustom || !customName.trim()}
-                    className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                    className="text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-50"
                   >
                     <Check className="w-3.5 h-3.5 text-emerald-600" />
                     Tambah ke Dikuasai
@@ -489,7 +489,7 @@ export function SkillsModal({ isOpen, onClose }) {
                       handleQuickAdd(customName, "learning", customCategory)
                     }
                     disabled={addingCustom || !customName.trim()}
-                    className="text-xs"
+                    className="text-xs bg-teal-700 hover:bg-teal-800 text-white"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Tambah ke Minat Belajar
@@ -537,7 +537,7 @@ export function SkillsModal({ isOpen, onClose }) {
                           status === "mastered"
                             ? "bg-emerald-50/80 border-emerald-300 shadow-2xs"
                             : status === "learning"
-                              ? "bg-blue-50/80 border-blue-300 shadow-2xs"
+                              ? "bg-teal-50/60 border-teal-300 shadow-2xs"
                               : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
                         }`}
                       >
@@ -556,8 +556,8 @@ export function SkillsModal({ isOpen, onClose }) {
                             onClick={() => toggleSkill(skill.id, "mastered")}
                             className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
                               status === "mastered"
-                                ? "bg-emerald-600 text-white shadow-xs"
-                                : "bg-slate-100 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                ? "bg-emerald-700 text-white shadow-xs"
+                                : "bg-slate-100 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50"
                             }`}
                             title="Tandai sebagai Dikuasai"
                           >
@@ -568,8 +568,8 @@ export function SkillsModal({ isOpen, onClose }) {
                             onClick={() => toggleSkill(skill.id, "learning")}
                             className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
                               status === "learning"
-                                ? "bg-blue-600 text-white shadow-xs"
-                                : "bg-slate-100 text-slate-600 hover:text-blue-700 hover:bg-blue-50"
+                                ? "bg-teal-700 text-white shadow-xs"
+                                : "bg-slate-100 text-slate-600 hover:text-teal-800 hover:bg-teal-50"
                             }`}
                             title="Tandai sebagai Ingin Dipelajari"
                           >

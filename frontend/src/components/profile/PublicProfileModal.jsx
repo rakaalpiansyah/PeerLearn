@@ -61,8 +61,17 @@ export function PublicProfileModal({
 
   if (!isOpen) return null;
 
-  const masteredSkills = profile?.skills?.filter((s) => s.is_mastered) || [];
-  const learningSkills = profile?.skills?.filter((s) => !s.is_mastered) || [];
+  const allSkills = (profile?.skills || [])
+    .map((s) => ({
+      id: s.skill?.id || s.skill_id || s.id,
+      name: s.skill?.name || s.name || s.title || "",
+      category: s.skill?.category || s.category || "",
+      isMastered: s.skill_type === "mastered" || s.is_mastered === true,
+    }))
+    .filter((s) => Boolean(s.name));
+
+  const masteredSkills = allSkills.filter((s) => s.isMastered);
+  const learningSkills = allSkills.filter((s) => !s.isMastered);
   const isSelf = currentUser && currentUser.id === userId;
 
   return (
@@ -79,7 +88,7 @@ export function PublicProfileModal({
           <button
             type="button"
             onClick={onClose}
-            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
@@ -88,7 +97,7 @@ export function PublicProfileModal({
 
         {loading && !profile && (
           <div className="py-12 flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
+            <RefreshCw className="w-6 h-6 text-emerald-700 animate-spin" />
             <p className="text-xs text-slate-500">Memuat data profil...</p>
           </div>
         )}
@@ -208,15 +217,25 @@ export function PublicProfileModal({
               <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Keahlian yang Dikuasai (Siap Bimbing Sebaya):</span>
+                {masteredSkills.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                    {masteredSkills.length}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {masteredSkills.length > 0 ? (
                   masteredSkills.map((s, idx) => (
                     <span
                       key={s.id || idx}
-                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200"
                     >
-                      {s.name}
+                      <span>{s.name}</span>
+                      {s.category && (
+                        <span className="text-[9px] text-emerald-700/80 bg-emerald-100/60 px-1 rounded">
+                          {s.category}
+                        </span>
+                      )}
                     </span>
                   ))
                 ) : (
@@ -229,18 +248,28 @@ export function PublicProfileModal({
 
             {/* Skills: Learning / Interested */}
             <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-800">
-                <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-teal-800">
+                <BookOpen className="w-3.5 h-3.5 text-teal-700" />
                 <span>Topik yang Sedang Dipelajari:</span>
+                {learningSkills.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-teal-100 text-teal-800 font-bold">
+                    {learningSkills.length}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {learningSkills.length > 0 ? (
                   learningSkills.map((s, idx) => (
                     <span
                       key={s.id || idx}
-                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-teal-50 text-teal-800 border border-teal-200"
                     >
-                      {s.name}
+                      <span>{s.name}</span>
+                      {s.category && (
+                        <span className="text-[9px] text-teal-700/80 bg-teal-100/60 px-1 rounded">
+                          {s.category}
+                        </span>
+                      )}
                     </span>
                   ))
                 ) : (

@@ -44,6 +44,10 @@ export function UserAvatar({ user, size = "md", className = "" }) {
         <img
           src={avatarUrl}
           alt={fullName ? `Foto profil ${fullName}` : "Foto profil pengguna"}
+          loading="lazy"
+          decoding="async"
+          width="48"
+          height="48"
           className="w-full h-full object-cover"
           onError={() => setImgFailed(true)}
         />

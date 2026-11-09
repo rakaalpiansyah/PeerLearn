@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "name": "PeerLearn",
+  "description": "Platform Kolaborasi Belajar Komunitas Mahasiswa",
+  "endpoints": {
+    "api": "http://localhost:8080/api/v1",
+    "groups": "http://localhost:8080/api/v1/groups"
+  }
+}

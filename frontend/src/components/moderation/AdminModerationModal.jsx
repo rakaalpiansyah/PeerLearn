@@ -31,6 +31,8 @@ export function AdminModerationModal({ isOpen, onClose, onModerated }) {
       const res = await engagementApi.listModeration();
       if (res.data) {
         setItems(res.data);
+      } else {
+        setItems([]);
       }
     } catch (err) {
       setError(err.message || "Gagal memuat daftar laporan moderasi.");
@@ -173,7 +175,7 @@ export function AdminModerationModal({ isOpen, onClose, onModerated }) {
 
         {loading && userList.length === 0 ? (
           <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
-            <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+            <RefreshCw className="w-6 h-6 animate-spin text-emerald-700" />
             <p className="text-xs">Memuat laporan moderasi...</p>
           </div>
         ) : userList.length === 0 ? (
@@ -298,7 +300,7 @@ export function AdminModerationModal({ isOpen, onClose, onModerated }) {
                         onChange={(e) =>
                           setNotes({ ...notes, [entry.userId]: e.target.value })
                         }
-                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                        className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                       />
                       <div className="flex items-center justify-end gap-2">
                         <Button

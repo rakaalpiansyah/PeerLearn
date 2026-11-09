@@ -148,8 +148,7 @@ export function GroupCard({ group, onClick, onViewProfile }) {
               onViewProfile(group.host.id, group.host);
             }
           }}
-          className="relative z-10 flex items-center gap-2.5 min-w-0 text-left hover:opacity-85 transition-opacity rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-          aria-label={`Lihat profil ${group.host?.full_name || "penyelenggara"}`}
+          className="relative z-10 flex items-center gap-2.5 min-w-0 text-left hover:opacity-85 transition-opacity rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
         >
           <UserAvatar user={group.host} size="sm" />
           <div className="truncate text-left">

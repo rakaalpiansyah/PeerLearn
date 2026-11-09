@@ -3,12 +3,12 @@ import {
   X,
   GraduationCap,
   Users,
-  ShieldCheck,
   AlertCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
-import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
 import { useAuth } from "../../context/AuthContext";
 import { useFormValidation } from "../../hooks/useFormValidation";
@@ -17,6 +17,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [campusName, setCampusName] = useState("");
   const [gender, setGender] = useState("");
@@ -30,15 +31,13 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
   useEffect(() => {
     setMode(initialMode);
     setError(null);
+    setShowPassword(false);
   }, [initialMode, isOpen]);
 
   useEffect(() => {
     clearErrors();
+    setShowPassword(false);
   }, [mode, isOpen, clearErrors]);
-
-  const isCampusEmail =
-    email.toLowerCase().endsWith(".ac.id") ||
-    email.toLowerCase().endsWith(".edu");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,13 +86,13 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
             <p className="text-xs text-slate-500 mt-0.5">
               {mode === "login"
                 ? "Akses grup belajar dan profil Anda"
-                : "Mulai kolaborasi belajar gratis tanpa biaya"}
+                : "Bergabung bersama rekan mahasiswa dan tutor kampus"}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
@@ -110,7 +109,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
             }}
             className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
               mode === "login"
-                ? "bg-white text-blue-700 shadow-xs border border-slate-200/80 font-bold"
+                ? "bg-white text-emerald-800 shadow-xs border border-slate-200/80 font-bold"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -124,7 +123,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
             }}
             className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
               mode === "register"
-                ? "bg-white text-blue-700 shadow-xs border border-slate-200/80 font-bold"
+                ? "bg-white text-emerald-800 shadow-xs border border-slate-200/80 font-bold"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -161,11 +160,11 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
                     onClick={() => setRole("student")}
                     className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-medium transition-all text-left ${
                       role === "student"
-                        ? "bg-blue-50 border-blue-500 text-blue-900 shadow-2xs"
+                        ? "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-2xs"
                         : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
                     }`}
                   >
-                    <GraduationCap className="w-4 h-4 text-blue-600 shrink-0" />
+                    <GraduationCap className="w-4 h-4 text-emerald-700 shrink-0" />
                     <div>
                       <p className="font-semibold text-slate-900">Mahasiswa</p>
                       <p className="text-[10px] text-slate-500">
@@ -179,11 +178,11 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
                     onClick={() => setRole("public")}
                     className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-medium transition-all text-left ${
                       role === "public"
-                        ? "bg-blue-50 border-blue-500 text-blue-900 shadow-2xs"
+                        ? "bg-emerald-50 border-emerald-400 text-emerald-950 shadow-2xs"
                         : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
                     }`}
                   >
-                    <Users className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <Users className="w-4 h-4 text-emerald-700 shrink-0" />
                     <div>
                       <p className="font-semibold text-slate-900">Masyarakat</p>
                       <p className="text-[10px] text-slate-500">
@@ -217,7 +216,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
                   name="gender"
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                 >
                   <option value="">Pilih jenis kelamin (opsional)</option>
                   <option value="male">Laki-laki</option>
@@ -253,28 +252,18 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
             </>
           )}
 
-          <div className="space-y-1">
-            <Input
-              label="Alamat Email"
-              id="email"
-              name="email"
-              error={errors.email}
-              type="email"
-              autoComplete="email"
-              placeholder="nama@email.com atau @kampus.ac.id"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            {isCampusEmail && (
-              <div className="pt-1">
-                <Badge variant="success" className="text-[10px] py-0.5">
-                  <ShieldCheck className="w-3 h-3" />
-                  Domain Kampus Terdeteksi • Badge Mahasiswa Terverifikasi
-                </Badge>
-              </div>
-            )}
-          </div>
+          <Input
+            label="Alamat Email"
+            id="email"
+            name="email"
+            error={errors.email}
+            type="email"
+            autoComplete="email"
+            placeholder="nama@email.com atau @kampus.ac.id"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
           <Input
             label="Kata Sandi"
@@ -285,16 +274,35 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
             helperText={
               mode === "register" ? "Gunakan minimal 6 karakter." : undefined
             }
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete={
               mode === "login" ? "current-password" : "new-password"
             }
             placeholder={
-              mode === "register" ? "Buat kata sandi" : "Masukkan kata sandi"
+              mode === "register" ? "Buat kata sandi akun" : "Masukkan kata sandi"
             }
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            rightElement={
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded-lg"
+                aria-label={
+                  showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                }
+                title={
+                  showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                }
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4 text-slate-500" />
+                ) : (
+                  <Eye className="w-4 h-4 text-slate-500" />
+                )}
+              </button>
+            }
           />
 
           <Button
@@ -308,8 +316,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
         </form>
 
         <div className="pt-2 text-center text-xs text-slate-500">
-          Dengan melanjutkan, Anda setuju pada tata tertib kolaborasi belajar
-          bebas biaya PeerLearn.
+          Dengan melanjutkan, Anda menyetujui pedoman komunitas dan kolaborasi belajar PeerLearn.
         </div>
       </div>
     </Modal>

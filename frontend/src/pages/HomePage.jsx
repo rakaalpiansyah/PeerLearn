@@ -301,7 +301,7 @@ export function HomePage({
                   {masteredSkills.map((s) => (
                     <span
                       key={s.skill_id}
-                      className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-600 text-white shadow-2xs"
+                      className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-700 text-white shadow-2xs"
                     >
                       {s.skill?.name || "Keahlian"}
                     </span>
@@ -382,7 +382,7 @@ export function HomePage({
                   variant="primary"
                   size="lg"
                   onClick={() => onOpenAuth("register")}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs px-6 py-3 font-semibold text-sm sm:text-base"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs px-6 py-3 font-semibold text-sm sm:text-base"
                 >
                   Mulai Belajar Bersama
                   <ArrowRight className="w-4 h-4" />
@@ -439,7 +439,7 @@ export function HomePage({
                       Algoritma & Struktur Data
                     </h2>
                     <div className="flex items-center gap-2.5 mt-2.5">
-                      <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-emerald-700 text-white font-bold text-xs flex items-center justify-center">
                         DP
                       </div>
                       <div>
@@ -526,7 +526,7 @@ export function HomePage({
                   onClick={() => setCatalogView("all")}
                   className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     catalogView === "all"
-                      ? "bg-emerald-600 text-white shadow-2xs"
+                      ? "bg-emerald-700 text-white shadow-2xs"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
@@ -535,14 +535,13 @@ export function HomePage({
                 </button>
                 <button
                   type="button"
-                  aria-label="Direkomendasikan Untuk Anda"
                   onClick={() => {
                     setCatalogView("recommendations");
                     fetchRecommendations();
                   }}
                   className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     catalogView === "recommendations"
-                      ? "bg-emerald-600 text-white shadow-2xs"
+                      ? "bg-emerald-700 text-white shadow-2xs"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
@@ -621,7 +620,7 @@ export function HomePage({
                   onClick={() => setCategory(cat)}
                   className={`min-h-[34px] px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     category === cat
-                      ? "bg-emerald-600 text-white shadow-2xs"
+                      ? "bg-emerald-700 text-white shadow-2xs"
                       : "bg-slate-50 text-slate-700 border border-slate-200/90 hover:border-emerald-300 hover:bg-emerald-50/40"
                   }`}
                 >
@@ -719,7 +718,7 @@ export function HomePage({
                   variant="primary"
                   size="sm"
                   onClick={onOpenSkills}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white"
                 >
                   <BookOpen className="w-4 h-4" />
                   Atur Materi Belajar
@@ -748,7 +747,7 @@ export function HomePage({
                   variant="primary"
                   size="sm"
                   onClick={onOpenCreateGroup}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white"
                 >
                   <PlusCircle className="w-4 h-4" />
                   Buka Sesi Belajar Topik Ini

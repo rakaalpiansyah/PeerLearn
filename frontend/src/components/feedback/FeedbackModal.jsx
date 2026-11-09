@@ -56,7 +56,7 @@ export function FeedbackModal({
             type="button"
             aria-label="Tutup dialog"
             onClick={onClose}
-            className="min-w-10 min-h-10 shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
           >
             <X className="w-5 h-5" />
           </button>
@@ -82,7 +82,7 @@ export function FeedbackModal({
                   aria-label={`${star} dari 5 bintang`}
                   aria-pressed={rating === star}
                   onClick={() => setRating(star)}
-                  className="min-w-10 min-h-10 inline-flex items-center justify-center p-1 text-slate-300 hover:text-amber-500 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                  className="min-w-10 min-h-10 inline-flex items-center justify-center p-1 text-slate-300 hover:text-amber-500 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
                 >
                   <Star
                     className={`w-7 h-7 ${
@@ -116,7 +116,7 @@ export function FeedbackModal({
               placeholder="Ceritakan pengalaman belajar bersama rekan tutor ini..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 placeholder:text-slate-400"
+              className="w-full px-3 py-2 text-sm rounded-lg bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 placeholder:text-slate-400"
             />
           </div>
 

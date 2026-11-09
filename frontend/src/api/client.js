@@ -60,8 +60,15 @@ export const groupApi = {
   getMembers: (id) => apiClient.get(`/groups/${id}/members`),
   getFeedbacks: (id) => apiClient.get(`/groups/${id}/feedbacks`),
   getMessages: (groupId) => apiClient.get(`/groups/${groupId}/messages`),
-  sendMessage: (groupId, message) =>
-    apiClient.post(`/groups/${groupId}/messages`, { message }),
+  sendMessage: (groupId, message, replyToMessageId = null) =>
+    apiClient.post(`/groups/${groupId}/messages`, {
+      message,
+      ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+    }),
+  toggleReaction: (groupId, messageId, emoji) =>
+    apiClient.post(`/groups/${groupId}/messages/${messageId}/reactions`, { emoji }),
+  togglePinMessage: (groupId, messageId) =>
+    apiClient.post(`/groups/${groupId}/messages/${messageId}/pin`),
   resolveMapLink: (url) => apiClient.post("/groups/resolve-map-link", { url }),
 };
 

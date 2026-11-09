@@ -9,6 +9,7 @@ export const Input = forwardRef(function Input(
     helperText,
     required = false,
     className = "",
+    rightElement,
     "aria-describedby": describedBy,
     "aria-invalid": ariaInvalid,
     ...props
@@ -40,7 +41,7 @@ export const Input = forwardRef(function Input(
         </label>
       )}
 
-      <div className="relative">
+      <div className="relative flex items-center">
         <input
           ref={ref}
           id={inputId}
@@ -49,12 +50,19 @@ export const Input = forwardRef(function Input(
           aria-invalid={error ? true : ariaInvalid}
           aria-describedby={description}
           className={`w-full min-h-[42px] px-3.5 py-2 text-base sm:text-sm rounded-xl bg-white text-slate-900 border transition-all duration-150 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-white shadow-2xs ${
+            rightElement ? "pr-11" : ""
+          } ${
             error
               ? "border-rose-400 focus:ring-rose-400/30"
-              : "border-slate-300 focus:border-blue-600 focus:ring-blue-600/20"
+              : "border-slate-300 focus:border-emerald-700 focus:ring-emerald-600/20"
           } ${className}`}
           {...props}
         />
+        {rightElement && (
+          <div className="absolute right-2.5 flex items-center">
+            {rightElement}
+          </div>
+        )}
       </div>
 
       {helperText && (

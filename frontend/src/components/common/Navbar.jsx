@@ -32,7 +32,7 @@ export function Navbar({
         <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 h-16 flex items-center justify-between gap-3">
           {/* Brand */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-xs shrink-0">
               <GraduationCap className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -83,7 +83,7 @@ export function Navbar({
                     variant="primary"
                     size="sm"
                     onClick={onOpenCreateGroup}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs"
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
                     Buka Sesi
@@ -180,7 +180,7 @@ export function Navbar({
                   variant="primary"
                   size="sm"
                   onClick={() => onOpenAuth("register")}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   Daftar

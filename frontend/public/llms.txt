@@ -1,0 +1,14 @@
+# PeerLearn — Platform Kolaborasi Belajar Komunitas Mahasiswa
+
+> Platform kolaborasi belajar mahasiswa lintas kampus untuk diskusi akademik, bimbingan sebaya bebas biaya, dan portofolio resmi SKPI.
+
+## Fitur Utama
+
+- [Katalog Sesi Belajar](http://localhost:5173/#katalog-sesi): Temukan kelompok belajar sesuai mata kuliah dan topik.
+- [Pendaftaran Akun Komunitas](http://localhost:5173/): Bergabung dengan komunitas mahasiswa FST UIN SGD Bandung.
+- [Rekomendasi Sesi Pintar](http://localhost:5173/api/v1/groups/recommendations): Rekomendasi kelompok belajar berbasis minat dan keahlian mahasiswa.
+
+## Dokumentasi & Kebijakan
+
+- [Panduan SKPI](http://localhost:5173/#skpi): Pedoman akumulasi poin bimbingan untuk Surat Keterangan Pendamping Ijazah.
+- [Etika Komunitas](http://localhost:5173/#ethics): Pedoman integritas akademik dan norma belajar kelompok.

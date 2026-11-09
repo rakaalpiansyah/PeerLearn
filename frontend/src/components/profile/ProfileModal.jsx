@@ -98,7 +98,7 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
       <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl bg-white border border-slate-200 p-6 shadow-2xl space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-blue-600" />
+            <User className="w-5 h-5 text-emerald-700" />
             <h2
               id="profile-modal-title"
               className="text-base font-bold text-slate-900 tracking-tight"
@@ -109,7 +109,7 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
           <button
             type="button"
             onClick={onClose}
-            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
@@ -232,7 +232,7 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
               name="gender"
               value={gender}
               onChange={(e) => setGender(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600"
+              className="w-full px-3 py-2 text-sm rounded-lg bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
             >
               <option value="">Tidak Disebutkan</option>
               <option value="male">Laki-laki</option>
@@ -277,7 +277,7 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
               id="bio"
               rows={3}
               placeholder="Ceritakan latar belakang akademik atau topik yang Anda minati..."
-              className="w-full px-3 py-2 text-sm rounded-lg bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 placeholder:text-slate-400"
+              className="w-full px-3 py-2 text-sm rounded-lg bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 placeholder:text-slate-400"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
             />

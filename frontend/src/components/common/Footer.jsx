@@ -7,7 +7,7 @@ export function Footer({ onOpenGuide }) {
       <div className="w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 space-y-5">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-5 pb-5 border-b border-slate-100 text-center sm:text-left">
           <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center shadow-xs shrink-0">
               <GraduationCap className="w-4 h-4" />
             </div>
             <div>
@@ -59,7 +59,7 @@ export function Footer({ onOpenGuide }) {
           <p className="font-medium text-slate-600">
             © 2026 PeerLearn — Fakultas Sains & Teknologi
           </p>
-          <p className="text-slate-400">
+          <p className="text-slate-600 font-medium">
             UIN Sunan Gunung Djati Bandung
           </p>
         </div>

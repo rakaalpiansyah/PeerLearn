@@ -80,7 +80,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
@@ -142,7 +142,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                   Institusi Perguruan Tinggi
                 </span>
                 <p className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600 print:text-slate-700 shrink-0" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 print:text-slate-700 shrink-0" />
                   {user.campus_name || "Mahasiswa Terverifikasi"}
                 </p>
               </div>
@@ -170,7 +170,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
             {/* Mastered Skills List */}
             <div className="space-y-2">
               <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5 text-blue-600 print:text-slate-700" />
+                <BookOpen className="w-3.5 h-3.5 text-emerald-700 print:text-slate-700" />
                 Bidang / Mata Kuliah yang Dikuasai & Dibimbing:
               </span>
 

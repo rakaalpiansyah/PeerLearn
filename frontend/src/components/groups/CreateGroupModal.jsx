@@ -299,7 +299,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
           <button
             type="button"
             onClick={onClose}
-            className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
@@ -344,7 +344,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                 id="group_category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full min-h-[42px] px-3.5 py-2 text-sm rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 shadow-2xs"
+                className="w-full min-h-[42px] px-3.5 py-2 text-sm rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 shadow-2xs"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -364,11 +364,11 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                   onClick={() => setFormat("online")}
                   className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                     format === "online"
-                      ? "bg-indigo-50 border-indigo-300 text-indigo-700 shadow-2xs"
+                      ? "bg-emerald-50 border-emerald-400 text-emerald-800 shadow-2xs"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  <Video className="w-3.5 h-3.5" />
+                  <Video className={`w-3.5 h-3.5 ${format === "online" ? "text-emerald-700" : "text-slate-500"}`} />
                   Daring
                 </button>
                 <button
@@ -376,11 +376,11 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                   onClick={() => setFormat("offline")}
                   className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                     format === "offline"
-                      ? "bg-emerald-50 border-emerald-300 text-emerald-700 shadow-2xs"
+                      ? "bg-emerald-50 border-emerald-400 text-emerald-800 shadow-2xs"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  <MapPin className="w-3.5 h-3.5" />
+                  <MapPin className={`w-3.5 h-3.5 ${format === "offline" ? "text-emerald-700" : "text-slate-500"}`} />
                   Luring
                 </button>
               </div>
@@ -418,7 +418,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                   href="https://maps.google.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+                  className="inline-flex items-center gap-1 text-[11px] text-emerald-800 hover:text-emerald-950 font-semibold transition-colors"
                 >
                   Buka Google Maps <ExternalLink className="w-2.5 h-2.5" />
                 </a>
@@ -428,7 +428,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
               <div className="space-y-2 p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
                 <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <LinkIcon className="w-3.5 h-3.5 text-blue-600" />
+                    <LinkIcon className="w-3.5 h-3.5 text-emerald-700" />
                     Tempel Link Google Maps / Shareloc / Titik Koordinat
                   </span>
                   <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -455,7 +455,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                         handleResolveMapLink(pasted.trim());
                       }
                     }}
-                    className="flex-1 min-h-[38px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
+                    className="flex-1 min-h-[38px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                   />
                   <Button
                     type="button"
@@ -502,7 +502,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                   <select
                     id="campus_preset"
                     onChange={handlePresetChange}
-                    className="w-full min-h-[38px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
+                    className="w-full min-h-[38px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                   >
                     {CAMPUS_PRESETS.map((p, idx) => (
                       <option key={idx} value={p.name}>
@@ -519,7 +519,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     <button
                       type="button"
                       onClick={() => applyQuickPreset(CAMPUS_PRESETS[1])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/60 text-[10px] font-semibold text-slate-700 transition-colors"
+                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
                       title="UIN SGD Gedung FST & Lab"
                     >
                       🏛️ FST UIN SGD
@@ -527,7 +527,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     <button
                       type="button"
                       onClick={() => applyQuickPreset(CAMPUS_PRESETS[2])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/60 text-[10px] font-semibold text-slate-700 transition-colors"
+                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
                       title="UIN SGD Laboratorium Terpadu MIPA FST"
                     >
                       🔬 Lab MIPA FST
@@ -535,7 +535,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     <button
                       type="button"
                       onClick={() => applyQuickPreset(CAMPUS_PRESETS[3])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/60 text-[10px] font-semibold text-slate-700 transition-colors"
+                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
                       title="UIN SGD Perpustakaan Pusat Kampus 1"
                     >
                       📚 Perpus UIN SGD
@@ -543,7 +543,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     <button
                       type="button"
                       onClick={() => applyQuickPreset(CAMPUS_PRESETS[4])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/60 text-[10px] font-semibold text-slate-700 transition-colors"
+                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
                       title="UIN SGD Gedung Kuliah Bersama (GKB)"
                     >
                       🏢 GKB UIN SGD
@@ -551,7 +551,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     <button
                       type="button"
                       onClick={() => applyQuickPreset(CAMPUS_PRESETS[5])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/60 text-[10px] font-semibold text-slate-700 transition-colors"
+                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
                       title="UIN SGD Kampus 2 Soekarno-Hatta"
                     >
                       📍 Kampus 2 Soetta
@@ -608,14 +608,14 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                   <div className="space-y-2 pt-2 border-t border-slate-200">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                        <Compass className="w-3.5 h-3.5 text-blue-600" />
+                        <Compass className="w-3.5 h-3.5 text-emerald-700" />
                         Pratinjau Peta Titik Kumpul
                       </span>
                       <a
                         href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 font-bold inline-flex items-center gap-1 text-[11px]"
+                        className="text-emerald-800 hover:text-emerald-950 font-bold inline-flex items-center gap-1 text-[11px]"
                       >
                         Uji Buka di Google Maps{" "}
                         <ExternalLink className="w-2.5 h-2.5" />
@@ -644,8 +644,8 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
           {/* Structured Agenda & Syllabus */}
           <div className="space-y-2.5 p-4 sm:p-5 rounded-2xl bg-slate-50/90 border border-slate-200">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-blue-800 flex items-center gap-1.5">
-                <ListOrdered className="w-4 h-4 text-blue-600" />
+              <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <ListOrdered className="w-4 h-4 text-emerald-700" />
                 Silabus / Agenda Pembahasan Sesi
               </label>
               <span className="text-[11px] font-semibold text-slate-500">
@@ -664,7 +664,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                   key={idx}
                   className="flex items-center gap-2.5 bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-800 shadow-2xs"
                 >
-                  <span className="w-5 h-5 rounded-full bg-blue-50 text-blue-700 font-bold flex items-center justify-center shrink-0 text-[11px] border border-blue-200">
+                  <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center shrink-0 text-[11px] border border-emerald-200/80">
                     {idx + 1}
                   </span>
                   <span className="flex-1 leading-relaxed font-medium">{item}</span>
@@ -692,7 +692,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     handleAddAgenda();
                   }
                 }}
-                className="flex-1 min-h-[38px] px-3.5 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 shadow-2xs"
+                className="flex-1 min-h-[38px] px-3.5 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 shadow-2xs"
               />
               <Button
                 type="button"
@@ -721,7 +721,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
               id="prerequisites"
               rows={2}
               placeholder="cth. Bawa laptop pribadi dengan baterai penuh, install Node.js v20+, baca modul bab 4..."
-              className="w-full px-3.5 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 placeholder:text-slate-400 shadow-2xs"
+              className="w-full px-3.5 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 placeholder:text-slate-400 shadow-2xs"
               value={prerequisites}
               onChange={(e) => setPrerequisites(e.target.value)}
             />
@@ -782,7 +782,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
               id="group_description"
               rows={2}
               placeholder="Ceritakan gambaran umum sesi belajar ini..."
-              className="w-full px-3.5 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 placeholder:text-slate-400 shadow-2xs"
+              className="w-full px-3.5 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 placeholder:text-slate-400 shadow-2xs"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -804,7 +804,6 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
               size="sm"
               type="submit"
               isLoading={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
             >
               <Check className="w-4 h-4" />
               Publikasikan Sesi Belajar

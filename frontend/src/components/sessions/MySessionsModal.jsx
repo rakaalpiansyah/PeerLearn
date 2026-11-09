@@ -64,7 +64,7 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
             type="button"
             aria-label="Tutup dialog"
             onClick={onClose}
-            className="min-w-10 min-h-10 shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
           >
             <X className="w-5 h-5" />
           </button>
@@ -77,7 +77,7 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
             onClick={() => setTab("joined")}
             className={`py-2 font-semibold rounded-lg transition-all ${
               tab === "joined"
-                ? "bg-white text-blue-700 shadow-xs border border-slate-200/80 font-bold"
+                ? "bg-white text-emerald-800 shadow-xs border border-slate-200/80 font-bold"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -88,7 +88,7 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
             onClick={() => setTab("hosted")}
             className={`py-2 font-semibold rounded-lg transition-all ${
               tab === "hosted"
-                ? "bg-white text-blue-700 shadow-xs border border-slate-200/80 font-bold"
+                ? "bg-white text-emerald-800 shadow-xs border border-slate-200/80 font-bold"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -140,13 +140,13 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
             : items.map((g) => (
                 <article
                   key={g.id}
-                  className="relative p-4 rounded-xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+                  className="relative p-4 rounded-xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      <Badge variant="neutral" className="text-[10px]">
                         {g.category}
-                      </span>
+                      </Badge>
                       <span className="text-xs text-slate-500">
                         {new Date(g.start_time).toLocaleDateString("id-ID", {
                           day: "numeric",
@@ -154,7 +154,7 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
                         })}
                       </span>
                     </div>
-                    <h3 className="text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors">
+                    <h3 className="text-sm font-bold text-slate-900 hover:text-emerald-800 transition-colors">
                       <button
                         type="button"
                         aria-label={`Lihat sesi ${g.title}`}
@@ -162,7 +162,7 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
                           onSelectGroup(g);
                           onClose();
                         }}
-                        className="text-left cursor-pointer after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-blue-600"
+                        className="text-left cursor-pointer after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-emerald-700"
                       >
                         {g.title}
                       </button>

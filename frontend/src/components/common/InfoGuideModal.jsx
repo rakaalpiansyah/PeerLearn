@@ -37,7 +37,7 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
               <GraduationCap className="w-5 h-5" />
             </div>
             <div>
@@ -55,7 +55,7 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
           <button
             type="button"
             onClick={onClose}
-            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="min-w-10 min-h-10 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
             aria-label="Tutup dialog"
           >
             <X className="w-5 h-5" />
@@ -74,11 +74,11 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
                   isActive
-                    ? "bg-white text-blue-700 shadow-xs border border-slate-200"
+                    ? "bg-white text-emerald-800 shadow-xs border border-slate-200 font-bold"
                     : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-emerald-700" : "text-slate-400"}`} />
                 <span className="truncate">{tab.label}</span>
               </button>
             );
@@ -89,11 +89,11 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
         <div className="space-y-4 text-xs text-slate-700 leading-relaxed min-h-[220px]">
           {activeTab === "ethics" && (
             <div className="space-y-3.5">
-              <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 space-y-1">
-                <p className="font-bold text-blue-900 text-sm">
+              <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
+                <p className="font-bold text-emerald-950 text-sm">
                   Komitmen Integritas Belajar Sebaya
                 </p>
-                <p className="text-blue-800">
+                <p className="text-emerald-900">
                   PeerLearn dirancang murni sebagai wadah saling mengasah pemahaman konsep perkuliahan dan responsi praktikum laboratorium.
                 </p>
               </div>
@@ -253,15 +253,15 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                   </p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200 flex items-center justify-between gap-3">
+                <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                    <Mail className="w-4 h-4 text-emerald-700 shrink-0" />
                     <div>
-                      <p className="font-semibold text-blue-900 text-xs">Sekretariat Laboratorium FST</p>
-                      <p className="text-blue-700 text-[11px]">Gedung Fakultas Sains & Teknologi Lt. 2</p>
+                      <p className="font-semibold text-emerald-950 text-xs">Sekretariat Laboratorium FST</p>
+                      <p className="text-emerald-800 text-[11px]">Gedung Fakultas Sains & Teknologi Lt. 2</p>
                     </div>
                   </div>
-                  <span className="text-[11px] font-semibold text-blue-800 bg-white px-2 py-0.5 rounded border border-blue-200">
+                  <span className="text-[11px] font-semibold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
                     fst@uinsgd.ac.id
                   </span>
                 </div>
