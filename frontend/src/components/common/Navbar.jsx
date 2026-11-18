@@ -9,6 +9,7 @@ import {
   Calendar,
   Award,
   ShieldAlert,
+  MessageSquareText,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { UserAvatar } from "../ui/UserAvatar";
@@ -23,6 +24,7 @@ export function Navbar({
   onOpenMySessions,
   onOpenTutorSummary,
   onOpenModeration,
+  onOpenSupport,
 }) {
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -119,6 +121,18 @@ export function Navbar({
                     SKPI
                   </Button>
 
+                  {user?.role !== "admin" && onOpenSupport && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onOpenSupport}
+                      className="border-slate-200 text-slate-700 hover:bg-slate-50"
+                    >
+                      <MessageSquareText className="w-3.5 h-3.5 text-emerald-600" />
+                      Bantuan Admin
+                    </Button>
+                  )}
+
                   {user?.role === "admin" && (
                     <Button
                       variant="outline"
@@ -195,7 +209,7 @@ export function Navbar({
         <nav
           aria-label="Navigasi seluler"
           className={`fixed bottom-0 inset-x-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_-4px_rgba(15,23,42,0.08)] px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] grid ${
-            user?.role === "admin" ? "grid-cols-5" : "grid-cols-4"
+            user?.role === "admin" || onOpenSupport ? "grid-cols-5" : "grid-cols-4"
           } gap-1`}
         >
           <Button
@@ -246,6 +260,20 @@ export function Navbar({
             />
             <span className="truncate">SKPI</span>
           </Button>
+          {user?.role !== "admin" && onOpenSupport && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onOpenSupport}
+              className="min-h-[48px] px-1 text-slate-700 hover:bg-slate-100 flex-col gap-1 text-[11px] font-semibold rounded-xl"
+            >
+              <MessageSquareText
+                aria-hidden="true"
+                className="w-4 h-4 shrink-0 text-emerald-600"
+              />
+              <span className="truncate">Admin</span>
+            </Button>
+          )}
           {user?.role === "admin" && (
             <Button
               variant="ghost"

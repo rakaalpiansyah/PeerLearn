@@ -187,6 +187,27 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
                         </Badge>
                       ))}
 
+                    {tab === "hosted" &&
+                      (g.status === "pending_approval" ? (
+                        <Badge variant="warning" className="text-xs">
+                          <Clock3 className="w-3 h-3" />
+                          Menunggu ACC
+                        </Badge>
+                      ) : g.status === "rejected" ? (
+                        <Badge variant="danger" className="text-xs">
+                          Perlu Revisi
+                        </Badge>
+                      ) : g.status === "open" ? (
+                        <Badge variant="success" className="text-xs">
+                          <CheckCircle className="w-3 h-3" />
+                          Tayang
+                        </Badge>
+                      ) : g.status === "cancelled" ? (
+                        <Badge variant="danger" className="text-xs">
+                          Dibatalkan
+                        </Badge>
+                      ) : null)}
+
                     <Badge variant="neutral">
                       {g.current_members} / {g.max_capacity} Peserta
                     </Badge>

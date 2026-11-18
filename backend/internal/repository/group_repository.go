@@ -23,6 +23,7 @@ type GroupRepository interface {
 	List(ctx context.Context, filter domain.GroupFilter, currentUserID *uuid.UUID) ([]domain.GroupResponse, error)
 	Update(ctx context.Context, group *domain.LearningGroup) error
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.GroupStatus) error
+	ReviewGroup(ctx context.Context, id uuid.UUID, adminID uuid.UUID, status domain.GroupStatus, note string) error
 	ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error)
 	FindRecommendations(ctx context.Context, userID uuid.UUID) ([]domain.GroupResponse, error)
 	CancelByHost(ctx context.Context, hostID uuid.UUID) error
@@ -57,7 +58,7 @@ func (r *groupRepository) Create(ctx context.Context, g *domain.LearningGroup) e
 	g.CreatedAt = now
 	g.UpdatedAt = now
 	if g.Status == "" {
-		g.Status = domain.StatusOpen
+		g.Status = domain.StatusPendingApproval
 	}
 
 	_, err := r.pool.Exec(ctx, query,
@@ -91,8 +92,8 @@ func (r *groupRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.G
 	query := `
 		SELECT 
 			g.id, g.host_id, g.title, g.description, g.category, g.format,
-			g.location_or_link, g.latitude, g.longitude, g.building_details, g.agenda, g.prerequisites,
-			g.start_time, g.end_time, g.max_capacity, g.status, g.created_at,
+			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
+			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
 			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
 		FROM learning_groups g
@@ -120,6 +121,9 @@ func (r *groupRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.G
 		&resp.EndTime,
 		&resp.MaxCapacity,
 		&resp.Status,
+		&resp.ReviewNote,
+		&resp.ReviewedBy,
+		&resp.ReviewedAt,
 		&resp.CreatedAt,
 		&host.ID,
 		&host.Email,
@@ -159,8 +163,8 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 	sb.WriteString(`
 		SELECT 
 			g.id, g.host_id, g.title, g.description, g.category, g.format,
-			g.location_or_link, g.latitude, g.longitude, g.building_details, g.agenda, g.prerequisites,
-			g.start_time, g.end_time, g.max_capacity, g.status, g.created_at,
+			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
+			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
 			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
 	`)
@@ -181,6 +185,10 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 		WHERE 1=1
 	`)
 
+	if !filter.IncludeUnapproved {
+		sb.WriteString(" AND g.status NOT IN ('pending_approval', 'rejected')")
+	}
+
 	if filter.Category != "" && filter.Category != "Semua" {
 		sb.WriteString(fmt.Sprintf(" AND g.category = $%d", argIdx))
 		args = append(args, filter.Category)
@@ -200,12 +208,22 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 	}
 
 	if filter.Search != "" {
-		sb.WriteString(fmt.Sprintf(" AND (LOWER(g.title) LIKE $%d OR LOWER(g.description) LIKE $%d)", argIdx, argIdx))
+		sb.WriteString(fmt.Sprintf(" AND (LOWER(g.title) LIKE $%d OR LOWER(g.description) LIKE $%d OR LOWER(u.full_name) LIKE $%d)", argIdx, argIdx, argIdx))
 		args = append(args, "%"+strings.ToLower(filter.Search)+"%")
 		argIdx++
 	}
 
-	sb.WriteString(" ORDER BY g.start_time ASC")
+	if filter.IncludeUnapproved {
+		sb.WriteString(`
+			ORDER BY CASE
+				WHEN g.status = 'pending_approval' THEN 0
+				WHEN g.status = 'rejected' THEN 1
+				ELSE 2
+			END ASC, g.created_at DESC
+		`)
+	} else {
+		sb.WriteString(" ORDER BY g.start_time ASC")
+	}
 
 	rows, err := r.pool.Query(ctx, sb.String(), args...)
 	if err != nil {
@@ -213,7 +231,7 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 	}
 	defer rows.Close()
 
-	var groups []domain.GroupResponse
+	groups := make([]domain.GroupResponse, 0)
 	for rows.Next() {
 		var resp domain.GroupResponse
 		var host domain.UserResponse
@@ -237,6 +255,9 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 			&resp.EndTime,
 			&resp.MaxCapacity,
 			&resp.Status,
+			&resp.ReviewNote,
+			&resp.ReviewedBy,
+			&resp.ReviewedAt,
 			&resp.CreatedAt,
 			&host.ID,
 			&host.Email,
@@ -279,7 +300,10 @@ func (r *groupRepository) Update(ctx context.Context, g *domain.LearningGroup) e
 		UPDATE learning_groups
 		SET title = $1, description = $2, category = $3, format = $4,
 		    location_or_link = $5, latitude = $6, longitude = $7, building_details = $8,
-		    agenda = $9, prerequisites = $10, start_time = $11, end_time = $12, max_capacity = $13, updated_at = $14
+		    agenda = $9, prerequisites = $10, start_time = $11, end_time = $12, max_capacity = $13,
+		    status = CASE WHEN status = 'rejected' THEN 'pending_approval' ELSE status END,
+		    review_note = CASE WHEN status = 'rejected' THEN '' ELSE review_note END,
+		    updated_at = $14
 		WHERE id = $15 AND host_id = $16
 	`
 	g.UpdatedAt = time.Now().UTC()
@@ -327,15 +351,35 @@ func (r *groupRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status
 	return nil
 }
 
+func (r *groupRepository) ReviewGroup(ctx context.Context, id uuid.UUID, adminID uuid.UUID, status domain.GroupStatus, note string) error {
+	now := time.Now().UTC()
+	query := `
+		UPDATE learning_groups
+		SET status = $1, review_note = $2, reviewed_by = $3, reviewed_at = $4, updated_at = $4
+		WHERE id = $5
+	`
+	cmd, err := r.pool.Exec(ctx, query, status, note, adminID, now, id)
+	if err != nil {
+		return fmt.Errorf("groupRepository.ReviewGroup: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return ErrGroupNotFound
+	}
+	return nil
+}
+
 func (r *groupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error) {
 	query := `
 		SELECT 
 			g.id, g.host_id, g.title, g.description, g.category, g.format,
-			g.location_or_link, g.start_time, g.end_time, g.max_capacity, g.status, g.created_at,
+			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
+			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
+			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
 			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
 		FROM learning_groups g
+		JOIN users u ON g.host_id = u.id
 		WHERE g.host_id = $1
-		ORDER BY g.start_time DESC
+		ORDER BY g.created_at DESC
 	`
 	rows, err := r.pool.Query(ctx, query, hostID)
 	if err != nil {
@@ -343,9 +387,11 @@ func (r *groupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) ([]d
 	}
 	defer rows.Close()
 
-	var groups []domain.GroupResponse
+	groups := make([]domain.GroupResponse, 0)
 	for rows.Next() {
 		var g domain.GroupResponse
+		var host domain.UserResponse
+		var agendaBytes []byte
 		err := rows.Scan(
 			&g.ID,
 			&g.HostID,
@@ -354,16 +400,40 @@ func (r *groupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) ([]d
 			&g.Category,
 			&g.Format,
 			&g.LocationOrLink,
+			&g.Latitude,
+			&g.Longitude,
+			&g.BuildingDetails,
+			&agendaBytes,
+			&g.Prerequisites,
 			&g.StartTime,
 			&g.EndTime,
 			&g.MaxCapacity,
 			&g.Status,
+			&g.ReviewNote,
+			&g.ReviewedBy,
+			&g.ReviewedAt,
 			&g.CreatedAt,
+			&host.ID,
+			&host.Email,
+			&host.FullName,
+			&host.Role,
+			&host.CampusName,
+			&host.Bio,
+			&host.AvatarURL,
+			&host.ContributionPoints,
+			&host.CreatedAt,
 			&g.CurrentMembers,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("groupRepository.ListByHost.Scan: %w", err)
 		}
+		if len(agendaBytes) > 0 {
+			_ = json.Unmarshal(agendaBytes, &g.Agenda)
+		}
+		if g.Agenda == nil {
+			g.Agenda = []string{}
+		}
+		g.Host = &host
 		groups = append(groups, g)
 	}
 

@@ -55,7 +55,7 @@ func (h *GroupHandler) Create(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(domain.SuccessResponse(
-		"Sesi belajar berhasil dipublikasikan!",
+		"Pengajuan sesi belajar berhasil dikirim dan menunggu persetujuan Admin!",
 		group,
 	))
 }
@@ -267,4 +267,80 @@ func (h *GroupHandler) ResolveMapLink(c *fiber.Ctx) error {
 		"Titik koordinat berhasil dideteksi",
 		result,
 	))
+}
+
+func (h *GroupHandler) AdminList(c *fiber.Ctx) error {
+	filter := domain.GroupFilter{
+		Category: c.Query("category"),
+		Format:   domain.GroupFormat(c.Query("format")),
+		Status:   domain.GroupStatus(c.Query("status")),
+		Search:   c.Query("search"),
+	}
+
+	groups, err := h.groupService.ListForAdmin(c.Context(), filter)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(domain.FailureResponse(
+			"FETCH_FAILED",
+			"Gagal memuat antrean sesi belajar admin",
+			[]domain.ErrorDetail{{Message: err.Error()}},
+		))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse(
+		"Daftar pengajuan sesi belajar berhasil diambil",
+		groups,
+	))
+}
+
+func (h *GroupHandler) AdminReview(c *fiber.Ctx) error {
+	userIDVal := c.Locals("userID")
+	adminID, ok := userIDVal.(uuid.UUID)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.FailureResponse(
+			"UNAUTHORIZED",
+			"Otorisasi admin tidak valid",
+			nil,
+		))
+	}
+
+	groupID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse(
+			"INVALID_UUID",
+			"ID sesi belajar tidak valid",
+			nil,
+		))
+	}
+
+	var req domain.ReviewGroupRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse(
+			"BAD_REQUEST",
+			"Format data tidak valid",
+			nil,
+		))
+	}
+
+	updated, err := h.groupService.ReviewGroup(c.Context(), adminID, groupID, req)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidInput) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(domain.FailureResponse(
+				"VALIDATION_FAILED",
+				err.Error(),
+				nil,
+			))
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse(
+			"REVIEW_FAILED",
+			err.Error(),
+			nil,
+		))
+	}
+
+	msg := "Sesi belajar disetujui dan kini tayang di katalog mahasiswa"
+	if req.Action == "reject" {
+		msg = "Pengajuan sesi belajar ditolak dengan catatan perbaikan"
+	}
+
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse(msg, updated))
 }

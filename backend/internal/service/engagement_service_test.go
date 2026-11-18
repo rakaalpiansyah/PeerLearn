@@ -125,6 +125,9 @@ func (m *mockGroupRepoForEngagement) UpdateStatus(ctx context.Context, id uuid.U
 	}
 	return nil
 }
+func (m *mockGroupRepoForEngagement) ReviewGroup(ctx context.Context, id uuid.UUID, adminID uuid.UUID, status domain.GroupStatus, note string) error {
+	return nil
+}
 func (m *mockGroupRepoForEngagement) ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error) {
 	return nil, nil
 }

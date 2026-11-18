@@ -788,6 +788,11 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
             />
           </div>
 
+          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 leading-relaxed">
+            Pengajuan sesi belajar akan diperiksa kelengkapannya oleh Admin FST
+            terlebih dahulu sebelum tampil di katalog mahasiswa.
+          </div>
+
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
             <Button
               variant="ghost"
@@ -806,7 +811,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
               isLoading={loading}
             >
               <Check className="w-4 h-4" />
-              Publikasikan Sesi Belajar
+              Ajukan & Publikasikan Sesi
             </Button>
           </div>
         </form>

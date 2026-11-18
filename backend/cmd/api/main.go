@@ -61,6 +61,7 @@ func main() {
 	feedbackRepo := repository.NewFeedbackRepository(db.Pool)
 	reportRepo := repository.NewReportRepository(db.Pool)
 	messageRepo := repository.NewMessageRepository(db.Pool)
+	supportRepo := repository.NewSupportRepository(db.Pool)
 
 	// Services
 	healthService := service.NewHealthService(healthRepo)
@@ -70,6 +71,7 @@ func main() {
 	membershipService := service.NewMembershipService(membershipRepo, groupRepo, feedbackRepo, userRepo)
 	engagementService := service.NewEngagementService(feedbackRepo, reportRepo, groupRepo, userRepo)
 	messageService := service.NewMessageService(messageRepo, groupRepo, membershipRepo)
+	supportService := service.NewSupportService(supportRepo, userRepo)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(healthService)
@@ -79,6 +81,7 @@ func main() {
 	membershipHandler := handler.NewMembershipHandler(membershipService)
 	engagementHandler := handler.NewEngagementHandler(engagementService)
 	messageHandler := handler.NewMessageHandler(messageService)
+	supportHandler := handler.NewSupportHandler(supportService)
 
 	jwtAuth := middleware.JWTMiddleware(cfg.JWTSecret)
 
@@ -125,13 +128,24 @@ func main() {
 	api.Patch("/memberships/:id/status", jwtAuth, membershipHandler.UpdateStatus)
 	api.Get("/my-sessions", jwtAuth, membershipHandler.GetMySessions)
 
-	// Community Safety & Moderation
+	// Student Support Chat (Shared Admin Helpdesk)
+	support := api.Group("/support", jwtAuth)
+	support.Get("/my-thread", supportHandler.GetMyThread)
+	support.Post("/messages", supportHandler.SendStudentMessage)
+
+	// Community Safety, Approvals & Shared Admin Inbox
 	api.Post("/reports", jwtAuth, engagementHandler.CreateReport)
 	admin := api.Group("/admin", jwtAuth, middleware.RequireRole(domain.RoleAdmin))
+	admin.Get("/groups", groupHandler.AdminList)
+	admin.Patch("/groups/:id/review", groupHandler.AdminReview)
 	admin.Get("/reports", engagementHandler.ListReports)
 	admin.Get("/moderation/reports", engagementHandler.ListReports)
 	admin.Patch("/reports/:id", engagementHandler.ResolveReport)
 	admin.Patch("/users/:id/moderation", engagementHandler.ModerateUser)
+	admin.Get("/support/threads", supportHandler.AdminListThreads)
+	admin.Get("/support/threads/:id/messages", supportHandler.AdminGetThreadMessages)
+	admin.Post("/support/threads/:id/messages", supportHandler.AdminReplyMessage)
+	admin.Patch("/support/threads/:id/status", supportHandler.AdminUpdateThreadStatus)
 
 	// Graceful Shutdown
 	quit := make(chan os.Signal, 1)

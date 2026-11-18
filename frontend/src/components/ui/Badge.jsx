@@ -10,6 +10,7 @@ export function Badge({
     primary: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     success: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     warning: 'bg-amber-50 text-amber-800 border-amber-200',
+    danger: 'bg-rose-50 text-rose-800 border-rose-200',
     info: 'bg-emerald-50/70 text-emerald-800 border-emerald-200',
     purple: 'bg-teal-50 text-teal-800 border-teal-200',
     outline: 'bg-white text-slate-700 border-slate-200',

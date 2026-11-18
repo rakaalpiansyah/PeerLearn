@@ -299,7 +299,11 @@ export function GroupDetailModal({
       const res = await groupApi.update(group.id, payload);
       if (res.success) {
         setIsRescheduling(false);
-        setActionSuccess("Jadwal & materi pertemuan berikutnya berhasil diperbarui!");
+        setActionSuccess(
+          group.status === "rejected"
+            ? "Perbaikan pengajuan berhasil dikirim ulang ke antrean verifikasi Admin!"
+            : "Jadwal & materi pertemuan berikutnya berhasil diperbarui!"
+        );
         onActionComplete();
         loadDetails();
       }
@@ -496,6 +500,52 @@ export function GroupDetailModal({
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+          {group.status === "pending_approval" && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+              <Clock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold">Menunggu Verifikasi & Persetujuan Admin</p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Pengajuan kegiatan Anda sedang diperiksa oleh Tim Admin FST.
+                  Sesi akan otomatis tayang ke mahasiswa lain setelah di-ACC.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {group.status === "rejected" && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold">Pengajuan Ditolak / Perlu Perbaikan</p>
+                  {group.review_note && (
+                    <p className="text-[11px] text-rose-800 leading-relaxed bg-white/80 p-2 rounded-lg border border-rose-200">
+                      Catatan Admin: {group.review_note}
+                    </p>
+                  )}
+                  {isHost && (
+                    <p className="text-[11px] text-rose-800">
+                      Perbarui jadwal, lokasi, atau materi lewat tombol di bawah
+                      untuk mengajukan ulang ke antrean verifikasi Admin.
+                    </p>
+                  )}
+                </div>
+              </div>
+              {isHost && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenReschedule}
+                  className="shrink-0 bg-white border-rose-300 text-rose-800 hover:bg-rose-100"
+                >
+                  Perbaiki & Ajukan Ulang
+                </Button>
+              )}
+            </div>
+          )}
+
           {group.status === "cancelled" && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -884,17 +934,43 @@ export function GroupDetailModal({
                       <span className="text-xs text-slate-600 whitespace-nowrap font-medium">
                         Status Sesi:
                       </span>
-                      <select
-                        aria-label="Ubah status sesi belajar"
-                        value={group.status}
-                        onChange={(e) => handleGroupStatus(e.target.value)}
-                        className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-medium shadow-2xs flex-1 sm:flex-initial focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
-                      >
-                        <option value="open">Buka (Pendaftaran Aktif)</option>
-                        <option value="ongoing">Sedang Berlangsung</option>
-                        <option value="completed">Selesai</option>
-                        <option value="cancelled">Dibatalkan</option>
-                      </select>
+                      {group.status === "pending_approval" ||
+                      group.status === "rejected" ? (
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              group.status === "pending_approval"
+                                ? "warning"
+                                : "danger"
+                            }
+                          >
+                            {group.status === "pending_approval"
+                              ? "Menunggu ACC Admin"
+                              : "Perlu Revisi"}
+                          </Badge>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleGroupStatus("cancelled")}
+                            className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50"
+                          >
+                            Batalkan
+                          </Button>
+                        </div>
+                      ) : (
+                        <select
+                          aria-label="Ubah status sesi belajar"
+                          value={group.status}
+                          onChange={(e) => handleGroupStatus(e.target.value)}
+                          className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-medium shadow-2xs flex-1 sm:flex-initial focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
+                        >
+                          <option value="open">Buka (Pendaftaran Aktif)</option>
+                          <option value="ongoing">Sedang Berlangsung</option>
+                          <option value="completed">Selesai</option>
+                          <option value="cancelled">Dibatalkan</option>
+                        </select>
+                      )}
                     </div>
                   </div>
 

@@ -6,7 +6,7 @@
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![Go](https://img.shields.io/badge/Backend-Go%201.24%20(Fiber%20v2)-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Database](https://img.shields.io/badge/Database-PostgreSQL%20(Neon%20Serverless)-336791?logo=postgresql&logoColor=white)](https://neon.tech)
-[![Tests](https://img.shields.io/badge/Vitest-176%2F176%20Passed%20(100%25)-success)](https://vitest.dev)
+[![Tests](https://img.shields.io/badge/Vitest-186%2F186%20Passed%20(100%25)-success)](https://vitest.dev)
 [![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-blueviolet)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 
 ---
@@ -106,6 +106,11 @@ graph TD
 * Menerbitkan **Surat Keterangan Kontribusi Tutor Sebaya** dengan KOP resmi **Fakultas Sains & Teknologi • UIN Sunan Gunung Djati Bandung**.
 * Dilengkapi Nomor Registrasi Surat unik, kode *hash* validasi sistem, akumulasi poin kontribusi, daftar mata kuliah yang dibimbing, dan tata letak *print-ready* ramah kertas A4.
 
+### G. Ruang Kendali Admin Terpisah, Kurasi Sesi & Shared Helpdesk Inbox
+* **Gerbang Persetujuan Sesi (`pending_approval`):** Sesi baru yang dibuat mahasiswa masuk ke antrean verifikasi Admin terlebih dahulu. Admin memeriksa agenda, jadwal, lokasi kampus atau tautan daring, serta profil penyelenggara sebelum menyetujui (`open`) atau menolak dengan catatan revisi (`rejected`).
+* **Dashboard Admin Khusus (`AdminLayout` & `AdminDashboardPage`):** Akun dengan peran `admin` diarahkan otomatis ke ruang kerja terpisah dari beranda mahasiswa, berisi Ringkasan Ekosistem, Antrean Verifikasi Sesi, Kotak Masuk Bantuan Mahasiswa, serta Pusat Laporan & Moderasi (dilengkapi tombol pratinjau katalog publik).
+* **Shared Helpdesk Inbox:** Mahasiswa dapat menghubungi tim admin melalui dialog Bantuan Admin, dan admin mana pun yang sedang bertugas dapat membalas dari satu kotak masuk bersama dengan identitas pengirim admin tercatat jelas pada riwayat percakapan.
+
 ---
 
 ## 4. Struktur Direktori Proyek
@@ -122,13 +127,16 @@ peerlearn/
 │   │   │   └── migrations/
 │   │   │       ├── 000001_init_schema.sql
 │   │   │       ├── 000002_campus_features_expansion.sql
-│   │   │       └── 000003_fst_uinsgd_academic_skills.sql
+│   │   │       ├── 000003_fst_uinsgd_academic_skills.sql
+│   │   │       ├── 000004_moderation_and_user_profile.sql
+│   │   │       ├── 000005_chat_reactions_and_pin.sql
+│   │   │       └── 000006_admin_approval_and_support_chat.sql
 │   │   ├── domain/                       # Entity Structs, Interfaces, & DTOs
-│   │   ├── handler/                      # HTTP Transport Controller (Fiber v2)
+│   │   ├── handler/                      # HTTP Transport Controller (Fiber v2, incl. support_handler.go)
 │   │   ├── middleware/                   # JWT Auth, CORS, & Role Guard
-│   │   ├── repository/                   # Data Access Layer (SQL Queries on Neon)
+│   │   ├── repository/                   # Data Access Layer (SQL Queries on Neon, incl. support_repository.go)
 │   │   ├── security/                     # Token Signer & Bcrypt Hashing
-│   │   └── service/                      # Business Logic & Domain Validation Rules
+│   │   └── service/                      # Business Logic & Domain Validation Rules (incl. support_service.go)
 │   ├── go.mod
 │   └── go.sum
 │
@@ -136,15 +144,17 @@ peerlearn/
 │   ├── src/
 │   │   ├── api/                          # Axios Client, Interceptors, & Endpoints
 │   │   ├── components/
+│   │   │   ├── admin/                    # AdminApprovalsPanel, AdminSupportInbox, AdminModerationPanel
 │   │   │   ├── auth/                     # AuthModal (Registrasi Prodi FST & Login)
 │   │   │   ├── common/                   # Navbar & Footer Bersih
 │   │   │   ├── groups/                   # CreateGroupModal, GroupCard, GroupDetailModal
 │   │   │   ├── profile/                  # ProfileModal, SkillsModal, TutorSummaryModal (SKPI)
-│   │   │   ├── sessions/                 # MySessionsModal (Riwayat Sesi Saya)
+│   │   │   ├── sessions/                 # MySessionsModal (Riwayat Sesi Saya & Status Kurasi)
+│   │   │   ├── support/                  # StudentSupportModal (Chat Mahasiswa ke Admin)
 │   │   │   └── ui/                       # Primitives (Button, Badge, Modal, Input)
 │   │   ├── context/                      # AuthContext (Stateless JWT Session Manager)
-│   │   ├── layouts/                      # MainLayout (Container Responsif 1536px)
-│   │   ├── pages/                        # HomePage (Katalog Sesi & Filter 8 Prodi)
+│   │   ├── layouts/                      # MainLayout & AdminLayout (Ruang Kendali Admin Terpisah)
+│   │   ├── pages/                        # HomePage & AdminDashboardPage
 │   │   ├── App.jsx
 │   │   ├── main.jsx
 │   │   └── index.css                     # Tailwind Utility & Print Styles
@@ -208,6 +218,18 @@ npm run dev
 ```
 *Aplikasi frontend Vite akan aktif di `http://localhost:5173`*.
 
+### Kredensial Akun Demo (Seed Otomatis)
+
+Saat backend dijalankan pertama kali, migrasi `000004` dan `000006` otomatis menyiapkan akun pengujian berikut (kata sandi seluruh akun demo: `password123`):
+
+| Peran | Email | Nama / Identitas | Keterangan |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin.fst@uinsgd.ac.id` | Admin Akademik FST UIN SGD | Masuk ke Ruang Kendali Admin (ACC sesi, shared inbox, moderasi) |
+| **Admin** | `wakildekan3.fst@uinsgd.ac.id` | Koordinator Kemahasiswaan FST | Akun admin kedua untuk simulasi balasan multi-admin |
+| **Mahasiswa** | `nabila.azzahra@uinsgd.ac.id` | Nabila Azzahra (S1 Teknik Informatika) | Memiliki pengajuan sesi `pending_approval` dan chat bantuan terbuka |
+| **Mahasiswa** | `fajar.ramadhan@uinsgd.ac.id` | Fajar Ramadhan (S1 Teknik Elektro) | Pengajuan sesi Teknik Elektro & riwayat chat SKPI |
+| **Mahasiswa** | `angga.saputra@uinsgd.ac.id` | Angga Saputra (S1 Agroteknologi) | Akun berstatus `restricted` dan pengajuan `rejected` untuk simulasi moderasi |
+
 ---
 
 ## 6. Protokol Verifikasi & Pengujian Mutu (*Quality Evidence*)
@@ -219,7 +241,7 @@ Setiap perubahan kode di repositori ini diverifikasi menggunakan protokol ketat:
 cd frontend
 npm test
 ```
-*Hasil:* **15 berkas uji coba, 176 pengujian unit lulus 100%** (durasi ~13–14 detik).
+*Hasil:* **19 berkas uji coba, 186 pengujian unit lulus 100%** (mencakup Ruang Kendali Admin, Shared Inbox, dan Bantuan Mahasiswa).
 
 ### Kompilasi Produksi Frontend:
 ```powershell

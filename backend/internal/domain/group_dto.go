@@ -39,10 +39,11 @@ type UpdateGroupRequest struct {
 }
 
 type GroupFilter struct {
-	Category string      `json:"category"`
-	Format   GroupFormat `json:"format"`
-	Status   GroupStatus `json:"status"`
-	Search   string      `json:"search"`
+	Category          string      `json:"category"`
+	Format            GroupFormat `json:"format"`
+	Status            GroupStatus `json:"status"`
+	Search            string      `json:"search"`
+	IncludeUnapproved bool        `json:"-"`
 }
 
 type GroupResponse struct {
@@ -63,10 +64,18 @@ type GroupResponse struct {
 	MaxCapacity     int               `json:"max_capacity"`
 	CurrentMembers  int               `json:"current_members"`
 	Status          GroupStatus       `json:"status"`
+	ReviewNote      string            `json:"review_note,omitempty"`
+	ReviewedBy      *uuid.UUID        `json:"reviewed_by,omitempty"`
+	ReviewedAt      *time.Time        `json:"reviewed_at,omitempty"`
 	CreatedAt       time.Time         `json:"created_at"`
 	Host            *UserResponse     `json:"host,omitempty"`
 	UserMembership  *MembershipStatus `json:"user_membership,omitempty"`
 	MatchReason     string            `json:"match_reason,omitempty"`
+}
+
+type ReviewGroupRequest struct {
+	Action string `json:"action"` // "approve" | "reject"
+	Note   string `json:"note"`
 }
 
 type UpdateMembershipStatusRequest struct {
@@ -106,4 +115,37 @@ type MapLocationResolution struct {
 	Longitude   float64 `json:"longitude"`
 	PlaceName   string  `json:"place_name,omitempty"`
 	ResolvedURL string  `json:"resolved_url,omitempty"`
+}
+
+type SupportMessageResponse struct {
+	ID        uuid.UUID     `json:"id"`
+	ThreadID  uuid.UUID     `json:"thread_id"`
+	SenderID  uuid.UUID     `json:"sender_id"`
+	Message   string        `json:"message"`
+	CreatedAt time.Time     `json:"created_at"`
+	Sender    *UserResponse `json:"sender,omitempty"`
+}
+
+type SupportThreadResponse struct {
+	ID            uuid.UUID                `json:"id"`
+	StudentID     uuid.UUID                `json:"student_id"`
+	Subject       string                   `json:"subject"`
+	Status        SupportThreadStatus      `json:"status"`
+	LastMessageAt time.Time                `json:"last_message_at"`
+	CreatedAt     time.Time                `json:"created_at"`
+	Student       *UserResponse            `json:"student,omitempty"`
+	LastMessage   string                   `json:"last_message,omitempty"`
+	LastSender    string                   `json:"last_sender_name,omitempty"`
+	LastSenderRole UserRole                `json:"last_sender_role,omitempty"`
+	MessageCount  int                      `json:"message_count"`
+	Messages      []SupportMessageResponse `json:"messages,omitempty"`
+}
+
+type CreateSupportMessageRequest struct {
+	Subject string `json:"subject,omitempty"`
+	Message string `json:"message"`
+}
+
+type UpdateSupportThreadStatusRequest struct {
+	Status SupportThreadStatus `json:"status"`
 }

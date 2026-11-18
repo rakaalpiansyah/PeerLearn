@@ -98,7 +98,7 @@ func (r *reportRepository) ListWithDetails(ctx context.Context) ([]domain.Modera
 		SELECT 
 			r.id, r.reporter_id, r.reported_user_id, r.target_group_id, r.reason, r.details, r.status, r.created_at,
 			u_rep.id, u_rep.full_name, u_rep.email, u_rep.role, u_rep.campus_name, u_rep.avatar_url,
-			u_tar.id, u_tar.full_name, u_tar.email, u_tar.role, u_tar.campus_name, u_tar.avatar_url, u_tar.account_status,
+			u_tar.id, u_tar.full_name, u_tar.email, u_tar.role, u_tar.campus_name, u_tar.avatar_url, u_tar.account_status, COALESCE(u_tar.restriction_note, ''),
 			g.id, g.title, g.status,
 			(
 				SELECT COUNT(DISTINCT r2.reporter_id)
@@ -128,13 +128,13 @@ func (r *reportRepository) ListWithDetails(ctx context.Context) ([]domain.Modera
 
 		var repID, tarID, gID *uuid.UUID
 		var repName, repEmail, repRole, repCampus, repAvatar *string
-		var tarName, tarEmail, tarRole, tarCampus, tarAvatar, tarStatus *string
+		var tarName, tarEmail, tarRole, tarCampus, tarAvatar, tarStatus, tarRestrictionNote *string
 		var gTitle, gStatus *string
 
 		err := rows.Scan(
 			&rep.ID, &rep.ReporterID, &rep.ReportedUserID, &rep.TargetGroupID, &rep.Reason, &rep.Details, &rep.Status, &rep.CreatedAt,
 			&repID, &repName, &repEmail, &repRole, &repCampus, &repAvatar,
-			&tarID, &tarName, &tarEmail, &tarRole, &tarCampus, &tarAvatar, &tarStatus,
+			&tarID, &tarName, &tarEmail, &tarRole, &tarCampus, &tarAvatar, &tarStatus, &tarRestrictionNote,
 			&gID, &gTitle, &gStatus,
 			&weeklyCount,
 		)
@@ -182,6 +182,9 @@ func (r *reportRepository) ListWithDetails(ctx context.Context) ([]domain.Modera
 			}
 			if tarStatus != nil {
 				tarUser.AccountStatus = domain.AccountStatus(*tarStatus)
+			}
+			if tarRestrictionNote != nil {
+				tarUser.RestrictionNote = *tarRestrictionNote
 			}
 			item.ReportedUser = &tarUser
 		}

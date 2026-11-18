@@ -92,7 +92,10 @@ Berdasarkan studi empiris dinamika perkuliahan di lingkungan FST Kampus 1 Cipadu
     - *Kampus 2 UIN SGD (Jl. Soekarno-Hatta)*: Lat `-6.938800`, Lng `107.698000`.
   * Fitur resolver tautan Google Maps (`maps.app.goo.gl` / format koordinat) dengan proteksi SSRF.
   * Tampilan peta interaktif OpenStreetMap pada rincian kegiatan luring.
-* **FR-2.3:** Penyelenggara dapat memperbarui status kegiatan (`open` $\to$ `ongoing` $\to$ `completed` / `cancelled`).
+* **FR-2.3:** **Kurasi Pra-Publikasi & Siklus Status Kegiatan:**
+  * Setiap sesi belajar yang baru diajukan oleh mahasiswa otomatis berstatus `pending_approval` dan tidak tampil di katalog publik maupun rekomendasi hingga disetujui oleh Admin.
+  * Apabila Admin menolak pengajuan dengan catatan perbaikan (`rejected`), penyelenggara dapat melihat catatan revisi dan memperbarui materi/jadwal/lokasi agar pengajuan kembali masuk ke antrean `pending_approval`.
+  * Setelah disetujui Admin (`open`), penyelenggara dapat memperbarui status kegiatan (`open` $\to$ `ongoing` $\to$ `completed` / `cancelled`).
 
 ### Modul 3: Keanggotaan, Persetujuan & Chat Koordinasi
 * **FR-3.1:** Mahasiswa dapat mengajukan permohonan bergabung (*Join Request*) ke sesi belajar yang kuotanya masih terbuka.
@@ -110,9 +113,15 @@ Berdasarkan studi empiris dinamika perkuliahan di lingkungan FST Kampus 1 Cipadu
   * Mencantumkan Nomor Registrasi Dokumen unik, data diri mahasiswa, program studi, akumulasi poin tutor, serta daftar mata kuliah kurikulum FST yang dibimbing.
   * Dukungan mode cetak printer (*browser print CSS*) dengan standar tata letak dokumen akademik A4.
 
-### Modul 5: Keamanan & Integritas Akademik
+### Modul 5: Keamanan, Kurasi Admin & Layanan Mahasiswa
 * **FR-5.1:** Mahasiswa dapat melaporkan (*report*) sesi belajar atau pengguna yang melanggar kode etik akademik (misal: plagiarisme, joki ujian komersial, perundungan).
-* **FR-5.2:** Moderator dapat meninjau laporan dan mengambil tindakan pembekuan akun atau penghapusan sesi.
+* **FR-5.2:** Moderator dapat meninjau laporan, akun yang dibatasi otomatis (`restricted` pada 3 pelapor unik dalam 7 hari), dan mengambil tindakan pemulihan atau penangguhan akun (`suspended`).
+* **FR-5.3:** **Ruang Kendali Admin Terpisah (`AdminLayout` & `AdminDashboardPage`):**
+  * Akun dengan peran `admin` diarahkan otomatis setelah login ke ruang kerja khusus Admin yang terpisah dari beranda katalog mahasiswa, dilengkapi tombol pratinjau katalog publik bila diperlukan.
+  * Mencakup empat menu operasional: Ringkasan Ekosistem, Verifikasi Sesi (inspeksi lengkap agenda, jadwal, koordinat kampus/tautan, serta rekam jejak host untuk ACC atau Tolak dengan catatan), Kotak Masuk Bantuan Mahasiswa, dan Pusat Laporan & Moderasi.
+* **FR-5.4:** **Layanan Chat Mahasiswa ke Tim Admin (*Shared Helpdesk Inbox*):**
+  * Mahasiswa terotentikasi dapat mengirim pertanyaan atau klarifikasi ke tim admin melalui dialog Bantuan Admin (`StudentSupportModal.jsx`) dengan sinkronisasi otomatis setiap 4 detik.
+  * Seluruh pesan masuk terhimpun dalam satu kotak masuk bersama di ruang admin (`support_threads` & `support_messages`), sehingga admin mana pun yang sedang bertugas dapat membalas dengan identitas pengirim admin tercatat jelas pada riwayat percakapan.
 
 ---
 
@@ -148,6 +157,9 @@ erDiagram
     USERS ||--o{ FEEDBACK : writes
     USERS ||--o{ REPORTS : submits
     USERS ||--o{ REPORTS : target_user
+    USERS ||--o| SUPPORT_THREADS : opens
+    SUPPORT_THREADS ||--o{ SUPPORT_MESSAGES : contains
+    USERS ||--o{ SUPPORT_MESSAGES : sends
 
     USERS {
         uuid id PK
@@ -156,9 +168,12 @@ erDiagram
         varchar full_name "Nama Lengkap Mahasiswa"
         varchar role "student | public | admin"
         varchar campus_name "UIN SGD Bandung - Prodi FST"
+        varchar gender "Jenis Kelamin"
         text bio "Profil Akademik / Semester / Minat"
-        varchar avatar_url "Tautan Foto Profil"
+        text avatar_url "Foto Profil Terkompresi"
         int contribution_points "Poin Akumulasi Tutor SKPI"
+        varchar account_status "active | restricted | suspended"
+        text restriction_note "Catatan Pembatasan / Moderasi"
         timestamp created_at
         timestamp updated_at
     }
@@ -192,7 +207,10 @@ erDiagram
         timestamp start_time
         timestamp end_time
         int max_capacity "2 sampai 50 peserta"
-        varchar status "open | ongoing | completed | cancelled"
+        varchar status "pending_approval | rejected | open | ongoing | completed | cancelled"
+        text review_note "Catatan Kurasi / Alasan Penolakan Admin"
+        uuid reviewed_by FK "Admin Peninjau"
+        timestamp reviewed_at "Waktu Peninjauan Admin"
         timestamp created_at
         timestamp updated_at
     }
@@ -233,6 +251,24 @@ erDiagram
         varchar status "pending | reviewed | resolved"
         timestamp created_at
     }
+
+    SUPPORT_THREADS {
+        uuid id PK
+        uuid student_id FK "Unik per mahasiswa"
+        varchar subject "Topik Bantuan"
+        varchar status "open | resolved"
+        timestamp last_message_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SUPPORT_MESSAGES {
+        uuid id PK
+        uuid thread_id FK
+        uuid sender_id FK "Mahasiswa atau Admin Penjawab"
+        text message "Isi Pesan Bantuan"
+        timestamp created_at
+    }
 ```
 
 ---
@@ -261,6 +297,17 @@ erDiagram
 | `GET` | `/api/v1/my-sessions` | Mahasiswa | Ambil seluruh sesi diikuti & dikelola |
 | `POST` | `/api/v1/groups/:id/feedback` | Peserta | Kirim rating bintang & ulasan tutor |
 | `POST` | `/api/v1/reports` | Mahasiswa | Laporkan pelanggaran kode etik akademik |
+| `GET` | `/api/v1/support/my-thread` | Mahasiswa | Ambil atau inisialisasi percakapan bantuan dengan tim admin |
+| `POST` | `/api/v1/support/messages` | Mahasiswa | Kirim pesan bantuan ke kotak masuk bersama admin |
+| `GET` | `/api/v1/admin/groups` | Admin | Ambil seluruh daftar pengajuan & status sesi (termasuk `pending_approval` dan `rejected`) |
+| `PATCH` | `/api/v1/admin/groups/:id/review` | Admin | Setujui (`approve`) atau tolak dengan catatan (`reject`) pengajuan sesi |
+| `GET` | `/api/v1/admin/moderation/reports` | Admin | Ambil daftar laporan pelanggaran beserta detail pelapor dan akun terlapor |
+| `PATCH` | `/api/v1/admin/reports/:id` | Admin | Perbarui status laporan moderasi |
+| `PATCH` | `/api/v1/admin/users/:id/moderation` | Admin | Pulihkan akses (`restore`) atau tangguhkan akun (`suspend`) |
+| `GET` | `/api/v1/admin/support/threads` | Admin | Ambil seluruh antrean percakapan bantuan mahasiswa |
+| `GET` | `/api/v1/admin/support/threads/:id/messages` | Admin | Ambil riwayat lengkap percakapan bantuan tertentu |
+| `POST` | `/api/v1/admin/support/threads/:id/messages` | Admin | Kirim balasan dari admin yang bertugas ke mahasiswa |
+| `PATCH` | `/api/v1/admin/support/threads/:id/status` | Admin | Tandai percakapan selesai (`resolved`) atau buka kembali (`open`) |
 | `GET` | `/api/v1/health` | Publik | Pemeriksaan status konektivitas Go & PostgreSQL |
 
 ---
@@ -268,6 +315,6 @@ erDiagram
 ## 9. Rencana Verifikasi Kualitas & Standardisasi Rekayasa
 
 Berdasarkan standar penjaminan mutu rekayasa perangkat lunak:
-1. **Pengujian Unit Backend:** Pengujian unit Go (`go test -v ./...`) mencakup otentikasi role, pembuatan sesi belajar, resolusi koordinat peta, dan konsistensi data anggota (100% lulus).
-2. **Pengujian Unit Frontend:** Pengujian Vitest React (`npm test`) mencakup 15 berkas uji coba (176 tests) dengan validasi form, penanganan galat jaringan, dan aksesibilitas dialog modal (100% lulus).
+1. **Pengujian Unit Backend:** Pengujian unit Go (`go test -v ./...`) mencakup otentikasi role, kurasi persetujuan sesi admin, chat bantuan multi-admin, moderasi akun, resolusi koordinat peta, dan konsistensi data anggota (100% lulus).
+2. **Pengujian Unit Frontend:** Pengujian Vitest React (`npm test`) mencakup 19 berkas uji coba (186 tests) dengan validasi form, alur Ruang Kendali Admin dan Shared Inbox, modal bantuan mahasiswa, penanganan galat jaringan, serta aksesibilitas dialog modal (100% lulus).
 3. **Kompilasi Bersih:** `go vet ./...` bersih tanpa peringatan dan `npm run build` sukses dalam hitungan milidetik.

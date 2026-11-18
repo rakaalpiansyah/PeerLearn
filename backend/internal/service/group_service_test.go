@@ -44,18 +44,25 @@ func (m *mockGroupRepository) FindByID(ctx context.Context, id uuid.UUID) (*doma
 		EndTime:        g.EndTime,
 		MaxCapacity:    g.MaxCapacity,
 		Status:         g.Status,
+		ReviewNote:     g.ReviewNote,
+		ReviewedBy:     g.ReviewedBy,
+		ReviewedAt:     g.ReviewedAt,
 	}, nil
 }
 
 func (m *mockGroupRepository) List(ctx context.Context, filter domain.GroupFilter, currentUserID *uuid.UUID) ([]domain.GroupResponse, error) {
 	var list []domain.GroupResponse
 	for _, g := range m.groups {
+		if !filter.IncludeUnapproved && (g.Status == domain.StatusPendingApproval || g.Status == domain.StatusRejected) {
+			continue
+		}
 		list = append(list, domain.GroupResponse{
 			ID:          g.ID,
 			HostID:      g.HostID,
 			Title:       g.Title,
 			MaxCapacity: g.MaxCapacity,
 			Status:      g.Status,
+			ReviewNote:  g.ReviewNote,
 		})
 	}
 	return list, nil
@@ -72,6 +79,19 @@ func (m *mockGroupRepository) UpdateStatus(ctx context.Context, id uuid.UUID, st
 		return nil
 	}
 	return repository.ErrGroupNotFound
+}
+
+func (m *mockGroupRepository) ReviewGroup(ctx context.Context, id uuid.UUID, adminID uuid.UUID, status domain.GroupStatus, note string) error {
+	g, ok := m.groups[id]
+	if !ok {
+		return repository.ErrGroupNotFound
+	}
+	now := time.Now().UTC()
+	g.Status = status
+	g.ReviewNote = note
+	g.ReviewedBy = &adminID
+	g.ReviewedAt = &now
+	return nil
 }
 
 func (m *mockGroupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error) {
@@ -136,6 +156,50 @@ func TestGroupService_CreateAndAuthorize(t *testing.T) {
 	}
 	if created.MaxCapacity != 5 {
 		t.Errorf("Expected max capacity 5, got %d", created.MaxCapacity)
+	}
+	if created.Status != domain.StatusPendingApproval {
+		t.Errorf("Expected newly created group status %s, got %s", domain.StatusPendingApproval, created.Status)
+	}
+
+	// Verify pending group is hidden from public catalog and visible to admin
+	publicList, err := svc.List(ctx, domain.GroupFilter{}, nil)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if len(publicList) != 0 {
+		t.Errorf("Expected 0 public sessions before admin approval, got %d", len(publicList))
+	}
+	adminList, err := svc.ListForAdmin(ctx, domain.GroupFilter{})
+	if err != nil {
+		t.Fatalf("ListForAdmin failed: %v", err)
+	}
+	if len(adminList) != 1 {
+		t.Errorf("Expected 1 session in admin queue, got %d", len(adminList))
+	}
+
+	// 1b. Admin Approve & Reject workflow
+	adminID := uuid.New()
+	_, err = svc.ReviewGroup(ctx, adminID, created.ID, domain.ReviewGroupRequest{Action: "reject", Note: "   "})
+	if err == nil {
+		t.Errorf("Expected error when rejecting without a note")
+	}
+	rejected, err := svc.ReviewGroup(ctx, adminID, created.ID, domain.ReviewGroupRequest{
+		Action: "reject",
+		Note:   "Lengkapi agenda sesi terlebih dahulu",
+	})
+	if err != nil || rejected.Status != domain.StatusRejected {
+		t.Fatalf("Expected rejected status, got %+v, err=%v", rejected, err)
+	}
+	approved, err := svc.ReviewGroup(ctx, adminID, created.ID, domain.ReviewGroupRequest{
+		Action: "approve",
+		Note:   "Layak tayang",
+	})
+	if err != nil || approved.Status != domain.StatusOpen {
+		t.Fatalf("Expected open status after approve, got %+v, err=%v", approved, err)
+	}
+	publicListAfter, _ := svc.List(ctx, domain.GroupFilter{}, nil)
+	if len(publicListAfter) != 1 {
+		t.Errorf("Expected 1 public session after admin approval, got %d", len(publicListAfter))
 	}
 
 	// 2. Reject Empty Title

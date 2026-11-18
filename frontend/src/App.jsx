@@ -13,13 +13,16 @@ import { ReportModal } from "./components/reports/ReportModal";
 import { TutorSummaryModal } from "./components/profile/TutorSummaryModal";
 import { PublicProfileModal } from "./components/profile/PublicProfileModal";
 import { AdminModerationModal } from "./components/moderation/AdminModerationModal";
+import { StudentSupportModal } from "./components/support/StudentSupportModal";
+import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { InfoGuideModal } from "./components/common/InfoGuideModal";
 import { LoadError } from "./components/ui/LoadError";
 import { Button } from "./components/ui/Button";
 
 function AppContent() {
-  const { profileError, loading, retryProfile } = useAuth();
+  const { user, profileError, loading, retryProfile } = useAuth();
   const [isBackendOnline, setIsBackendOnline] = useState(false);
+  const [previewStudentCatalog, setPreviewStudentCatalog] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [skillsModalOpen, setSkillsModalOpen] = useState(false);
@@ -32,6 +35,7 @@ function AppContent() {
   const [reportTargetUser, setReportTargetUser] = useState(null);
   const [publicProfileTarget, setPublicProfileTarget] = useState(null);
   const [adminModerationOpen, setAdminModerationOpen] = useState(false);
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [guideModalOpen, setGuideModalOpen] = useState(false);
   const [guideModalTab, setGuideModalTab] = useState("ethics");
   const [tutorSummaryOpen, setTutorSummaryOpen] = useState(false);
@@ -46,21 +50,47 @@ function AppContent() {
     setRefreshTrigger((prev) => prev + 1);
   };
 
+  if (user?.role === "admin" && !previewStudentCatalog) {
+    return (
+      <AdminDashboardPage
+        onPreviewStudentCatalog={() => setPreviewStudentCatalog(true)}
+      />
+    );
+  }
+
   return (
-    <MainLayout
-      isBackendOnline={isBackendOnline}
-      onOpenAuth={handleOpenAuth}
-      onOpenSkills={() => setSkillsModalOpen(true)}
-      onOpenProfile={() => setProfileModalOpen(true)}
-      onOpenCreateGroup={() => setCreateGroupOpen(true)}
-      onOpenMySessions={() => setMySessionsOpen(true)}
-      onOpenTutorSummary={() => setTutorSummaryOpen(true)}
-      onOpenModeration={() => setAdminModerationOpen(true)}
-      onOpenGuide={(tab) => {
-        setGuideModalTab(tab);
-        setGuideModalOpen(true);
-      }}
-    >
+    <>
+      {user?.role === "admin" && previewStudentCatalog && (
+        <div className="bg-slate-900 text-white px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+          <span>
+            Anda sedang melihat tampilan pratinjau katalog mahasiswa.
+          </span>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => setPreviewStudentCatalog(false)}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+          >
+            Kembali ke Ruang Kendali Admin
+          </Button>
+        </div>
+      )}
+      <MainLayout
+        isBackendOnline={isBackendOnline}
+        onOpenAuth={handleOpenAuth}
+        onOpenSkills={() => setSkillsModalOpen(true)}
+        onOpenProfile={() => setProfileModalOpen(true)}
+        onOpenCreateGroup={() => setCreateGroupOpen(true)}
+        onOpenMySessions={() => setMySessionsOpen(true)}
+        onOpenTutorSummary={() => setTutorSummaryOpen(true)}
+        onOpenModeration={() => setAdminModerationOpen(true)}
+        onOpenSupport={() => setSupportModalOpen(true)}
+        onOpenGuide={(tab) => {
+          setGuideModalTab(tab);
+          setGuideModalOpen(true);
+        }}
+      >
       {profileError && (
         <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
           <LoadError
@@ -171,7 +201,13 @@ function AppContent() {
         onClose={() => setGuideModalOpen(false)}
         initialTab={guideModalTab}
       />
-    </MainLayout>
+
+      <StudentSupportModal
+        isOpen={supportModalOpen}
+        onClose={() => setSupportModalOpen(false)}
+      />
+      </MainLayout>
+    </>
   );
 }
 

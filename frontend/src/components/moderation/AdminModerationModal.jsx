@@ -70,19 +70,30 @@ export function AdminModerationModal({ isOpen, onClose, onModerated }) {
 
   // Group items by reported user for aggregated decision-making
   const groupedByUser = items.reduce((acc, item) => {
-    const key = item.reported_user_id || "unassigned";
+    const rep = item.report || item;
+    const reportedUser = item.reported_user || {};
+    const reportedUserId = rep.reported_user_id || reportedUser.id || null;
+    const key = reportedUserId || `group-${rep.target_group_id || rep.id || "unassigned"}`;
     if (!acc[key]) {
       acc[key] = {
-        userId: item.reported_user_id,
-        userName: item.reported_user_name || "Target Sesi",
-        userRole: item.reported_user_role,
-        campusName: item.reported_user_campus,
-        status: item.reported_user_status || "active",
-        restrictionNote: item.reported_user_restriction_note,
+        userId: reportedUserId,
+        userName: reportedUser.full_name || item.target_group?.title || "Target Sesi",
+        userRole: reportedUser.role,
+        campusName: reportedUser.campus_name,
+        status: reportedUser.account_status || "active",
+        restrictionNote: reportedUser.restriction_note,
         reports: [],
       };
     }
-    acc[key].reports.push(item);
+    acc[key].reports.push({
+      id: rep.id,
+      reason: rep.reason,
+      details: rep.details,
+      status: rep.status,
+      created_at: rep.created_at,
+      reporter_name: item.reporter?.full_name || "Mahasiswa",
+      target_group_title: item.target_group?.title || "",
+    });
     return acc;
   }, {});
 

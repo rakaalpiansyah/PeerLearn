@@ -69,6 +69,10 @@ func (m *mockGroupRepoForUser) UpdateStatus(ctx context.Context, id uuid.UUID, s
 	return nil
 }
 
+func (m *mockGroupRepoForUser) ReviewGroup(ctx context.Context, id uuid.UUID, adminID uuid.UUID, status domain.GroupStatus, note string) error {
+	return nil
+}
+
 func (m *mockGroupRepoForUser) ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error) {
 	var list []domain.GroupResponse
 	for i := 0; i < m.hostedCount; i++ {

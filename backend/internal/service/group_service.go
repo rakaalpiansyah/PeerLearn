@@ -34,6 +34,8 @@ type GroupService interface {
 	Create(ctx context.Context, hostID uuid.UUID, req domain.CreateGroupRequest) (*domain.GroupResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, currentUserID *uuid.UUID) (*domain.GroupResponse, error)
 	List(ctx context.Context, filter domain.GroupFilter, currentUserID *uuid.UUID) ([]domain.GroupResponse, error)
+	ListForAdmin(ctx context.Context, filter domain.GroupFilter) ([]domain.GroupResponse, error)
+	ReviewGroup(ctx context.Context, adminID, groupID uuid.UUID, req domain.ReviewGroupRequest) (*domain.GroupResponse, error)
 	Update(ctx context.Context, hostID, groupID uuid.UUID, req domain.UpdateGroupRequest) error
 	UpdateStatus(ctx context.Context, hostID, groupID uuid.UUID, status domain.GroupStatus) error
 	ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error)
@@ -114,7 +116,7 @@ func (s *groupService) Create(ctx context.Context, hostID uuid.UUID, req domain.
 		StartTime:       req.StartTime,
 		EndTime:         req.EndTime,
 		MaxCapacity:     req.MaxCapacity,
-		Status:          domain.StatusOpen,
+		Status:          domain.StatusPendingApproval,
 	}
 
 	if err := s.groupRepo.Create(ctx, group); err != nil {
@@ -133,7 +135,38 @@ func (s *groupService) GetByID(ctx context.Context, id uuid.UUID, currentUserID 
 }
 
 func (s *groupService) List(ctx context.Context, filter domain.GroupFilter, currentUserID *uuid.UUID) ([]domain.GroupResponse, error) {
+	filter.IncludeUnapproved = false
 	return s.groupRepo.List(ctx, filter, currentUserID)
+}
+
+func (s *groupService) ListForAdmin(ctx context.Context, filter domain.GroupFilter) ([]domain.GroupResponse, error) {
+	filter.IncludeUnapproved = true
+	return s.groupRepo.List(ctx, filter, nil)
+}
+
+func (s *groupService) ReviewGroup(ctx context.Context, adminID, groupID uuid.UUID, req domain.ReviewGroupRequest) (*domain.GroupResponse, error) {
+	if _, err := s.groupRepo.FindByID(ctx, groupID); err != nil {
+		return nil, fmt.Errorf("groupService.ReviewGroup: %w", err)
+	}
+
+	note := strings.TrimSpace(req.Note)
+	switch req.Action {
+	case "approve":
+		if err := s.groupRepo.ReviewGroup(ctx, groupID, adminID, domain.StatusOpen, note); err != nil {
+			return nil, fmt.Errorf("groupService.ReviewGroup approve: %w", err)
+		}
+	case "reject":
+		if note == "" {
+			return nil, fmt.Errorf("%w: alasan penolakan wajib diisi agar mahasiswa dapat memperbaiki pengajuan", ErrInvalidInput)
+		}
+		if err := s.groupRepo.ReviewGroup(ctx, groupID, adminID, domain.StatusRejected, note); err != nil {
+			return nil, fmt.Errorf("groupService.ReviewGroup reject: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("%w: aksi peninjauan tidak valid (harus 'approve' atau 'reject')", ErrInvalidInput)
+	}
+
+	return s.groupRepo.FindByID(ctx, groupID)
 }
 
 func (s *groupService) Update(ctx context.Context, hostID, groupID uuid.UUID, req domain.UpdateGroupRequest) error {
@@ -186,7 +219,16 @@ func (s *groupService) UpdateStatus(ctx context.Context, hostID, groupID uuid.UU
 		return ErrUnauthorizedAction
 	}
 
-	return s.groupRepo.UpdateStatus(ctx, groupID, status)
+	if (existing.Status == domain.StatusPendingApproval || existing.Status == domain.StatusRejected) && status != domain.StatusCancelled {
+		return fmt.Errorf("%w: sesi belum disetujui admin sehingga belum dapat dibuka ke publik", ErrUnauthorizedAction)
+	}
+
+	switch status {
+	case domain.StatusOpen, domain.StatusOngoing, domain.StatusCompleted, domain.StatusCancelled:
+		return s.groupRepo.UpdateStatus(ctx, groupID, status)
+	default:
+		return fmt.Errorf("%w: status sesi tidak valid", ErrInvalidInput)
+	}
 }
 
 func (s *groupService) ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error) {

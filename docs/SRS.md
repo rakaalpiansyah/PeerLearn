@@ -359,6 +359,31 @@ Sistem beroperasi pada arsitektur web berbasis peramban sehingga tidak berintera
   5. Klien menampilkan dialog konfirmasi bahwa laporan telah diterima dengan aman.
 * **Pascakondisi:** Laporan tercatat dalam sistem audit penegakan etika akademik.
 
+### SRS-FR-12: Kurasi & Persetujuan Sesi Belajar Pra-Publikasi oleh Admin
+* **Deskripsi:** Sesi belajar yang baru diajukan mahasiswa tidak langsung tampil di katalog publik, melainkan masuk ke antrean verifikasi Admin pada ruang kendali khusus (`AdminDashboardPage`).
+* **Aktor:** Admin Akademik / Moderator (`role: admin`) dan Penyelenggara (`Host`).
+* **Alur Utama (Main Flow):**
+  1. Host mengirim formulir pembukaan sesi melalui `POST /api/v1/groups`. Sistem menyimpan data sesi dengan status awal `pending_approval` sehingga belum terlihat oleh pencari sesi lain.
+  2. Saat akun `admin` berhasil login, sistem mengarahkan ke ruang kerja admin (`AdminLayout`) pada tab Verifikasi Sesi.
+  3. Admin memilih pengajuan di daftar antrean untuk memeriksa deskripsi, agenda silabus, prasyarat, jadwal, titik koordinat atau tautan daring, serta profil host.
+  4. Admin memilih **ACC & Tayangkan Sesi** (`PATCH /api/v1/admin/groups/:id/review` dengan `action: "approve"`), yang mengubah status menjadi `open` dan menampilkan sesi ke katalog publik.
+* **Alur Alternatif (Penolakan & Pengajuan Ulang):**
+  1. Jika materi tidak lengkap atau melanggar etika akademik, Admin wajib mengisi catatan perbaikan dan menekan **Tolak & Minta Revisi** (`action: "reject"`).
+  2. Status berubah menjadi `rejected` disertai `review_note` yang tampil di sisi Host pada `MySessionsModal` dan `GroupDetailModal`.
+  3. Host dapat memperbarui data sesi (`PUT /api/v1/groups/:id`), yang otomatis mengembalikan status ke `pending_approval` untuk ditinjau ulang.
+* **Pascakondisi:** Hanya sesi terkurasi yang tayang di katalog komunitas.
+
+### SRS-FR-13: Layanan Chat Bantuan Mahasiswa & Shared Admin Helpdesk Inbox
+* **Deskripsi:** Mahasiswa dapat mengirim pesan atau konsultasi langsung ke tim admin, dan setiap admin yang aktif di ruang kendali berbagi kotak masuk yang sama untuk merespons dengan identitas pengirim tercatat jelas.
+* **Aktor:** Mahasiswa Terotentikasi dan Tim Admin (`role: admin`).
+* **Alur Utama (Main Flow):**
+  1. Mahasiswa membuka dialog Bantuan Admin (`StudentSupportModal`) dari bilah navigasi, lalu mengirim pesan melalui `POST /api/v1/support/messages`.
+  2. Sistem membuat atau membuka kembali utas bantuan pada tabel `support_threads` dan menyimpan pesan ke `support_messages`.
+  3. Admin membuka tab Pesan Mahasiswa (`AdminSupportInbox`) di ruang kendali admin, memilih percakapan dari daftar, dan mengirim balasan melalui `POST /api/v1/admin/support/threads/:id/messages`.
+  4. Riwayat percakapan menampilkan nama lengkap dan lencana `Tim Admin` milik admin yang membalas, dengan sinkronisasi polling setiap 4 detik.
+  5. Admin dapat mengubah status utas menjadi `resolved` atau membukanya kembali melalui `PATCH /api/v1/admin/support/threads/:id/status`.
+* **Pascakondisi:** Komunikasi dua arah antara mahasiswa dan tim admin tersimpan terpusat dan teraudit.
+
 ---
 
 ## BAB 5: KEBUTUHAN NON-FUNGSIONAL
@@ -385,7 +410,7 @@ Sistem beroperasi pada arsitektur web berbasis peramban sehingga tidak berintera
 
 ### 5.5 Keterpeliharaan & Kebersihan Rekayasa (*Maintainability & Cleanliness*)
 * **SRS-NFR-13 (Kepatuhan Arsitektur):** Kode backend wajib lolos pemeriksaan statis `go vet ./...` tanpa kesalahan.
-* **SRS-NFR-14 (Cakupan Pengujian Otomatis):** Seluruh logika bisnis esensial wajib dilindungi oleh pengujian unit otomatis dengan status kelulusan **100% (176 Vitest tests dan seluruh paket Go tests)**.
+* **SRS-NFR-14 (Cakupan Pengujian Otomatis):** Seluruh logika bisnis esensial wajib dilindungi oleh pengujian unit otomatis dengan status kelulusan **100% (186 Vitest tests pada 19 berkas uji dan seluruh paket Go tests)**.
 * **SRS-NFR-15 (Larangan AI Code Slop):** Dilarang mencantumkan komentar kode generik atau salinan teks klise yang tidak memiliki nilai teknis. Setiap komentar hanya diperuntukkan bagi aturan domain rumit atau keputusan non-intuitif.
 
 ---
@@ -406,6 +431,9 @@ erDiagram
     LEARNING_GROUPS ||--o{ FEEDBACK : evaluates
     USERS ||--o{ FEEDBACK : writes
     USERS ||--o{ REPORTS : submits
+    USERS ||--o| SUPPORT_THREADS : opens
+    SUPPORT_THREADS ||--o{ SUPPORT_MESSAGES : contains
+    USERS ||--o{ SUPPORT_MESSAGES : sends
 
     USERS {
         uuid id PK
@@ -451,6 +479,9 @@ erDiagram
         timestamp end_time
         int max_capacity
         varchar status
+        text review_note
+        uuid reviewed_by FK
+        timestamp reviewed_at
         timestamp created_at
         timestamp updated_at
     }
@@ -489,6 +520,24 @@ erDiagram
         varchar reason
         text details
         varchar status
+        timestamp created_at
+    }
+
+    SUPPORT_THREADS {
+        uuid id PK
+        uuid student_id FK
+        varchar subject
+        varchar status
+        timestamp last_message_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SUPPORT_MESSAGES {
+        uuid id PK
+        uuid thread_id FK
+        uuid sender_id FK
+        text message
         timestamp created_at
     }
 ```
@@ -543,7 +592,10 @@ erDiagram
 | `start_time` | `TIMESTAMPTZ` | `NOT NULL` | Tanggal & waktu mulai sesi |
 | `end_time` | `TIMESTAMPTZ` | `NOT NULL` | Tanggal & waktu selesai sesi |
 | `max_capacity`| `INTEGER` | `NOT NULL, CHECK (>= 2 AND <= 50)` | Batas maksimal peserta |
-| `status` | `VARCHAR(20)` | `NOT NULL, DEFAULT 'open'` | Status sesi: `open`, `ongoing`, `completed`, `cancelled` |
+| `status` | `VARCHAR(20)` | `NOT NULL, DEFAULT 'pending_approval'` | Status sesi: `pending_approval`, `rejected`, `open`, `ongoing`, `completed`, `cancelled` |
+| `review_note` | `TEXT` | `NOT NULL, DEFAULT ''` | Catatan kurasi atau alasan penolakan dari admin |
+| `reviewed_by` | `UUID` | `FK -> users(id) ON DELETE SET NULL` | ID admin yang meninjau pengajuan |
+| `reviewed_at` | `TIMESTAMPTZ` | `NULLABLE` | Waktu keputusan kurasi admin |
 | `created_at` | `TIMESTAMPTZ` | `NOT NULL, DEFAULT NOW()` | Waktu pembuatan sesi |
 | `updated_at` | `TIMESTAMPTZ` | `NOT NULL, DEFAULT NOW()` | Waktu pembaruan sesi |
 
@@ -556,6 +608,26 @@ erDiagram
 | `status` | `VARCHAR(20)` | `NOT NULL, DEFAULT 'pending'` | Status: `pending`, `accepted`, `rejected`, `cancelled`, `attended` |
 | `created_at` | `TIMESTAMPTZ` | `NOT NULL, DEFAULT NOW()` | Waktu pengajuan pendaftaran |
 | `updated_at` | `TIMESTAMPTZ` | `NOT NULL, DEFAULT NOW()` | Waktu pembaruan status anggota |
+
+#### 6. Tabel `support_threads`
+| Nama Kolom | Tipe Data | Constraint | Keterangan |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY, DEFAULT gen_random_uuid()` | Pengenal unik utas bantuan mahasiswa |
+| `student_id` | `UUID` | `NOT NULL, UNIQUE, FK -> users(id) ON DELETE CASCADE` | Mahasiswa pemilik utas percakapan |
+| `subject` | `VARCHAR(200)` | `NOT NULL` | Topik ringkas pertanyaan atau bantuan |
+| `status` | `VARCHAR(20)` | `NOT NULL, DEFAULT 'open'` | Status utas: `open` atau `resolved` |
+| `last_message_at` | `TIMESTAMPTZ` | `NOT NULL, DEFAULT NOW()` | Waktu pesan terbaru |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL, DEFAULT NOW()` | Waktu pembuatan utas |
+| `updated_at` | `TIMESTAMPTZ` | `NOT NULL, DEFAULT NOW()` | Waktu pembaruan terakhir |
+
+#### 7. Tabel `support_messages`
+| Nama Kolom | Tipe Data | Constraint | Keterangan |
+| :--- | :--- | :--- | :--- |
+| `id` | `UUID` | `PRIMARY KEY, DEFAULT gen_random_uuid()` | Pengenal unik pesan bantuan |
+| `thread_id` | `UUID` | `NOT NULL, FK -> support_threads(id) ON DELETE CASCADE` | Referensi ke utas bantuan |
+| `sender_id` | `UUID` | `NOT NULL, FK -> users(id) ON DELETE CASCADE` | Pengirim pesan (mahasiswa atau admin penjawab) |
+| `message` | `TEXT` | `NOT NULL` | Isi pesan teks |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL, DEFAULT NOW()` | Waktu pengiriman pesan |
 
 ---
 
@@ -574,7 +646,9 @@ Tabel berikut memetakan keterhubungan langsung antara Kebutuhan Bisnis PRD, Kebu
 | **FR-2.3** | **SRS-FR-08** | `PATCH /api/v1/groups/:id/status`<br>`PUT /api/v1/groups/:id` | `GroupDetailModal.jsx` | `group_service_test.go`<br>`SessionModals.test.jsx` | **Lulus (100%)** |
 | **FR-3.3** | **SRS-FR-09** | `GET /api/v1/groups/:id/messages`<br>`POST /api/v1/groups/:id/messages` | `GroupDetailModal.jsx` (Chat Tab) | `message_service_test.go`<br>`SessionModals.test.jsx` | **Lulus (100%)** |
 | **FR-4.1**<br>**FR-4.3** | **SRS-FR-10** | `POST /api/v1/groups/:id/feedback`<br>`GET /api/v1/auth/me` | `FeedbackModal.jsx`<br>`TutorSummaryModal.jsx` | `App.test.jsx`<br>`AccountModals.test.jsx` | **Lulus (100%)** |
-| **FR-5.1** | **SRS-FR-11** | `POST /api/v1/reports` | `ReportModal.jsx` | `App.test.jsx`<br>`SessionModals.test.jsx` | **Lulus (100%)** |
+| **FR-5.1** | **SRS-FR-11** | `POST /api/v1/reports`<br>`GET /api/v1/admin/moderation/reports`<br>`PATCH /api/v1/admin/users/:id/moderation` | `ReportModal.jsx`<br>`AdminModerationPanel.jsx` | `engagement_service_test.go`<br>`App.test.jsx`<br>`SessionModals.test.jsx` | **Lulus (100%)** |
+| **FR-2.3**<br>**FR-5.3** | **SRS-FR-12** | `GET /api/v1/admin/groups`<br>`PATCH /api/v1/admin/groups/:id/review` | `AdminLayout.jsx`<br>`AdminDashboardPage.jsx`<br>`AdminApprovalsPanel.jsx` | `group_service_test.go`<br>`AdminDashboardPage.test.jsx` | **Lulus (100%)** |
+| **FR-5.4** | **SRS-FR-13** | `GET /api/v1/support/my-thread`<br>`POST /api/v1/support/messages`<br>`GET /api/v1/admin/support/threads`<br>`POST /api/v1/admin/support/threads/:id/messages` | `StudentSupportModal.jsx`<br>`AdminSupportInbox.jsx` | `support_service_test.go`<br>`AdminDashboardPage.test.jsx`<br>`StudentSupportModal.test.jsx` | **Lulus (100%)** |
 
 ---
 

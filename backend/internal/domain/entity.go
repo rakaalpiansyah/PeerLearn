@@ -70,32 +70,37 @@ const (
 type GroupStatus string
 
 const (
-	StatusOpen      GroupStatus = "open"
-	StatusOngoing   GroupStatus = "ongoing"
-	StatusCompleted GroupStatus = "completed"
-	StatusCancelled GroupStatus = "cancelled"
+	StatusPendingApproval GroupStatus = "pending_approval"
+	StatusRejected        GroupStatus = "rejected"
+	StatusOpen            GroupStatus = "open"
+	StatusOngoing         GroupStatus = "ongoing"
+	StatusCompleted       GroupStatus = "completed"
+	StatusCancelled       GroupStatus = "cancelled"
 )
 
 type LearningGroup struct {
-	ID             uuid.UUID   `json:"id"`
-	HostID         uuid.UUID   `json:"host_id"`
-	Title          string      `json:"title"`
-	Description    string      `json:"description"`
-	Category       string      `json:"category"`
-	Format         GroupFormat `json:"format"`
-	LocationOrLink string      `json:"location_or_link"`
-	Latitude       *float64    `json:"latitude,omitempty"`
-	Longitude      *float64    `json:"longitude,omitempty"`
-	BuildingDetails string     `json:"building_details,omitempty"`
-	Agenda         []string    `json:"agenda,omitempty"`
-	Prerequisites  string      `json:"prerequisites,omitempty"`
-	StartTime      time.Time   `json:"start_time"`
-	EndTime        time.Time   `json:"end_time"`
-	MaxCapacity    int         `json:"max_capacity"`
-	Status         GroupStatus `json:"status"`
-	CreatedAt      time.Time   `json:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at"`
-	Host           *User       `json:"host,omitempty"`
+	ID              uuid.UUID   `json:"id"`
+	HostID          uuid.UUID   `json:"host_id"`
+	Title           string      `json:"title"`
+	Description     string      `json:"description"`
+	Category        string      `json:"category"`
+	Format          GroupFormat `json:"format"`
+	LocationOrLink  string      `json:"location_or_link"`
+	Latitude        *float64    `json:"latitude,omitempty"`
+	Longitude       *float64    `json:"longitude,omitempty"`
+	BuildingDetails string      `json:"building_details,omitempty"`
+	Agenda          []string    `json:"agenda,omitempty"`
+	Prerequisites   string      `json:"prerequisites,omitempty"`
+	StartTime       time.Time   `json:"start_time"`
+	EndTime         time.Time   `json:"end_time"`
+	MaxCapacity     int         `json:"max_capacity"`
+	Status          GroupStatus `json:"status"`
+	ReviewNote      string      `json:"review_note,omitempty"`
+	ReviewedBy      *uuid.UUID  `json:"reviewed_by,omitempty"`
+	ReviewedAt      *time.Time  `json:"reviewed_at,omitempty"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+	Host            *User       `json:"host,omitempty"`
 }
 
 type GroupMessage struct {
@@ -165,4 +170,29 @@ type Report struct {
 	Details        string       `json:"details"`
 	Status         ReportStatus `json:"status"`
 	CreatedAt      time.Time    `json:"created_at"`
+}
+
+type SupportThreadStatus string
+
+const (
+	SupportThreadOpen     SupportThreadStatus = "open"
+	SupportThreadResolved SupportThreadStatus = "resolved"
+)
+
+type SupportThread struct {
+	ID            uuid.UUID           `json:"id"`
+	StudentID     uuid.UUID           `json:"student_id"`
+	Subject       string              `json:"subject"`
+	Status        SupportThreadStatus `json:"status"`
+	LastMessageAt time.Time           `json:"last_message_at"`
+	CreatedAt     time.Time           `json:"created_at"`
+	UpdatedAt     time.Time           `json:"updated_at"`
+}
+
+type SupportMessage struct {
+	ID        uuid.UUID `json:"id"`
+	ThreadID  uuid.UUID `json:"thread_id"`
+	SenderID  uuid.UUID `json:"sender_id"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
 }

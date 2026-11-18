@@ -51,6 +51,9 @@ export const userApi = {
 
 export const groupApi = {
   list: (params) => apiClient.get("/groups", { params }),
+  adminList: (params) => apiClient.get("/admin/groups", { params }),
+  adminReview: (id, payload) =>
+    apiClient.patch(`/admin/groups/${id}/review`, payload),
   getRecommendations: () => apiClient.get("/groups/recommendations"),
   getByID: (id) => apiClient.get(`/groups/${id}`),
   create: (payload) => apiClient.post("/groups", payload),
@@ -89,4 +92,17 @@ export const engagementApi = {
   listModeration: () => apiClient.get("/admin/moderation/reports"),
   moderateUser: (id, payload) =>
     apiClient.patch(`/admin/users/${id}/moderation`, payload),
+};
+
+export const supportApi = {
+  getMyThread: () => apiClient.get("/support/my-thread"),
+  sendStudentMessage: (payload) => apiClient.post("/support/messages", payload),
+  adminListThreads: (params) =>
+    apiClient.get("/admin/support/threads", { params }),
+  adminGetMessages: (threadId) =>
+    apiClient.get(`/admin/support/threads/${threadId}/messages`),
+  adminReply: (threadId, payload) =>
+    apiClient.post(`/admin/support/threads/${threadId}/messages`, payload),
+  adminUpdateStatus: (threadId, status) =>
+    apiClient.patch(`/admin/support/threads/${threadId}/status`, { status }),
 };

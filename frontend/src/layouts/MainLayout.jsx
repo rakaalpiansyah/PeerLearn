@@ -12,6 +12,7 @@ export function MainLayout({
   onOpenMySessions,
   onOpenTutorSummary,
   onOpenModeration,
+  onOpenSupport,
   onOpenGuide,
 }) {
   return (
@@ -31,6 +32,7 @@ export function MainLayout({
         onOpenMySessions={onOpenMySessions}
         onOpenTutorSummary={onOpenTutorSummary}
         onOpenModeration={onOpenModeration}
+        onOpenSupport={onOpenSupport}
       />
       <main
         id="main-content"
