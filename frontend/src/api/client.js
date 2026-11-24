@@ -69,7 +69,9 @@ export const groupApi = {
       ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
     }),
   toggleReaction: (groupId, messageId, emoji) =>
-    apiClient.post(`/groups/${groupId}/messages/${messageId}/reactions`, { emoji }),
+    apiClient.post(`/groups/${groupId}/messages/${messageId}/reactions`, {
+      emoji,
+    }),
   togglePinMessage: (groupId, messageId) =>
     apiClient.post(`/groups/${groupId}/messages/${messageId}/pin`),
   resolveMapLink: (url) => apiClient.post("/groups/resolve-map-link", { url }),
@@ -105,4 +107,8 @@ export const supportApi = {
     apiClient.post(`/admin/support/threads/${threadId}/messages`, payload),
   adminUpdateStatus: (threadId, status) =>
     apiClient.patch(`/admin/support/threads/${threadId}/status`, { status }),
+};
+
+export const masterApi = {
+  getFaculties: () => apiClient.get("/master/faculties"),
 };

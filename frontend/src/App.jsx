@@ -18,6 +18,7 @@ import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { InfoGuideModal } from "./components/common/InfoGuideModal";
 import { LoadError } from "./components/ui/LoadError";
 import { Button } from "./components/ui/Button";
+import { isAdminRole } from "./utils/roles";
 
 function AppContent() {
   const { user, profileError, loading, retryProfile } = useAuth();
@@ -55,7 +56,7 @@ function AppContent() {
     setGuideModalOpen(true);
   };
 
-  if (user?.role === "admin" && !previewStudentCatalog) {
+  if (isAdminRole(user?.role) && !previewStudentCatalog) {
     return (
       <AdminDashboardPage
         onPreviewStudentCatalog={() => setPreviewStudentCatalog(true)}
@@ -65,7 +66,7 @@ function AppContent() {
 
   return (
     <>
-      {user?.role === "admin" && previewStudentCatalog && (
+      {isAdminRole(user?.role) && previewStudentCatalog && (
         <div className="bg-slate-900 text-white px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
           <span>Anda sedang melihat tampilan pratinjau katalog mahasiswa.</span>
           <Button

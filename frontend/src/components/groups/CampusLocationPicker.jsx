@@ -10,6 +10,7 @@ import {
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { groupApi } from "../../api/client";
+import { useMasterCatalog } from "../../hooks/useMasterCatalog";
 
 const CAMPUS_PRESETS = [
   { name: "Pilih Preset Kampus (Opsional)", lat: null, lng: null },
@@ -76,6 +77,25 @@ export function CampusLocationPicker({
     setMapResolveError(null);
   }, [isOpen]);
 
+  const masterCatalog = useMasterCatalog(isOpen);
+  const apiLocations = [
+    ...masterCatalog.faculties.flatMap((f) => f.locations || []),
+    ...(masterCatalog.shared_locations || []),
+  ];
+  const activePresets =
+    apiLocations.length > 0
+      ? [
+          { name: "Pilih Preset Kampus (Opsional)", lat: null, lng: null },
+          ...apiLocations.map((loc) => ({
+            name: loc.name,
+            shortLabel: loc.short_label || loc.name,
+            lat: loc.latitude,
+            lng: loc.longitude,
+            building: loc.building_details,
+          })),
+        ]
+      : CAMPUS_PRESETS;
+
   const applyQuickPreset = (preset) => {
     if (!preset || preset.lat === null) return;
     onLatitudeChange(preset.lat.toString());
@@ -95,7 +115,7 @@ export function CampusLocationPicker({
   };
 
   const handlePresetChange = (e) => {
-    const selected = CAMPUS_PRESETS.find((p) => p.name === e.target.value);
+    const selected = activePresets.find((p) => p.name === e.target.value);
     if (selected && selected.lat !== null) {
       applyQuickPreset(selected);
     }
@@ -269,7 +289,7 @@ export function CampusLocationPicker({
             onChange={handlePresetChange}
             className="w-full min-h-[38px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
           >
-            {CAMPUS_PRESETS.map((p, idx) => (
+            {activePresets.map((p, idx) => (
               <option key={idx} value={p.name}>
                 {p.name}
               </option>

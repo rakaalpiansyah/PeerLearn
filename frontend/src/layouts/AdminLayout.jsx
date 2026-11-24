@@ -11,6 +11,7 @@ import {
 import { Button } from "../components/ui/Button";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { useAuth } from "../context/AuthContext";
+import { getAdminRoleLabel } from "../utils/roles";
 
 const NAV_ITEMS = [
   {
@@ -81,7 +82,7 @@ export function AdminLayout({
                     }`}
                     aria-hidden="true"
                   />
-                  Ruang Kendali FST
+                  Ruang Kendali • {getAdminRoleLabel(user?.role)}
                 </span>
               </div>
               <p className="text-[11px] font-medium text-slate-500 truncate">
@@ -201,9 +202,9 @@ export function AdminLayout({
 
           <div className="pt-4 border-t border-slate-200 text-xs text-slate-500 space-y-0.5 px-2">
             <p className="font-semibold text-slate-700">
-              FST UIN Sunan Gunung Djati
+              Komunitas PeerLearn UIN SGD
             </p>
-            <p>Portal Kurasi & Moderasi Akademik</p>
+            <p>Pilot Project FST • Skala Kampus</p>
           </div>
         </aside>
 
