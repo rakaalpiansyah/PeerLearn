@@ -315,4 +315,59 @@ describe("recommendation loading and recovery", () => {
       screen.getByText(/Menampilkan data terakhir yang berhasil dimuat/),
     ).toBeTruthy();
   });
+
+  it("renders prodi cold-start recommendations even when user skills are empty and filters by format", async () => {
+    const user = userEvent.setup();
+    vi.mocked(useAuth).mockReturnValue({
+      isAuthenticated: true,
+      user: {
+        id: "learner-cold",
+        full_name: "Siti FEBI",
+        campus_name: "UIN SGD Bandung - S1 Akuntansi Syariah",
+        skills: [],
+      },
+    });
+    const onlineRec = {
+      ...group,
+      id: "rec-online",
+      title: "Bedah Laporan Keuangan Bank Syariah",
+      category: "Ekonomi & Bisnis Islam",
+      format: "online",
+      match_score: 40,
+      match_reason: "Sesuai rumpun prodi kamu",
+    };
+    const offlineRec = {
+      ...group,
+      id: "rec-offline",
+      title: "Diskusi Pasar Modal Syariah FEBI",
+      category: "Ekonomi & Bisnis Islam",
+      format: "offline",
+      match_score: 35,
+      match_reason: "Sesuai rumpun prodi kamu",
+    };
+    vi.mocked(groupApi.getRecommendations).mockResolvedValue({
+      success: true,
+      data: [onlineRec, offlineRec],
+    });
+
+    renderHome();
+    await user.click(
+      screen.getByRole("button", { name: /Direkomendasikan Untuk Anda/ }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: onlineRec.title }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: offlineRec.title }),
+    ).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Daring" }));
+    expect(
+      screen.getByRole("heading", { name: onlineRec.title }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { name: offlineRec.title }),
+    ).toBeNull();
+  });
 });

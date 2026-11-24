@@ -51,6 +51,7 @@ export function HomePage({
   const groupsRequest = useRef(0);
   const [category, setCategory] = useState("Semua");
   const [format, setFormat] = useState("all"); // 'all' | 'online' | 'offline'
+  const [recFormat, setRecFormat] = useState("all"); // 'all' | 'online' | 'offline'
   const [search, setSearch] = useState("");
   const [catalogView, setCatalogView] = useState("all"); // 'all' | 'recommendations'
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
@@ -184,6 +185,18 @@ export function HomePage({
       : [...PRIMARY_CATEGORIES, category];
 
   const hiddenCategoryCount = CATEGORIES.length - PRIMARY_CATEGORIES.length;
+  const filteredRecommendations =
+    recFormat === "all"
+      ? recommendations
+      : recommendations.filter((g) => g.format === recFormat);
+  const activeFormat = catalogView === "all" ? format : recFormat;
+  const handleFormatChange = (nextFormat) => {
+    if (catalogView === "all") {
+      setFormat(nextFormat);
+    } else {
+      setRecFormat(nextFormat);
+    }
+  };
   const totalPages = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedGroups = groups.slice(
@@ -605,45 +618,43 @@ export function HomePage({
             )}
 
             {/* Format Toggle (All / Online / Offline) */}
-            {catalogView === "all" && (
-              <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80 shrink-0 w-full sm:w-fit">
-                <button
-                  type="button"
-                  onClick={() => setFormat("all")}
-                  className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
-                    format === "all"
-                      ? "bg-white text-slate-900 font-semibold shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Semua
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormat("online")}
-                  className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                    format === "online"
-                      ? "bg-white text-emerald-800 font-semibold shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  <Video className="w-3 h-3 text-emerald-600 shrink-0" />
-                  <span>Daring</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormat("offline")}
-                  className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                    format === "offline"
-                      ? "bg-white text-emerald-800 font-semibold shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                  <span>Luring</span>
-                </button>
-              </div>
-            )}
+            <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80 shrink-0 w-full sm:w-fit">
+              <button
+                type="button"
+                onClick={() => handleFormatChange("all")}
+                className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                  activeFormat === "all"
+                    ? "bg-white text-slate-900 font-semibold shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Semua
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFormatChange("online")}
+                className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                  activeFormat === "online"
+                    ? "bg-white text-emerald-800 font-semibold shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Video className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>Daring</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFormatChange("offline")}
+                className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                  activeFormat === "offline"
+                    ? "bg-white text-emerald-800 font-semibold shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>Luring</span>
+              </button>
+            </div>
           </div>
 
           {/* Collapsible Category Chips (No Horizontal Overflow!) */}
@@ -693,7 +704,9 @@ export function HomePage({
               <div className="flex items-start sm:items-center gap-2.5 text-xs text-emerald-900">
                 <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
                 <span>
-                  Sesi berikut dicocokkan otomatis berdasarkan target materi belajar Anda dan keahlian tutor penyelenggara.
+                  {learningSkills.length === 0 && recommendations.length > 0
+                    ? "Rekomendasi awal disusun otomatis berdasarkan rumpun program studi dan sesi aktif UIN SGD. Tambahkan target materi belajar agar skor kecocokan lebih akurat."
+                    : "Sesi berikut dicocokkan otomatis berdasarkan target materi belajar, rumpun prodi, jadwal luang, dan rekam jejak tutor."}
                 </span>
               </div>
               <Button
@@ -735,63 +748,81 @@ export function HomePage({
                 ))}
               </div>
             ) : recommendationsError &&
-              recommendations.length === 0 ? null : learningSkills.length ===
+              recommendations.length === 0 ? null : recommendations.length ===
               0 ? (
-              <div className="py-14 text-center rounded-2xl bg-white border border-slate-200 p-8 space-y-4 shadow-2xs">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center border border-emerald-200">
-                  <Sparkles className="w-6 h-6" />
+              learningSkills.length === 0 ? (
+                <div className="py-14 text-center rounded-2xl bg-white border border-slate-200 p-8 space-y-4 shadow-2xs">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center border border-emerald-200">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1 max-w-md mx-auto">
+                    <h3 className="text-base font-bold text-slate-900">
+                      Belum Ada Minat Belajar yang Ditentukan
+                    </h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Tentukan topik materi kuliah yang ingin Anda pelajari agar
+                      sistem dapat menemukan tutor rekan sebaya yang tepat.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={onOpenSkills}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Atur Materi Belajar
+                  </Button>
                 </div>
-                <div className="space-y-1 max-w-md mx-auto">
-                  <h3 className="text-base font-bold text-slate-900">
-                    Belum Ada Minat Belajar yang Ditentukan
-                  </h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Tentukan topik materi kuliah yang ingin Anda pelajari agar
-                    sistem dapat menemukan tutor rekan sebaya yang tepat.
-                  </p>
+              ) : (
+                <div className="py-14 text-center rounded-2xl bg-white border border-slate-200 p-8 space-y-4 shadow-2xs">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center border border-emerald-200">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1 max-w-md mx-auto">
+                    <h3 className="text-base font-bold text-slate-900">
+                      Belum Ada Sesi yang Cocok
+                    </h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Belum ada kelompok belajar aktif untuk materi yang Anda
+                      cari (
+                      {learningSkills
+                        .map((s) => s.skill?.name)
+                        .filter(Boolean)
+                        .join(", ")}
+                      ). Buka sesi baru atau ajak rekan kampus!
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={onOpenCreateGroup}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Buka Sesi Belajar Topik Ini
+                  </Button>
                 </div>
+              )
+            ) : filteredRecommendations.length === 0 ? (
+              <div className="py-12 text-center rounded-2xl bg-white border border-slate-200 p-6 space-y-3 shadow-2xs">
+                <p className="text-sm font-bold text-slate-900">
+                  Tidak Ada Rekomendasi di Format Ini
+                </p>
+                <p className="text-xs text-slate-600">
+                  Coba tampilkan semua format daring dan luring untuk melihat rekomendasi lainnya.
+                </p>
                 <Button
-                  variant="primary"
+                  variant="outline"
                   size="sm"
-                  onClick={onOpenSkills}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                  onClick={() => setRecFormat("all")}
                 >
-                  <BookOpen className="w-4 h-4" />
-                  Atur Materi Belajar
-                </Button>
-              </div>
-            ) : recommendations.length === 0 ? (
-              <div className="py-14 text-center rounded-2xl bg-white border border-slate-200 p-8 space-y-4 shadow-2xs">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center border border-emerald-200">
-                  <BookOpen className="w-6 h-6" />
-                </div>
-                <div className="space-y-1 max-w-md mx-auto">
-                  <h3 className="text-base font-bold text-slate-900">
-                    Belum Ada Sesi yang Cocok
-                  </h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Belum ada kelompok belajar aktif untuk materi yang Anda cari
-                    (
-                    {learningSkills
-                      .map((s) => s.skill?.name)
-                      .filter(Boolean)
-                      .join(", ")}
-                    ). Buka sesi baru atau ajak rekan kampus!
-                  </p>
-                </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={onOpenCreateGroup}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Buka Sesi Belajar Topik Ini
+                  Tampilkan Semua Format
                 </Button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-                {recommendations.map((group) => (
+                {filteredRecommendations.map((group) => (
                   <GroupCard
                     key={group.id}
                     group={group}

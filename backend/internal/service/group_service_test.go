@@ -48,6 +48,7 @@ func (m *mockGroupRepository) FindByID(ctx context.Context, id uuid.UUID) (*doma
 		Latitude:        g.Latitude,
 		Longitude:       g.Longitude,
 		BuildingDetails: g.BuildingDetails,
+		Agenda:          g.Agenda,
 		StartTime:       g.StartTime,
 		EndTime:         g.EndTime,
 		MaxCapacity:     g.MaxCapacity,
@@ -65,6 +66,9 @@ func (m *mockGroupRepository) List(ctx context.Context, filter domain.GroupFilte
 		if !filter.IncludeUnapproved && (g.Status == domain.StatusPendingApproval || g.Status == domain.StatusRejected) {
 			continue
 		}
+		if filter.Status != "" && g.Status != filter.Status {
+			continue
+		}
 		var hostResp *domain.UserResponse
 		if g.Host != nil {
 			u := domain.ToUserResponse(g.Host, nil)
@@ -74,11 +78,16 @@ func (m *mockGroupRepository) List(ctx context.Context, filter domain.GroupFilte
 			ID:              g.ID,
 			HostID:          g.HostID,
 			Title:           g.Title,
+			Description:     g.Description,
+			Category:        g.Category,
 			Format:          g.Format,
 			LocationOrLink:  g.LocationOrLink,
 			Latitude:        g.Latitude,
 			Longitude:       g.Longitude,
 			BuildingDetails: g.BuildingDetails,
+			Agenda:          g.Agenda,
+			StartTime:       g.StartTime,
+			EndTime:         g.EndTime,
 			MaxCapacity:     g.MaxCapacity,
 			Status:          g.Status,
 			ReviewNote:      g.ReviewNote,
@@ -118,7 +127,15 @@ func (m *mockGroupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) 
 	var list []domain.GroupResponse
 	for _, g := range m.groups {
 		if g.HostID == hostID {
-			list = append(list, domain.GroupResponse{ID: g.ID, HostID: g.HostID, Title: g.Title})
+			list = append(list, domain.GroupResponse{
+				ID:        g.ID,
+				HostID:    g.HostID,
+				Title:     g.Title,
+				Category:  g.Category,
+				Status:    g.Status,
+				StartTime: g.StartTime,
+				EndTime:   g.EndTime,
+			})
 		}
 	}
 	return list, nil

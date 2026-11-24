@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -331,7 +332,200 @@ func (s *groupService) GetRecommendations(ctx context.Context, userID uuid.UUID)
 	if userID == uuid.Nil {
 		return nil, ErrUnauthorizedAction
 	}
-	return s.groupRepo.FindRecommendations(ctx, userID)
+
+	viewerRole := s.resolveViewerRole(ctx, &userID)
+	if s.userRepo == nil {
+		groups, err := s.groupRepo.FindRecommendations(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		for i := range groups {
+			uid := userID
+			domain.SanitizeGroupForViewer(&groups[i], &uid, viewerRole)
+		}
+		return groups, nil
+	}
+
+	now := time.Now().UTC()
+	user, _ := s.userRepo.FindByID(ctx, userID)
+	userSkills, _ := s.userRepo.GetUserSkills(ctx, userID)
+	learningSkills := make([]domain.UserSkill, 0)
+	for _, us := range userSkills {
+		if us.SkillType == domain.SkillLearning {
+			learningSkills = append(learningSkills, us)
+		}
+	}
+
+	candidates, err := s.groupRepo.List(ctx, domain.GroupFilter{Status: domain.StatusOpen}, &userID)
+	if err != nil {
+		return nil, fmt.Errorf("groupService.GetRecommendations list: %w", err)
+	}
+
+	excludedIDs := make(map[uuid.UUID]bool)
+	bookedWindows := make([]scheduleWindow, 0)
+
+	if hosted, hErr := s.groupRepo.ListByHost(ctx, userID); hErr == nil {
+		for _, h := range hosted {
+			excludedIDs[h.ID] = true
+			if (h.Status == domain.StatusOpen || h.Status == domain.StatusOngoing) && h.EndTime.After(now) {
+				bookedWindows = append(bookedWindows, scheduleWindow{start: h.StartTime, end: h.EndTime})
+			}
+		}
+	}
+
+	if s.membershipRepo != nil {
+		if mems, mErr := s.membershipRepo.ListByUser(ctx, userID); mErr == nil {
+			for _, m := range mems {
+				if m.Status == domain.MembershipPending || m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended {
+					excludedIDs[m.GroupID] = true
+				}
+				if m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended {
+					if g, gErr := s.groupRepo.FindByID(ctx, m.GroupID); gErr == nil && g != nil {
+						if (g.Status == domain.StatusOpen || g.Status == domain.StatusOngoing) && g.EndTime.After(now) {
+							bookedWindows = append(bookedWindows, scheduleWindow{start: g.StartTime, end: g.EndTime})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	campusName := ""
+	if user != nil {
+		campusName = user.CampusName
+	}
+	campusCategories := inferCategoriesFromCampus(campusName)
+	hostSkillCache := make(map[uuid.UUID]map[uuid.UUID]bool)
+
+	eligible := make([]domain.GroupResponse, 0, len(candidates))
+	matched := make([]domain.GroupResponse, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		if candidate.HostID == userID || excludedIDs[candidate.ID] {
+			continue
+		}
+		if candidate.Status != domain.StatusOpen {
+			continue
+		}
+		if !candidate.EndTime.IsZero() && !candidate.EndTime.After(now) {
+			continue
+		}
+		if candidate.MaxCapacity > 0 && candidate.CurrentMembers >= candidate.MaxCapacity {
+			continue
+		}
+		if candidate.UserMembership != nil {
+			st := *candidate.UserMembership
+			if st == domain.MembershipPending || st == domain.MembershipAccepted || st == domain.MembershipAttended {
+				continue
+			}
+		}
+
+		overlaps := false
+		for _, bw := range bookedWindows {
+			if hasScheduleOverlap(candidate.StartTime, candidate.EndTime, bw.start, bw.end) {
+				overlaps = true
+				break
+			}
+		}
+		if overlaps {
+			continue
+		}
+
+		eligible = append(eligible, candidate)
+
+		var hostMastered map[uuid.UUID]bool
+		if len(learningSkills) > 0 {
+			cached, ok := hostSkillCache[candidate.HostID]
+			if !ok {
+				cached = make(map[uuid.UUID]bool)
+				if hSkills, hsErr := s.userRepo.GetUserSkills(ctx, candidate.HostID); hsErr == nil {
+					for _, hs := range hSkills {
+						if hs.SkillType == domain.SkillMastered {
+							cached[hs.SkillID] = true
+						}
+					}
+				}
+				hostSkillCache[candidate.HostID] = cached
+			}
+			hostMastered = cached
+		}
+
+		score, reasons := scoreRecommendationCandidate(candidate, learningSkills, hostMastered, campusCategories, now)
+
+		if len(learningSkills) == 0 && len(campusCategories) == 0 {
+			if score < 35 {
+				score = 35
+				if candidate.Host != nil && candidate.Host.ContributionPoints >= 20 {
+					score += 10
+				}
+				if candidate.StartTime.After(now) && !candidate.StartTime.After(now.Add(7*24*time.Hour)) {
+					score += 5
+				}
+			}
+			reasons = append([]string{"Sesi aktif populer UIN SGD"}, reasons...)
+			if len(reasons) > 3 {
+				reasons = reasons[:3]
+			}
+		}
+
+		minScore := 20
+		if score < minScore {
+			continue
+		}
+
+		candidate.MatchScore = score
+		candidate.MatchReasons = reasons
+		if len(reasons) > 0 {
+			candidate.MatchReason = reasons[0]
+		}
+		matched = append(matched, candidate)
+	}
+
+	// Cold-start fallback when user has no learning skills configured and no prodi category matched any session
+	if len(learningSkills) == 0 && len(matched) == 0 && len(eligible) > 0 {
+		for _, candidate := range eligible {
+			score, reasons := scoreRecommendationCandidate(candidate, nil, nil, nil, now)
+			if score < 30 {
+				score = 30
+			}
+			reasons = append([]string{"Sesi aktif lintas fakultas UIN SGD"}, reasons...)
+			if len(reasons) > 3 {
+				reasons = reasons[:3]
+			}
+			candidate.MatchScore = score
+			candidate.MatchReasons = reasons
+			candidate.MatchReason = reasons[0]
+			matched = append(matched, candidate)
+		}
+	}
+
+	sort.SliceStable(matched, func(i, j int) bool {
+		if matched[i].MatchScore != matched[j].MatchScore {
+			return matched[i].MatchScore > matched[j].MatchScore
+		}
+		pi, pj := 0, 0
+		if matched[i].Host != nil {
+			pi = matched[i].Host.ContributionPoints
+		}
+		if matched[j].Host != nil {
+			pj = matched[j].Host.ContributionPoints
+		}
+		if pi != pj {
+			return pi > pj
+		}
+		return matched[i].StartTime.Before(matched[j].StartTime)
+	})
+
+	if len(matched) > 20 {
+		matched = matched[:20]
+	}
+
+	for i := range matched {
+		uid := userID
+		domain.SanitizeGroupForViewer(&matched[i], &uid, viewerRole)
+	}
+
+	return matched, nil
 }
 
 func (s *groupService) ResolveMapLink(ctx context.Context, rawInput string) (*domain.MapLocationResolution, error) {

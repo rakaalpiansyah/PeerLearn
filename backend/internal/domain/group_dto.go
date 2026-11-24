@@ -72,6 +72,8 @@ type GroupResponse struct {
 	Host            *UserResponse     `json:"host,omitempty"`
 	UserMembership  *MembershipStatus `json:"user_membership,omitempty"`
 	MatchReason     string            `json:"match_reason,omitempty"`
+	MatchReasons    []string          `json:"match_reasons,omitempty"`
+	MatchScore      int               `json:"match_score,omitempty"`
 }
 
 type ReviewGroupRequest struct {

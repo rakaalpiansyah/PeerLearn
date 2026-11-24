@@ -17,6 +17,11 @@ export function GroupCard({ group, onClick, onViewProfile }) {
   const remaining = group.max_capacity - group.current_members;
   const isFull = remaining <= 0;
   const isAlmostFull = remaining === 1;
+  const primaryReason = group.match_reason || group.match_reasons?.[0] || "";
+  const secondaryReason =
+    group.match_reasons?.[1] && group.match_reasons[1] !== primaryReason
+      ? group.match_reasons[1]
+      : "";
 
   const startDate = new Date(group.start_time);
   const endDate = new Date(group.end_time);
@@ -68,12 +73,26 @@ export function GroupCard({ group, onClick, onViewProfile }) {
         </div>
 
         {/* Match Reason for Smart Recommendations or Agenda indicator */}
-        {(group.match_reason || (group.agenda && group.agenda.length > 0)) && (
+        {(group.match_score > 0 ||
+          primaryReason ||
+          (group.agenda && group.agenda.length > 0)) && (
           <div className="flex flex-wrap items-center gap-1.5">
-            {group.match_reason && (
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md w-fit">
-                <Sparkles className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                <span className="truncate">Sesuai minat: {group.match_reason}</span>
+            {group.match_score > 0 && (
+              <div className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-700 text-white px-2 py-0.5 rounded-md tabular-nums">
+                <Sparkles className="w-2.5 h-2.5" aria-hidden="true" />
+                <span>{group.match_score}% cocok</span>
+              </div>
+            )}
+
+            {primaryReason && (
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md w-fit max-w-full">
+                <span className="truncate">{primaryReason}</span>
+              </div>
+            )}
+
+            {secondaryReason && (
+              <div className="flex items-center gap-1 text-[10px] font-medium text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md w-fit max-w-full">
+                <span className="truncate">{secondaryReason}</span>
               </div>
             )}
 

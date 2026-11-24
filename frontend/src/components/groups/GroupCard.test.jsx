@@ -18,3 +18,24 @@ it.each(['{Enter}', ' '])('opens a catalog session with %s and keeps its heading
   await user.keyboard(key)
   expect(onClick).toHaveBeenCalledTimes(1)
 })
+
+it('renders recommendation match score and explanation badges when present', () => {
+  render(
+    <GroupCard
+      group={{
+        ...group,
+        match_score: 85,
+        match_reason: 'Cocok target belajar: Basis Data',
+        match_reasons: [
+          'Cocok target belajar: Basis Data',
+          'Sesuai rumpun prodi kamu',
+        ],
+      }}
+      onClick={vi.fn()}
+    />,
+  )
+
+  expect(screen.getByText('85% cocok')).toBeTruthy()
+  expect(screen.getByText('Cocok target belajar: Basis Data')).toBeTruthy()
+  expect(screen.getByText('Sesuai rumpun prodi kamu')).toBeTruthy()
+})
