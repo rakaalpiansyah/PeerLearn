@@ -1,45 +1,27 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
-  Calendar,
   Clock,
   MapPin,
   Video,
-  Users,
-  Award,
   Check,
   XCircle,
-  ExternalLink,
   Star,
   Flag,
   AlertCircle,
-  GraduationCap,
   MessageSquare,
-  Send,
   ListOrdered,
   Lock,
-  Compass,
-  FileText,
-  Sparkles,
-  Pin,
-  Reply,
-  Smile,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
-import { UserAvatar } from "../ui/UserAvatar";
-import LinkifiedText from "../common/LinkifiedText";
 import { groupApi, membershipApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
-
-function formatGoogleCalendarDates(startIso, endIso) {
-  const format = (iso) => {
-    const d = new Date(iso);
-    return d.toISOString().replace(/-|:|\.\d\d\d/g, "");
-  };
-  return `${format(startIso)}/${format(endIso)}`;
-}
+import { GroupReschedulePanel } from "./detail/GroupReschedulePanel";
+import { GroupInfoSection } from "./detail/GroupInfoSection";
+import { GroupParticipantsPanel } from "./detail/GroupParticipantsPanel";
+import { GroupChatPanel } from "./detail/GroupChatPanel";
 
 export function GroupDetailModal({
   isOpen,
@@ -56,25 +38,13 @@ export function GroupDetailModal({
   const [members, setMembers] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [loadingMembers, setLoadingMembers] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [joining, setJoining] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [actionSuccess, setActionSuccess] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(null);
   const [cancellingMembership, setCancellingMembership] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
-  const [rescheduleDate, setRescheduleDate] = useState("");
-  const [rescheduleStart, setRescheduleStart] = useState("");
-  const [rescheduleEnd, setRescheduleEnd] = useState("");
-  const [rescheduleLocation, setRescheduleLocation] = useState("");
-  const [rescheduleNextTopic, setRescheduleNextTopic] = useState("");
-  const [savingReschedule, setSavingReschedule] = useState(false);
-  const [actionSuccess, setActionSuccess] = useState(null);
-  const [replyingTo, setReplyingTo] = useState(null);
-  const [activeEmojiPicker, setActiveEmojiPicker] = useState(null);
-  const chatBottomRef = useRef(null);
 
   const isHost = isAuthenticated && user?.id === group?.host_id;
   const isFull = group?.current_members >= group?.max_capacity;
@@ -86,7 +56,6 @@ export function GroupDetailModal({
 
   const loadDetails = async () => {
     if (!group?.id) return;
-    setLoadingMembers(true);
     try {
       const [membersRes, feedbacksRes] = await Promise.all([
         groupApi.getMembers(group.id),
@@ -96,8 +65,6 @@ export function GroupDetailModal({
       if (feedbacksRes.success) setFeedbacks(feedbacksRes.data || []);
     } catch {
       // Fail gracefully
-    } finally {
-      setLoadingMembers(false);
     }
   };
 
@@ -128,59 +95,11 @@ export function GroupDetailModal({
     }
   };
 
-  const scrollToMessage = (msgId) => {
-    const el = document.getElementById(`msg-${msgId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("ring-2", "ring-emerald-400", "rounded-2xl");
-      setTimeout(() => {
-        el.classList.remove("ring-2", "ring-emerald-400", "rounded-2xl");
-      }, 2000);
-    }
-  };
-
-  const handleToggleReaction = async (messageId, emoji) => {
-    if (!group?.id) return;
-    try {
-      const res = await groupApi.toggleReaction(group.id, messageId, emoji);
-      if (res.success) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId ? { ...m, reactions: res.data } : m
-          )
-        );
-      }
-    } catch {
-      // Silent reaction failover
-    } finally {
-      setActiveEmojiPicker(null);
-    }
-  };
-
-  const handleTogglePin = async (messageId) => {
-    if (!group?.id || !isHost) return;
-    try {
-      const res = await groupApi.togglePinMessage(group.id, messageId);
-      if (res.success) {
-        const isNowPinned = res.data.is_pinned;
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id === messageId) {
-              return { ...m, is_pinned: isNowPinned };
-            }
-            return isNowPinned ? { ...m, is_pinned: false } : m;
-          })
-        );
-      }
-    } catch (err) {
-      setActionError(err.message || "Gagal mengubah status sematan pesan");
-    }
-  };
-
   useEffect(() => {
     if (isOpen && group) {
       loadDetails();
       setActionError(null);
+      setIsRescheduling(false);
       setActiveTab("info");
     }
   }, [isOpen, group]);
@@ -201,13 +120,20 @@ export function GroupDetailModal({
     return () => clearInterval(interval);
   }, [isOpen, group?.id, hasAccessToPrivate, activeTab]);
 
-  useEffect(() => {
-    if (activeTab === "chat" && chatBottomRef.current) {
-      chatBottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, activeTab]);
-
   if (!isOpen || !group) return null;
+
+  const handleOpenReschedule = () => {
+    setIsRescheduling(true);
+    setActionError(null);
+    setActionSuccess(null);
+  };
+
+  const handleRescheduleSuccess = (message) => {
+    setIsRescheduling(false);
+    setActionSuccess(message);
+    onActionComplete();
+    loadDetails();
+  };
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
@@ -229,91 +155,6 @@ export function GroupDetailModal({
     }
   };
 
-  const handleOpenReschedule = () => {
-    const sDate = new Date(group.start_time);
-    const eDate = new Date(group.end_time);
-    const pad = (n) => (n < 10 ? `0${n}` : n);
-    const yyyy = sDate.getFullYear();
-    const mm = pad(sDate.getMonth() + 1);
-    const dd = pad(sDate.getDate());
-    setRescheduleDate(`${yyyy}-${mm}-${dd}`);
-    setRescheduleStart(`${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`);
-    setRescheduleEnd(`${pad(eDate.getHours())}:${pad(eDate.getMinutes())}`);
-    setRescheduleLocation(group.location_or_link || "");
-    setRescheduleNextTopic("");
-    setIsRescheduling(true);
-    setActionError(null);
-    setActionSuccess(null);
-  };
-
-  const advanceOneWeek = () => {
-    const base = rescheduleDate ? new Date(`${rescheduleDate}T00:00:00`) : new Date();
-    base.setDate(base.getDate() + 7);
-    const pad = (n) => (n < 10 ? `0${n}` : n);
-    const yyyy = base.getFullYear();
-    const mm = pad(base.getMonth() + 1);
-    const dd = pad(base.getDate());
-    setRescheduleDate(`${yyyy}-${mm}-${dd}`);
-  };
-
-  const handleSaveReschedule = async () => {
-    if (!rescheduleDate || !rescheduleStart || !rescheduleEnd) {
-      setActionError("Tanggal dan jam pelaksanaan wajib diisi.");
-      return;
-    }
-    const [sH, sM] = rescheduleStart.split(":").map(Number);
-    const [eH, eM] = rescheduleEnd.split(":").map(Number);
-    const sTime = new Date(`${rescheduleDate}T00:00:00`);
-    sTime.setHours(sH, sM, 0, 0);
-    const eTime = new Date(`${rescheduleDate}T00:00:00`);
-    eTime.setHours(eH, eM, 0, 0);
-
-    if (eTime <= sTime) {
-      setActionError("Waktu selesai harus lebih akhir dari waktu mulai.");
-      return;
-    }
-
-    setSavingReschedule(true);
-    setActionError(null);
-    try {
-      const nextAgenda = [...(group.agenda || [])];
-      if (rescheduleNextTopic.trim() && !nextAgenda.includes(rescheduleNextTopic.trim())) {
-        nextAgenda.push(rescheduleNextTopic.trim());
-      }
-
-      const payload = {
-        title: group.title,
-        description: group.description,
-        category: group.category,
-        format: group.format,
-        location_or_link: rescheduleLocation.trim() || group.location_or_link,
-        latitude: group.latitude,
-        longitude: group.longitude,
-        building_details: group.building_details,
-        agenda: nextAgenda,
-        prerequisites: group.prerequisites || "",
-        start_time: sTime.toISOString(),
-        end_time: eTime.toISOString(),
-        max_capacity: group.max_capacity,
-      };
-      const res = await groupApi.update(group.id, payload);
-      if (res.success) {
-        setIsRescheduling(false);
-        setActionSuccess(
-          group.status === "rejected"
-            ? "Perbaikan pengajuan berhasil dikirim ulang ke antrean verifikasi Admin!"
-            : "Jadwal & materi pertemuan berikutnya berhasil diperbarui!"
-        );
-        onActionComplete();
-        loadDetails();
-      }
-    } catch (err) {
-      setActionError(err.message || "Gagal menjadwalkan ulang sesi belajar.");
-    } finally {
-      setSavingReschedule(false);
-    }
-  };
-
   const handleLeaveGroup = async () => {
     const membership = members.find((m) => m.user_id === user?.id);
     if (!membership?.id) {
@@ -325,7 +166,9 @@ export function GroupDetailModal({
     try {
       const res = await membershipApi.updateStatus(membership.id, "cancelled");
       if (res.success) {
-        setActionSuccess("Anda telah membatalkan keikutsertaan dalam sesi ini.");
+        setActionSuccess(
+          "Anda telah membatalkan keikutsertaan dalam sesi ini.",
+        );
         onActionComplete();
         loadDetails();
       }
@@ -362,63 +205,6 @@ export function GroupDetailModal({
       setActionError(err.message || "Gagal memperbarui status kegiatan");
     }
   };
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    const text = newMessage.trim();
-    if (!text || sendingMessage) return;
-
-    setSendingMessage(true);
-    try {
-      const res = await groupApi.sendMessage(
-        group.id,
-        text,
-        replyingTo?.id || null
-      );
-      if (res.success) {
-        setMessages((prev) => [...prev, res.data]);
-        setNewMessage("");
-        setReplyingTo(null);
-      } else {
-        throw new Error(res.message || "Gagal mengirim pesan");
-      }
-    } catch (err) {
-      setActionError(err.message || "Gagal mengirim pesan diskusi");
-    } finally {
-      setSendingMessage(false);
-    }
-  };
-
-  const startDate = new Date(group.start_time);
-  const endDate = new Date(group.end_time);
-  const dateStr = startDate.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  const timeStr = `${startDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} - ${endDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB`;
-
-  const pendingMembers = members.filter((m) => m.status === "pending");
-  const acceptedMembers = members.filter((m) => m.status === "accepted");
-
-  const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-    group.title
-  )}&dates=${formatGoogleCalendarDates(
-    group.start_time,
-    group.end_time
-  )}&details=${encodeURIComponent(
-    (group.description || "") +
-      (group.agenda && group.agenda.length > 0
-        ? "\n\nAgenda:\n" + group.agenda.map((a, i) => `${i + 1}. ${a}`).join("\n")
-        : "")
-  )}&location=${encodeURIComponent(
-    group.format === "online"
-      ? group.location_or_link
-      : group.building_details
-      ? `${group.location_or_link} (${group.building_details})`
-      : group.location_or_link
-  )}`;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} labelledBy="group-detail-title">
@@ -472,7 +258,11 @@ export function GroupDetailModal({
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <ListOrdered className={`w-3.5 h-3.5 shrink-0 ${activeTab === "info" ? "text-emerald-700" : "text-slate-400"}`} />
+            <ListOrdered
+              className={`w-3.5 h-3.5 shrink-0 ${
+                activeTab === "info" ? "text-emerald-700" : "text-slate-400"
+              }`}
+            />
             <span className="truncate">Informasi & Agenda Sesi</span>
           </button>
 
@@ -485,7 +275,11 @@ export function GroupDetailModal({
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${activeTab === "chat" ? "text-emerald-700" : "text-slate-400"}`} />
+            <MessageSquare
+              className={`w-3.5 h-3.5 shrink-0 ${
+                activeTab === "chat" ? "text-emerald-700" : "text-slate-400"
+              }`}
+            />
             <span className="truncate">Ruang Diskusi</span>
             {hasAccessToPrivate && messages.length > 0 && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-200 shrink-0">
@@ -504,7 +298,9 @@ export function GroupDetailModal({
             <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
               <Clock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
               <div className="space-y-0.5">
-                <p className="font-bold">Menunggu Verifikasi & Persetujuan Admin</p>
+                <p className="font-bold">
+                  Menunggu Verifikasi & Persetujuan Admin
+                </p>
                 <p className="text-[11px] text-amber-800 leading-relaxed">
                   Pengajuan kegiatan Anda sedang diperiksa oleh Tim Admin FST.
                   Sesi akan otomatis tayang ke mahasiswa lain setelah di-ACC.
@@ -518,7 +314,9 @@ export function GroupDetailModal({
               <div className="flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-bold">Pengajuan Ditolak / Perlu Perbaikan</p>
+                  <p className="font-bold">
+                    Pengajuan Ditolak / Perlu Perbaikan
+                  </p>
                   {group.review_note && (
                     <p className="text-[11px] text-rose-800 leading-relaxed bg-white/80 p-2 rounded-lg border border-rose-200">
                       Catatan Admin: {group.review_note}
@@ -550,8 +348,13 @@ export function GroupDetailModal({
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <div>
-                <p className="font-bold">Sesi Belajar Ini Telah Dibatalkan oleh Penyelenggara</p>
-                <p className="text-[11px] text-rose-700">Seluruh agenda kegiatan atau pertemuan ditiadakan. Anda dapat mencari sesi belajar lain yang tersedia.</p>
+                <p className="font-bold">
+                  Sesi Belajar Ini Telah Dibatalkan oleh Penyelenggara
+                </p>
+                <p className="text-[11px] text-rose-700">
+                  Seluruh agenda kegiatan atau pertemuan ditiadakan. Anda dapat
+                  mencari sesi belajar lain yang tersedia.
+                </p>
               </div>
             </div>
           )}
@@ -582,816 +385,48 @@ export function GroupDetailModal({
 
           {activeTab === "info" && (
             <>
-              {/* Reschedule Form (Only visible to Host when activated) */}
               {isRescheduling && (
-                <div className="p-4 rounded-xl bg-emerald-50/40 border border-emerald-200/80 space-y-3 text-xs shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-emerald-700" />
-                      Jadwalkan Ulang / Reschedule Sesi
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsRescheduling(false)}
-                      className="text-slate-400 hover:text-slate-600 p-0.5"
-                      aria-label="Tutup form reschedule"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-600">
-                    Pilih tanggal dan waktu baru untuk memperbarui jadwal bagi seluruh peserta terdaftar.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-[11px] font-semibold text-slate-700">
-                          Tanggal Baru
-                        </label>
-                        <button
-                          type="button"
-                          onClick={advanceOneWeek}
-                          className="text-[10px] text-emerald-700 hover:text-emerald-900 hover:underline font-semibold"
-                          title="Majukan 7 hari ke pekan depan"
-                        >
-                          +7 Hari
-                        </button>
-                      </div>
-                      <input
-                        type="date"
-                        value={rescheduleDate}
-                        onChange={(e) => setRescheduleDate(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Jam Mulai
-                      </label>
-                      <input
-                        type="time"
-                        value={rescheduleStart}
-                        onChange={(e) => setRescheduleStart(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Jam Selesai
-                      </label>
-                      <input
-                        type="time"
-                        value={rescheduleEnd}
-                        onChange={(e) => setRescheduleEnd(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Lokasi / Link Pertemuan Berikutnya
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="cth. Lab Komputer FST Lt. 3 atau https://meet.google.com/..."
-                        value={rescheduleLocation}
-                        onChange={(e) => setRescheduleLocation(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Topik Bahasan Pekan Depan (Opsional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="cth. Bab 2: Stack & Queue atau Latihan Praktikum"
-                        value={rescheduleNextTopic}
-                        onChange={(e) => setRescheduleNextTopic(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsRescheduling(false)}
-                      disabled={savingReschedule}
-                    >
-                      Batal
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleSaveReschedule}
-                      isLoading={savingReschedule}
-                    >
-                      Simpan Jadwal Baru
-                    </Button>
-                  </div>
-                </div>
+                <GroupReschedulePanel
+                  group={group}
+                  onClose={() => setIsRescheduling(false)}
+                  onSuccess={handleRescheduleSuccess}
+                  onError={setActionError}
+                />
               )}
 
-              {/* Schedule & Location Box */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="space-y-1.5">
-                  <span className="text-slate-500 font-semibold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-                    Jadwal Pertemuan
-                  </span>
-                  <p className="font-bold text-slate-900 text-sm">{dateStr}</p>
-                  <p className="text-slate-600 text-xs">{timeStr}</p>
+              <GroupInfoSection
+                group={group}
+                hasAccessToPrivate={hasAccessToPrivate}
+                isHost={isHost}
+                onOpenReschedule={handleOpenReschedule}
+                onOpenPublicProfile={onOpenPublicProfile}
+              />
 
-                  {hasAccessToPrivate && (
-                    <a
-                      href={googleCalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 pt-1 text-emerald-800 hover:text-emerald-950 font-medium transition-colors"
-                    >
-                      <Calendar className="w-3 h-3 text-emerald-700" />
-                      Simpan ke Google Calendar
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-slate-500 font-semibold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                    {group.format === "online" ? (
-                      <Video className="w-3.5 h-3.5 text-emerald-700" />
-                    ) : (
-                      <MapPin className="w-3.5 h-3.5 text-emerald-700" />
-                    )}
-                    {group.format === "online"
-                      ? "Media Pertemuan"
-                      : "Lokasi Fisik Kampus"}
-                  </span>
-
-                  {hasAccessToPrivate ? (
-                    group.format === "online" ? (
-                      <a
-                        href={
-                          group.location_or_link.startsWith("http")
-                            ? group.location_or_link
-                            : `https://${group.location_or_link}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-emerald-800 hover:text-emerald-950 hover:underline font-medium break-all pt-0.5"
-                      >
-                        Buka Tautan Pertemuan <ExternalLink className="w-3 h-3 shrink-0" />
-                      </a>
-                    ) : (
-                      <div className="space-y-1">
-                        <p className="font-semibold text-slate-900">
-                          {group.location_or_link}
-                        </p>
-                        {group.building_details && (
-                          <p className="text-slate-700 text-[11px] bg-white p-2 rounded-lg border border-slate-200">
-                            <span className="text-slate-500 font-medium">Gedung / Ruangan: </span>
-                            {group.building_details}
-                          </p>
-                        )}
-                      </div>
-                    )
-                  ) : (
-                    <p className="text-slate-500 italic text-xs pt-0.5">
-                      Tautan/lokasi akan terbuka otomatis setelah disetujui host
-                    </p>
-                  )}
-                </div>
-
-                {/* Host Reschedule Action Bar */}
-                {isHost &&
-                  group.status !== "completed" &&
-                  group.status !== "cancelled" && (
-                    <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        Perlu menyesuaikan jadwal atau tautan sesi ini?
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleOpenReschedule}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700 hover:text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50/60 shadow-2xs transition-colors"
-                      >
-                        <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-                        Jadwalkan Ulang / Reschedule
-                      </button>
-                    </div>
-                  )}
-              </div>
-
-              {/* Offline Map Preview & Google Maps Navigation */}
-              {group.format === "offline" &&
-                group.latitude !== null &&
-                group.longitude !== null &&
-                group.latitude !== undefined &&
-                group.longitude !== undefined && (
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800">
-                        <Compass className="w-4 h-4 text-emerald-600" />
-                        <span>Peta Lokasi & Titik Kumpul</span>
-                      </div>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${group.latitude},${group.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-emerald-800 hover:text-emerald-950 font-medium transition-colors"
-                      >
-                        Buka di Google Maps
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-
-                    <div className="relative w-full h-48 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                      <iframe
-                        title="Peta Titik Kumpul Sesi"
-                        className="w-full h-full border-0"
-                        loading="lazy"
-                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                          group.longitude - 0.005
-                        }%2C${group.latitude - 0.003}%2C${
-                          group.longitude + 0.005
-                        }%2C${
-                          group.latitude + 0.003
-                        }&layer=mapnik&marker=${group.latitude}%2C${
-                          group.longitude
-                        }`}
-                      />
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      Titik koordinat: {group.latitude.toFixed(6)},{" "}
-                      {group.longitude.toFixed(6)}
-                    </p>
-                  </div>
-                )}
-
-              {/* Agenda Checklist */}
-              {group.agenda && group.agenda.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <ListOrdered className="w-4 h-4 text-emerald-700" />
-                    Silabus / Rencana Pembahasan ({group.agenda.length} Agenda)
-                  </h3>
-                  <div className="space-y-2">
-                    {group.agenda.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3 rounded-lg bg-slate-50 border border-slate-200/90 flex items-start gap-3"
-                      >
-                        <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-800 font-bold flex items-center justify-center shrink-0 text-[11px] border border-emerald-200/80 mt-0.5">
-                          {idx + 1}
-                        </span>
-                        <p className="text-xs text-slate-700 leading-relaxed">
-                          {item}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Prerequisites Box */}
-              {group.prerequisites && (
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2">
-                  <h3 className="text-xs font-semibold text-amber-900 uppercase tracking-wider flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-amber-600" />
-                    Prasyarat & Alat Bawaan
-                  </h3>
-                  <p className="text-xs text-amber-900/90 whitespace-pre-line leading-relaxed">
-                    {group.prerequisites}
-                  </p>
-                </div>
-              )}
-
-              {/* Description */}
-              <div className="space-y-2">
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Deskripsi Sesi
-                </h3>
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  {group.description ||
-                    "Tidak ada catatan tambahan untuk sesi ini."}
-                </p>
-              </div>
-
-              {/* Host Card */}
-              <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() =>
-                    onOpenPublicProfile &&
-                    group.host?.id &&
-                    onOpenPublicProfile(group.host.id, group.host)
-                  }
-                  className="flex items-start sm:items-center gap-3 text-left hover:opacity-85 transition-opacity rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 w-full min-w-0"
-                  aria-label={`Lihat profil ${group.host?.full_name || "tutor"}`}
-                >
-                  <UserAvatar user={group.host} size="md" className="shrink-0 mt-0.5 sm:mt-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-bold text-slate-900 hover:text-emerald-800">
-                        {group.host?.full_name}
-                      </span>
-                      {group.host?.role === "student" && (
-                        <Badge variant="neutral" className="text-[10px] py-0.5 max-w-full">
-                          <GraduationCap className="w-3 h-3 shrink-0 text-emerald-700" />
-                          <span className="truncate">{group.host?.campus_name || "Mahasiswa"}</span>
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                      <Award className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>{group.host?.contribution_points || 0} Poin Kontribusi Tutor</span>
-                    </p>
-                  </div>
-                </button>
-              </div>
-
-              {/* Host Management Panel (Only visible to Host) */}
-              {isHost && (
-                <div className="p-4 rounded-xl bg-slate-50/90 border border-slate-200 space-y-3.5 shadow-2xs">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-emerald-700 shrink-0" />
-                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                        Permohonan Masuk Peserta
-                      </h3>
-                      {pendingMembers.length > 0 && (
-                        <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-200">
-                          {pendingMembers.length}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-slate-600 whitespace-nowrap font-medium">
-                        Status Sesi:
-                      </span>
-                      {group.status === "pending_approval" ||
-                      group.status === "rejected" ? (
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={
-                              group.status === "pending_approval"
-                                ? "warning"
-                                : "danger"
-                            }
-                          >
-                            {group.status === "pending_approval"
-                              ? "Menunggu ACC Admin"
-                              : "Perlu Revisi"}
-                          </Badge>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleGroupStatus("cancelled")}
-                            className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50"
-                          >
-                            Batalkan
-                          </Button>
-                        </div>
-                      ) : (
-                        <select
-                          aria-label="Ubah status sesi belajar"
-                          value={group.status}
-                          onChange={(e) => handleGroupStatus(e.target.value)}
-                          className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-medium shadow-2xs flex-1 sm:flex-initial focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
-                        >
-                          <option value="open">Buka (Pendaftaran Aktif)</option>
-                          <option value="ongoing">Sedang Berlangsung</option>
-                          <option value="completed">Selesai</option>
-                          <option value="cancelled">Dibatalkan</option>
-                        </select>
-                      )}
-                    </div>
-                  </div>
-
-                  {pendingMembers.length === 0 ? (
-                    <p className="text-xs text-slate-500 italic">
-                      Belum ada permohonan baru yang menunggu persetujuan.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {pendingMembers.map((m) => (
-                        <div
-                          key={m.id}
-                          className="p-3 rounded-lg bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-slate-900 truncate">
-                              {m.user?.full_name}
-                            </p>
-                            <p className="text-[10px] text-slate-500 truncate">
-                              {m.user?.campus_name || m.user?.email}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() =>
-                                handleMemberStatus(m.id, "accepted")
-                              }
-                              isLoading={updatingStatus === m.id}
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              Setujui
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleMemberStatus(m.id, "rejected")
-                              }
-                              disabled={updatingStatus === m.id}
-                              className="text-rose-600 hover:bg-rose-50"
-                            >
-                              <XCircle className="w-3.5 h-3.5 text-rose-500" />
-                              Tolak
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Confirmed Members List */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between">
-                  <span>
-                    Peserta Terkonfirmasi ({acceptedMembers.length} /{" "}
-                    {group.max_capacity})
-                  </span>
-                  {isFull && (
-                    <span className="text-amber-600 font-semibold">
-                      Kuota Penuh
-                    </span>
-                  )}
-                </h3>
-
-                {acceptedMembers.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">
-                    Belum ada peserta terkonfirmasi. Jadilah yang pertama bergabung!
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {acceptedMembers.map((m) => (
-                      <div
-                        key={m.id}
-                        className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2.5"
-                      >
-                        <UserAvatar user={m.user} size="sm" />
-                        <div className="truncate flex-1 min-w-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onOpenPublicProfile &&
-                              m.user?.id &&
-                              onOpenPublicProfile(m.user.id, m.user)
-                            }
-                            className="text-xs font-medium text-slate-800 truncate hover:text-emerald-800 transition-colors text-left block w-full"
-                          >
-                            {m.user?.full_name}
-                          </button>
-                          <p className="text-[10px] text-slate-500 truncate">
-                            {m.user?.campus_name || "Anggota"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Feedback & Ratings section */}
-              {feedbacks.length > 0 && (
-                <div className="space-y-3 pt-2">
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Ulasan Sesi ({feedbacks.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {feedbacks.map((fb) => (
-                      <div
-                        key={fb.id}
-                        className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-1"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-800">
-                            {fb.reviewer?.full_name}
-                          </span>
-                          <div className="flex items-center text-amber-500">
-                            {Array.from({ length: fb.rating }).map((_, i) => (
-                              <Star key={i} className="w-3 h-3 fill-amber-400" />
-                            ))}
-                          </div>
-                        </div>
-                        {fb.comment && (
-                          <p className="text-slate-600">{fb.comment}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <GroupParticipantsPanel
+                group={group}
+                isHost={isHost}
+                isFull={isFull}
+                members={members}
+                feedbacks={feedbacks}
+                updatingStatus={updatingStatus}
+                onMemberStatus={handleMemberStatus}
+                onGroupStatus={handleGroupStatus}
+                onOpenPublicProfile={onOpenPublicProfile}
+              />
             </>
           )}
 
           {activeTab === "chat" && (
-            <div className="flex flex-col h-[min(480px,50dvh)] min-h-[300px]">
-              {!hasAccessToPrivate ? (
-                <div className="m-auto text-center p-6 rounded-2xl bg-slate-50 border border-slate-200 max-w-sm space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
-                    <Lock className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Ruang Diskusi Tertutup
-                  </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Ruang diskusi ini khusus untuk tutor dan peserta yang telah
-                    dikonfirmasi bergabung. Silakan ajukan permintaan bergabung
-                    terlebih dahulu.
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col flex-1 min-h-0">
-                  {/* Pinned Announcement Banner */}
-                  {messages.find((m) => m.is_pinned) && (() => {
-                    const pinnedMsg = messages.find((m) => m.is_pinned);
-                    return (
-                      <div className="mb-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/90 flex items-start justify-between gap-2 text-xs shadow-2xs">
-                        <div className="flex items-start gap-2 min-w-0">
-                          <Pin className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 text-[10px] text-amber-900 font-semibold mb-0.5">
-                              <span>Pesan Disematkan Tutor</span>
-                              <span>•</span>
-                              <span className="font-normal text-amber-800">
-                                {pinnedMsg.sender?.full_name || "Tutor"}
-                              </span>
-                            </div>
-                            <p className="text-slate-800 text-[11px] line-clamp-2 leading-relaxed">
-                              <LinkifiedText text={pinnedMsg.message} />
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0 self-center">
-                          <button
-                            type="button"
-                            onClick={() => scrollToMessage(pinnedMsg.id)}
-                            className="text-[10px] text-amber-800 hover:text-amber-950 font-semibold px-2 py-0.5 rounded hover:bg-amber-100 transition-colors"
-                          >
-                            Lihat
-                          </button>
-                          {isHost && (
-                            <button
-                              type="button"
-                              onClick={() => handleTogglePin(pinnedMsg.id)}
-                              className="text-[10px] text-slate-500 hover:text-rose-600 px-1.5 py-0.5 rounded hover:bg-rose-50 transition-colors"
-                              title="Lepas Sematan"
-                            >
-                              Lepas
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Messages list */}
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                    {loadingMessages ? (
-                      <div className="py-8 text-center text-xs text-slate-500">
-                        Memuat riwayat percakapan...
-                      </div>
-                    ) : messages.length === 0 ? (
-                      <div className="py-12 text-center space-y-2 text-slate-500">
-                        <MessageSquare className="w-8 h-8 mx-auto opacity-40 text-slate-400" />
-                        <p className="text-xs font-medium text-slate-700">
-                          Belum ada pesan di ruang diskusi sesi ini.
-                        </p>
-                        <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                          Gunakan ruang ini untuk koordinasi materi, titik kumpul, atau tanya jawab sebelum sesi dimulai.
-                        </p>
-                      </div>
-                    ) : (
-                      messages.map((msg) => {
-                        const senderId = msg.sender_id || msg.user_id;
-                        const senderObj = msg.sender || msg.user;
-                        const isMe = senderId === user?.id;
-                        const isMsgHost = senderId === group.host_id;
-                        const msgTime = new Date(msg.created_at).toLocaleTimeString(
-                          "id-ID",
-                          { hour: "2-digit", minute: "2-digit" }
-                        );
-
-                        return (
-                          <div
-                            key={msg.id}
-                            id={`msg-${msg.id}`}
-                            className={`flex flex-col transition-all duration-300 p-1 rounded-2xl ${
-                              isMe ? "items-end" : "items-start"
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1 px-1">
-                              <span className="font-semibold text-slate-700">
-                                {isMe ? "Anda" : (senderObj?.full_name || "Peserta")}
-                              </span>
-                              {senderObj?.campus_name && (
-                                <span className="text-slate-400 text-[9px]">
-                                  ({senderObj.campus_name})
-                                </span>
-                              )}
-                              {isMsgHost && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] bg-amber-50 text-amber-800 border border-amber-200 font-medium">
-                                  Tutor
-                                </span>
-                              )}
-                              <span>• {msgTime}</span>
-
-                              {/* Action controls */}
-                              <div className="inline-flex items-center gap-1 ml-1 opacity-70 hover:opacity-100">
-                                <button
-                                  type="button"
-                                  onClick={() => setReplyingTo(msg)}
-                                  className="p-0.5 text-slate-400 hover:text-emerald-700 rounded transition-colors"
-                                  title="Balas pesan"
-                                  aria-label="Balas pesan"
-                                >
-                                  <Reply className="w-3 h-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setActiveEmojiPicker(
-                                      activeEmojiPicker === msg.id ? null : msg.id
-                                    )
-                                  }
-                                  className="p-0.5 text-slate-400 hover:text-amber-600 rounded transition-colors"
-                                  title="Beri reaksi"
-                                  aria-label="Beri reaksi"
-                                >
-                                  <Smile className="w-3 h-3" />
-                                </button>
-                                {isHost && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleTogglePin(msg.id)}
-                                    className={`p-0.5 rounded transition-colors ${
-                                      msg.is_pinned
-                                        ? "text-amber-600"
-                                        : "text-slate-400 hover:text-amber-600"
-                                    }`}
-                                    title={
-                                      msg.is_pinned
-                                        ? "Lepas sematan"
-                                        : "Sematkan pesan penting"
-                                    }
-                                    aria-label="Sematkan pesan"
-                                  >
-                                    <Pin className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Quick Emoji Reaction Selector */}
-                            {activeEmojiPicker === msg.id && (
-                              <div className="flex items-center gap-1.5 p-1 mb-1 bg-white border border-slate-200 rounded-full shadow-sm text-xs z-10 animate-in fade-in">
-                                {["👍", "❤️", "💡", "🔥", "🙌"].map((emoji) => (
-                                  <button
-                                    key={emoji}
-                                    type="button"
-                                    onClick={() => handleToggleReaction(msg.id, emoji)}
-                                    className="hover:scale-125 px-1 py-0.5 rounded-full transition-transform"
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-
-                            <div
-                              className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${
-                                isMe
-                                  ? "bg-emerald-700 text-white rounded-br-xs shadow-2xs"
-                                  : "bg-white text-slate-800 rounded-bl-xs border border-slate-200 shadow-2xs"
-                              }`}
-                            >
-                              {/* Quoted Reply Block */}
-                              {msg.reply_to && (
-                                <div
-                                  onClick={() => scrollToMessage(msg.reply_to.id)}
-                                  className={`mb-2 p-1.5 rounded-lg border-l-2 text-[10px] cursor-pointer transition-opacity hover:opacity-85 ${
-                                    isMe
-                                      ? "bg-emerald-800/80 border-emerald-300 text-emerald-50"
-                                      : "bg-slate-100 border-emerald-600 text-slate-700"
-                                  }`}
-                                >
-                                  <div className="font-semibold truncate">
-                                    {msg.reply_to.sender?.full_name || "Peserta"}
-                                  </div>
-                                  <p className="truncate opacity-90">{msg.reply_to.message}</p>
-                                </div>
-                              )}
-
-                              <p className="whitespace-pre-wrap break-words">
-                                <LinkifiedText text={msg.message} />
-                              </p>
-                            </div>
-
-                            {/* Reactions Pill Display */}
-                            {msg.reactions && msg.reactions.length > 0 && (
-                              <div
-                                className={`flex flex-wrap gap-1 mt-1 px-1 ${
-                                  isMe ? "justify-end" : "justify-start"
-                                }`}
-                              >
-                                {msg.reactions.map((r) => (
-                                  <button
-                                    key={r.emoji}
-                                    type="button"
-                                    onClick={() => handleToggleReaction(msg.id, r.emoji)}
-                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border transition-colors ${
-                                      r.reacted
-                                        ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-2xs"
-                                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                                    }`}
-                                  >
-                                    <span>{r.emoji}</span>
-                                    <span>{r.count}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                    <div ref={chatBottomRef} />
-                  </div>
-
-                  {/* Active Replying Banner */}
-                  {replyingTo && (
-                    <div className="px-3 py-1.5 bg-slate-100/90 border-t border-slate-200 flex items-center justify-between text-xs text-slate-700">
-                      <div className="flex items-center gap-2 truncate">
-                        <Reply className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span className="truncate">
-                          Membalas{" "}
-                          <strong className="text-slate-900">
-                            {replyingTo.sender?.full_name || "Peserta"}
-                          </strong>
-                          : "{replyingTo.message.slice(0, 45)}
-                          {replyingTo.message.length > 45 ? "…" : ""}"
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setReplyingTo(null)}
-                        className="p-1 text-slate-400 hover:text-slate-600 rounded-full shrink-0"
-                        aria-label="Batal membalas"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Send box */}
-                  <form
-                    onSubmit={handleSendMessage}
-                    className="pt-3 border-t border-slate-200 flex items-center gap-2 bg-white"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Tulis pesan untuk koordinasi sesi..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      className="flex-1 px-3 py-2 text-xs rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
-                    />
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      isLoading={sendingMessage}
-                      disabled={!newMessage.trim()}
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      Kirim
-                    </Button>
-                  </form>
-                </div>
-              )}
-            </div>
+            <GroupChatPanel
+              group={group}
+              user={user}
+              isHost={isHost}
+              hasAccessToPrivate={hasAccessToPrivate}
+              messages={messages}
+              setMessages={setMessages}
+              loadingMessages={loadingMessages}
+              onError={setActionError}
+            />
           )}
         </div>
 

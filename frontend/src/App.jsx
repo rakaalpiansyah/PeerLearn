@@ -50,6 +50,11 @@ function AppContent() {
     setRefreshTrigger((prev) => prev + 1);
   };
 
+  const openGuide = (tab = "ethics") => {
+    setGuideModalTab(tab);
+    setGuideModalOpen(true);
+  };
+
   if (user?.role === "admin" && !previewStudentCatalog) {
     return (
       <AdminDashboardPage
@@ -62,9 +67,7 @@ function AppContent() {
     <>
       {user?.role === "admin" && previewStudentCatalog && (
         <div className="bg-slate-900 text-white px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
-          <span>
-            Anda sedang melihat tampilan pratinjau katalog mahasiswa.
-          </span>
+          <span>Anda sedang melihat tampilan pratinjau katalog mahasiswa.</span>
           <Button
             type="button"
             variant="primary"
@@ -86,126 +89,126 @@ function AppContent() {
         onOpenTutorSummary={() => setTutorSummaryOpen(true)}
         onOpenModeration={() => setAdminModerationOpen(true)}
         onOpenSupport={() => setSupportModalOpen(true)}
-        onOpenGuide={(tab) => {
-          setGuideModalTab(tab);
-          setGuideModalOpen(true);
-        }}
+        onOpenGuide={openGuide}
       >
-      {profileError && (
-        <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
-          <LoadError
-            message={profileError}
-            onRetry={() => retryProfile()}
-            isRetrying={loading}
-            hasStaleData
-          />
-        </div>
-      )}
-      <HomePage
-        key={refreshTrigger}
-        onStatusUpdate={setIsBackendOnline}
-        onOpenAuth={handleOpenAuth}
-        onOpenSkills={() => setSkillsModalOpen(true)}
-        onOpenProfile={() => setProfileModalOpen(true)}
-        onOpenCreateGroup={() => setCreateGroupOpen(true)}
-        onOpenGroupDetail={(group) => setSelectedGroup(group)}
-        onOpenTutorSummary={() => setTutorSummaryOpen(true)}
-        onOpenPublicProfile={(userId, initialData) =>
-          setPublicProfileTarget({ userId, initialData })
-        }
-      />
+        {profileError && (
+          <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+            <LoadError
+              message={profileError}
+              onRetry={() => retryProfile()}
+              isRetrying={loading}
+              hasStaleData
+            />
+          </div>
+        )}
+        <HomePage
+          key={refreshTrigger}
+          onStatusUpdate={setIsBackendOnline}
+          onOpenAuth={handleOpenAuth}
+          onOpenSkills={() => setSkillsModalOpen(true)}
+          onOpenProfile={() => setProfileModalOpen(true)}
+          onOpenCreateGroup={() => setCreateGroupOpen(true)}
+          onOpenGroupDetail={(group) => setSelectedGroup(group)}
+          onOpenTutorSummary={() => setTutorSummaryOpen(true)}
+          onOpenPublicProfile={(userId, initialData) =>
+            setPublicProfileTarget({ userId, initialData })
+          }
+        />
 
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialMode={authMode}
-      />
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          initialMode={authMode}
+          onOpenRulebook={() => openGuide("ethics")}
+        />
 
-      <SkillsModal
-        isOpen={skillsModalOpen}
-        onClose={() => setSkillsModalOpen(false)}
-      />
+        <SkillsModal
+          isOpen={skillsModalOpen}
+          onClose={() => setSkillsModalOpen(false)}
+        />
 
-      <ProfileModal
-        isOpen={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
-        onOpenTutorSummary={() => setTutorSummaryOpen(true)}
-      />
+        <ProfileModal
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          onOpenTutorSummary={() => setTutorSummaryOpen(true)}
+        />
 
-      <PublicProfileModal
-        isOpen={!!publicProfileTarget}
-        userId={publicProfileTarget?.userId}
-        initialData={publicProfileTarget?.initialData}
-        onClose={() => setPublicProfileTarget(null)}
-        onReportUser={(user) => {
-          setPublicProfileTarget(null);
-          setReportTargetUser(user);
-        }}
-      />
+        <PublicProfileModal
+          isOpen={!!publicProfileTarget}
+          userId={publicProfileTarget?.userId}
+          initialData={publicProfileTarget?.initialData}
+          onClose={() => setPublicProfileTarget(null)}
+          onReportUser={(user) => {
+            setPublicProfileTarget(null);
+            setReportTargetUser(user);
+          }}
+        />
 
-      <TutorSummaryModal
-        isOpen={tutorSummaryOpen}
-        onClose={() => setTutorSummaryOpen(false)}
-      />
+        <TutorSummaryModal
+          isOpen={tutorSummaryOpen}
+          onClose={() => setTutorSummaryOpen(false)}
+          onOpenSkpiGuide={() => openGuide("skpi")}
+        />
 
-      <CreateGroupModal
-        isOpen={createGroupOpen}
-        onClose={() => setCreateGroupOpen(false)}
-        onCreated={() => handleGroupActionComplete()}
-      />
+        <CreateGroupModal
+          isOpen={createGroupOpen}
+          onClose={() => setCreateGroupOpen(false)}
+          onCreated={() => handleGroupActionComplete()}
+          onOpenRulebook={() => openGuide("ethics")}
+        />
 
-      <GroupDetailModal
-        isOpen={!!selectedGroup}
-        onClose={() => setSelectedGroup(null)}
-        group={selectedGroup}
-        onActionComplete={handleGroupActionComplete}
-        onOpenFeedback={(groupId) => setFeedbackGroupId(groupId)}
-        onOpenReport={(groupId) => setReportGroupId(groupId)}
-        onOpenAuth={handleOpenAuth}
-        onOpenPublicProfile={(userId, initialData) =>
-          setPublicProfileTarget({ userId, initialData })
-        }
-      />
+        <GroupDetailModal
+          isOpen={!!selectedGroup}
+          onClose={() => setSelectedGroup(null)}
+          group={selectedGroup}
+          onActionComplete={handleGroupActionComplete}
+          onOpenFeedback={(groupId) => setFeedbackGroupId(groupId)}
+          onOpenReport={(groupId) => setReportGroupId(groupId)}
+          onOpenAuth={handleOpenAuth}
+          onOpenPublicProfile={(userId, initialData) =>
+            setPublicProfileTarget({ userId, initialData })
+          }
+        />
 
-      <MySessionsModal
-        isOpen={mySessionsOpen}
-        onClose={() => setMySessionsOpen(false)}
-        onSelectGroup={(g) => setSelectedGroup(g)}
-      />
+        <MySessionsModal
+          isOpen={mySessionsOpen}
+          onClose={() => setMySessionsOpen(false)}
+          onSelectGroup={(g) => setSelectedGroup(g)}
+        />
 
-      <FeedbackModal
-        isOpen={!!feedbackGroupId}
-        onClose={() => setFeedbackGroupId(null)}
-        groupId={feedbackGroupId}
-        onFeedbackSubmitted={handleGroupActionComplete}
-      />
+        <FeedbackModal
+          isOpen={!!feedbackGroupId}
+          onClose={() => setFeedbackGroupId(null)}
+          groupId={feedbackGroupId}
+          onFeedbackSubmitted={handleGroupActionComplete}
+        />
 
-      <ReportModal
-        isOpen={!!reportGroupId || !!reportTargetUser}
-        onClose={() => {
-          setReportGroupId(null);
-          setReportTargetUser(null);
-        }}
-        targetGroupId={reportGroupId}
-        targetUser={reportTargetUser}
-      />
+        <ReportModal
+          isOpen={!!reportGroupId || !!reportTargetUser}
+          onClose={() => {
+            setReportGroupId(null);
+            setReportTargetUser(null);
+          }}
+          targetGroupId={reportGroupId}
+          targetUser={reportTargetUser}
+        />
 
-      <AdminModerationModal
-        isOpen={adminModerationOpen}
-        onClose={() => setAdminModerationOpen(false)}
-        onModerated={handleGroupActionComplete}
-      />
+        <AdminModerationModal
+          isOpen={adminModerationOpen}
+          onClose={() => setAdminModerationOpen(false)}
+          onModerated={handleGroupActionComplete}
+        />
 
-      <InfoGuideModal
-        isOpen={guideModalOpen}
-        onClose={() => setGuideModalOpen(false)}
-        initialTab={guideModalTab}
-      />
+        <InfoGuideModal
+          isOpen={guideModalOpen}
+          onClose={() => setGuideModalOpen(false)}
+          initialTab={guideModalTab}
+        />
 
-      <StudentSupportModal
-        isOpen={supportModalOpen}
-        onClose={() => setSupportModalOpen(false)}
-      />
+        <StudentSupportModal
+          isOpen={supportModalOpen}
+          onClose={() => setSupportModalOpen(false)}
+        />
       </MainLayout>
     </>
   );
@@ -255,7 +258,11 @@ function AccountApp() {
               </div>
             </div>
           )}
-          <Button variant="ghost" className="min-h-10 text-slate-600 hover:text-slate-900" onClick={logout}>
+          <Button
+            variant="ghost"
+            className="min-h-10 text-slate-600 hover:text-slate-900"
+            onClick={logout}
+          >
             Gunakan akun lain
           </Button>
         </section>

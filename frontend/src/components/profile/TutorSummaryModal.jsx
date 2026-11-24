@@ -6,15 +6,15 @@ import {
   Printer,
   ShieldCheck,
   CheckCircle2,
-  Calendar,
   BookOpen,
-  Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
 import { useAuth } from "../../context/AuthContext";
+import { SKPI_DISCLAIMER } from "../../constants/communityGuides";
 
-export function TutorSummaryModal({ isOpen, onClose }) {
+export function TutorSummaryModal({ isOpen, onClose, onOpenSkpiGuide }) {
   const { user } = useAuth();
   const printAreaRef = useRef(null);
 
@@ -28,9 +28,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
     year: "numeric",
   });
 
-  const certNumber = `SKPI/PL/${new Date().getFullYear()}/${(
-    user.id || "USR"
-  )
+  const certNumber = `SKPI/PL/${new Date().getFullYear()}/${(user.id || "USR")
     .replace(/-/g, "")
     .slice(0, 8)
     .toUpperCase()}`;
@@ -94,7 +92,6 @@ export function TutorSummaryModal({ isOpen, onClose }) {
             ref={printAreaRef}
             className="p-6 sm:p-8 rounded-2xl bg-white border-2 border-amber-300 text-slate-900 space-y-6 relative overflow-hidden shadow-sm print:border-2 print:border-slate-900 print:bg-white print:text-slate-900 print:rounded-none"
           >
-            {/* Watermark / Seal Icon */}
             <div className="absolute right-4 top-4 opacity-5 pointer-events-none">
               <Award className="w-48 h-48 text-amber-500" />
             </div>
@@ -104,14 +101,15 @@ export function TutorSummaryModal({ isOpen, onClose }) {
               <div className="flex items-center justify-center gap-2">
                 <GraduationCap className="w-6 h-6 text-amber-600 print:text-slate-800" />
                 <span className="text-xs font-extrabold tracking-widest uppercase text-amber-700 print:text-slate-800">
-                  Fakultas Sains & Teknologi • UIN Sunan Gunung Djati Bandung
+                  Komunitas PeerLearn • UIN Sunan Gunung Djati Bandung
                 </span>
               </div>
               <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 print:text-slate-950 uppercase">
                 Surat Keterangan Kontribusi Tutor Sebaya (SKPI)
               </h1>
               <p className="text-[11px] text-slate-500 print:text-slate-600 font-mono">
-                No. Registrasi: {certNumber} • Portofolio Kegiatan Akademik Mahasiswa
+                No. Registrasi: {certNumber} • Portofolio Kegiatan Akademik
+                Mahasiswa
               </p>
             </div>
 
@@ -139,7 +137,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
 
               <div>
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium">
-                  Institusi Perguruan Tinggi
+                  Institusi / Program Studi
                 </span>
                 <p className="font-semibold text-slate-800 mt-0.5 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 print:text-slate-700 shrink-0" />
@@ -151,9 +149,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium">
                   Akun Kampus Terverifikasi
                 </span>
-                <p className="font-mono text-slate-700 mt-0.5">
-                  {user.email}
-                </p>
+                <p className="font-mono text-slate-700 mt-0.5">{user.email}</p>
               </div>
 
               <div>
@@ -187,15 +183,25 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                 </div>
               ) : (
                 <p className="text-xs text-slate-500 print:text-slate-600 italic">
-                  Telah aktif berpartisipasi dalam diskusi kelompok belajar dan pendampingan materi rekan sejawat.
+                  Telah aktif berpartisipasi dalam diskusi kelompok belajar dan
+                  pendampingan materi rekan sejawat.
                 </p>
               )}
             </div>
 
             {/* Formal Description */}
-            <p className="text-xs text-slate-700 print:text-slate-700 leading-relaxed">
-              Telah mendedikasikan waktu dan keahlian akademik untuk mendampingi rekan sejawat secara sukarela tanpa memungut biaya apapun. Dokumen ini dapat digunakan sebagai portofolio akademik, bukti pengabdian sebaya, serta lampiran Surat Keterangan Pendamping Ijazah (SKPI).
-            </p>
+            <div className="space-y-2 text-xs text-slate-700 print:text-slate-700 leading-relaxed">
+              <p>
+                Telah mendedikasikan waktu dan keahlian akademik untuk
+                mendampingi rekan sejawat secara sukarela tanpa memungut biaya
+                apapun. Dokumen ini dapat digunakan sebagai portofolio akademik,
+                bukti pengabdian sebaya, serta lampiran Surat Keterangan
+                Pendamping Ijazah (SKPI).
+              </p>
+              <p className="text-[10px] text-slate-500 italic">
+                Catatan: {SKPI_DISCLAIMER}
+              </p>
+            </div>
 
             {/* Signature & Validation Footer */}
             <div className="pt-4 border-t border-slate-200 print:border-slate-300 flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-xs">
@@ -208,7 +214,9 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                 </div>
                 <p className="text-[10px] text-emerald-700 print:text-emerald-700 flex items-center gap-1 font-semibold">
                   <CheckCircle2 className="w-3 h-3 shrink-0" />
-                  <span>Terverifikasi Otomatis oleh PeerLearn FST UIN SGD Bandung</span>
+                  <span>
+                    Terverifikasi Otomatis oleh Sistem Komunitas PeerLearn
+                  </span>
                 </p>
               </div>
 
@@ -218,7 +226,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                 </p>
                 <div className="h-6 sm:h-10"></div>
                 <p className="text-xs font-bold text-slate-900 print:text-slate-900 border-t border-slate-300 print:border-slate-400 pt-1">
-                  Koordinator Peer Tutoring FST
+                  Koordinator Komunitas PeerLearn
                 </p>
               </div>
             </div>
@@ -227,9 +235,22 @@ export function TutorSummaryModal({ isOpen, onClose }) {
 
         {/* Modal Actions (Hidden in Print) */}
         <div className="no-print p-4 sm:p-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
-          <p className="text-xs text-slate-500">
-            Dapat dicetak langsung atau disimpan sebagai dokumen PDF.
-          </p>
+          <div className="flex items-center gap-2">
+            {onOpenSkpiGuide ? (
+              <button
+                type="button"
+                onClick={onOpenSkpiGuide}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+              >
+                <HelpCircle className="w-3.5 h-3.5 shrink-0" />
+                Panduan Klaim SKPI
+              </button>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Dapat dicetak langsung atau disimpan sebagai dokumen PDF.
+              </p>
+            )}
+          </div>
           <div className="flex items-center justify-end gap-2 shrink-0">
             <Button variant="ghost" size="sm" onClick={onClose}>
               Tutup

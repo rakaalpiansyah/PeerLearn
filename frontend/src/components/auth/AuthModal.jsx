@@ -13,7 +13,12 @@ import { Modal } from "../ui/Modal";
 import { useAuth } from "../../context/AuthContext";
 import { useFormValidation } from "../../hooks/useFormValidation";
 
-export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
+export function AuthModal({
+  isOpen,
+  onClose,
+  initialMode = "login",
+  onOpenRulebook,
+}) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +27,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
   const [campusName, setCampusName] = useState("");
   const [gender, setGender] = useState("");
   const [role, setRole] = useState("student");
+  const [acceptedRulebook, setAcceptedRulebook] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -32,16 +38,23 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
     setMode(initialMode);
     setError(null);
     setShowPassword(false);
+    setAcceptedRulebook(false);
   }, [initialMode, isOpen]);
 
   useEffect(() => {
     clearErrors();
     setShowPassword(false);
+    setAcceptedRulebook(false);
   }, [mode, isOpen, clearErrors]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (loading || !validate(e.currentTarget)) return;
+    const customErrors = {};
+    if (mode === "register" && !acceptedRulebook) {
+      customErrors.auth_rulebook =
+        "Anda wajib membaca dan menyetujui Rulebook PeerLearn";
+    }
+    if (loading || !validate(e.currentTarget, customErrors)) return;
     setError(null);
     setLoading(true);
 
@@ -149,7 +162,6 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
         >
           {mode === "register" && (
             <>
-              {/* Role Picker */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-medium text-slate-700">
                   Peran Pengguna
@@ -227,14 +239,14 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
               {role === "student" && (
                 <>
                   <Input
-                    label="Nama Kampus & Program Studi FST"
+                    label="Nama Kampus & Program Studi"
                     id="campus_name"
                     name="campus_name"
                     error={errors.campus_name}
                     placeholder="cth. UIN SGD Bandung - S1 Teknik Informatika"
                     value={campusName}
                     onChange={(e) => setCampusName(e.target.value)}
-                    helperText="Pilih prodi FST atau ketik nama institusi Anda"
+                    helperText="Pilih prodi FST atau ketik fakultas/prodi Anda"
                     list="fst-majors-list"
                   />
                   <datalist id="fst-majors-list">
@@ -279,7 +291,9 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
               mode === "login" ? "current-password" : "new-password"
             }
             placeholder={
-              mode === "register" ? "Buat kata sandi akun" : "Masukkan kata sandi"
+              mode === "register"
+                ? "Buat kata sandi akun"
+                : "Masukkan kata sandi"
             }
             required
             value={password}
@@ -290,10 +304,14 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
                 onClick={() => setShowPassword((prev) => !prev)}
                 className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded-lg"
                 aria-label={
-                  showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                  showPassword
+                    ? "Sembunyikan kata sandi"
+                    : "Tampilkan kata sandi"
                 }
                 title={
-                  showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                  showPassword
+                    ? "Sembunyikan kata sandi"
+                    : "Tampilkan kata sandi"
                 }
               >
                 {showPassword ? (
@@ -304,6 +322,49 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
               </button>
             }
           />
+
+          {mode === "register" && (
+            <div className="space-y-1">
+              <label
+                htmlFor="auth_rulebook"
+                className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer"
+              >
+                <input
+                  id="auth_rulebook"
+                  name="auth_rulebook"
+                  type="checkbox"
+                  checked={acceptedRulebook}
+                  onChange={(e) => setAcceptedRulebook(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
+                />
+                <span className="text-xs text-slate-700 leading-relaxed">
+                  Saya telah membaca dan menyetujui{" "}
+                  {onOpenRulebook ? (
+                    <button
+                      type="button"
+                      onClick={onOpenRulebook}
+                      className="font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+                    >
+                      Rulebook Komunitas PeerLearn
+                    </button>
+                  ) : (
+                    <strong className="text-slate-900">
+                      Rulebook Komunitas PeerLearn
+                    </strong>
+                  )}
+                  .
+                </span>
+              </label>
+              {errors.auth_rulebook && (
+                <p
+                  role="alert"
+                  className="text-xs text-rose-600 font-medium pl-1"
+                >
+                  {errors.auth_rulebook}
+                </p>
+              )}
+            </div>
+          )}
 
           <Button
             type="submit"
@@ -316,7 +377,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
         </form>
 
         <div className="pt-2 text-center text-xs text-slate-500">
-          Dengan melanjutkan, Anda menyetujui pedoman komunitas dan kolaborasi belajar PeerLearn.
+          Dengan melanjutkan, Anda menyetujui pedoman komunitas dan kolaborasi
+          belajar PeerLearn.
         </div>
       </div>
     </Modal>

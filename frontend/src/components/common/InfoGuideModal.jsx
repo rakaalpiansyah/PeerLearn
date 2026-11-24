@@ -7,25 +7,34 @@ import {
   HelpCircle,
   CheckCircle2,
   AlertTriangle,
-  Mail,
+  Info,
+  MessageSquare,
   GraduationCap,
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
+import {
+  RULEBOOK_SECTIONS,
+  RULEBOOK_SANCTIONS,
+  SKPI_GUIDE_STEPS,
+  SKPI_DISCLAIMER,
+} from "../../constants/communityGuides";
 
 const TABS = [
-  { id: "ethics", label: "Etika Belajar", icon: BookOpen },
+  { id: "ethics", label: "Rulebook", icon: BookOpen },
   { id: "skpi", label: "Panduan SKPI", icon: Award },
-  { id: "safety", label: "Keamanan Komunitas", icon: Shield },
-  { id: "help", label: "Pusat Bantuan", icon: HelpCircle },
+  { id: "safety", label: "Keamanan", icon: Shield },
+  { id: "help", label: "Bantuan", icon: HelpCircle },
 ];
 
+const normalizeTab = (tab) => (tab === "rulebook" ? "ethics" : tab || "ethics");
+
 export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(normalizeTab(initialTab));
 
   useEffect(() => {
     if (isOpen && initialTab) {
-      setActiveTab(initialTab);
+      setActiveTab(normalizeTab(initialTab));
     }
   }, [isOpen, initialTab]);
 
@@ -48,7 +57,8 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                 Pusat Informasi & Pedoman Komunitas
               </h2>
               <p className="text-xs text-slate-500">
-                Fakultas Sains & Teknologi • UIN Sunan Gunung Djati Bandung
+                Komunitas Belajar Sebaya Mahasiswa • UIN Sunan Gunung Djati
+                Bandung
               </p>
             </div>
           </div>
@@ -78,7 +88,11 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                     : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-emerald-700" : "text-slate-400"}`} />
+                <Icon
+                  className={`w-3.5 h-3.5 shrink-0 ${
+                    isActive ? "text-emerald-700" : "text-slate-400"
+                  }`}
+                />
                 <span className="truncate">{tab.label}</span>
               </button>
             );
@@ -86,48 +100,45 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
         </div>
 
         {/* Content based on tab */}
-        <div className="space-y-4 text-xs text-slate-700 leading-relaxed min-h-[220px]">
+        <div className="space-y-4 text-xs text-slate-700 leading-relaxed min-h-[240px]">
           {activeTab === "ethics" && (
             <div className="space-y-3.5">
               <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
                 <p className="font-bold text-emerald-950 text-sm">
-                  Komitmen Integritas Belajar Sebaya
+                  Rulebook & Tata Tertib Komunitas PeerLearn
                 </p>
                 <p className="text-emerald-900">
-                  PeerLearn dirancang murni sebagai wadah saling mengasah pemahaman konsep perkuliahan dan responsi praktikum laboratorium.
+                  Seluruh anggota wajib mematuhi aturan ini demi menjaga kultur
+                  belajar sebaya yang sehat, aman, dan bebas biaya di lingkungan
+                  kampus.
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-slate-900">Bimbingan Konsep & Diskusi</p>
-                    <p className="text-slate-600">
-                      Tutor dan peserta saling bertukar wawasan, cara penyelesaian masalah, serta studi kasus yang belum dipahami di kelas kuliah.
-                    </p>
+              <div className="space-y-2.5">
+                {RULEBOOK_SECTIONS.map((item) => (
+                  <div key={item.title} className="flex items-start gap-2.5">
+                    {item.type === "allowed" ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <p className="font-bold text-slate-900">{item.title}</p>
+                      <p className="text-slate-600">{item.description}</p>
+                    </div>
                   </div>
-                </div>
+                ))}
+              </div>
 
-                <div className="flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-slate-900">Saling Menghormati & Tanpa Perundungan</p>
-                    <p className="text-slate-600">
-                      Seluruh anggota berhak bertanya tanpa takut dinilai. Jaga tutur kata yang santun dan profesional.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-slate-900">Larangan Perjokian & Kecurangan</p>
-                    <p className="text-slate-600">
-                      Dilarang keras menyelenggarakan sesi untuk mengerjakan tugas evaluasi, kuis resmi, atau ujian secara langsung (joki akademik). Pelanggaran berakibat penangguhan akun permanen.
-                    </p>
-                  </div>
-                </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <p className="font-bold text-slate-900 text-xs">
+                  Tingkatan Sanksi Pelanggaran
+                </p>
+                <ol className="list-decimal pl-4 space-y-1 text-[11px] text-slate-600">
+                  {RULEBOOK_SANCTIONS.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ol>
               </div>
             </div>
           )}
@@ -136,49 +147,32 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
             <div className="space-y-3.5">
               <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1">
                 <p className="font-bold text-amber-900 text-sm">
-                  Pengakuan Poin SKPI Kemahasiswaan
+                  Panduan Klaim Portofolio SKPI Tutor Sebaya
                 </p>
                 <p className="text-amber-800">
-                  Aktivitas pendampingan sebaya yang Anda laksanakan sebagai tutor dapat diakui dalam Surat Keterangan Pendamping Ijazah (SKPI).
+                  Rekam jejak kontribusi Anda sebagai Tutor atau Co-Tutor dapat
+                  dicetak sebagai bukti pendampingan akademik untuk pengajuan
+                  SKPI.
                 </p>
               </div>
 
               <div className="space-y-2.5">
-                <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center shrink-0 text-xs">
-                    1
-                  </span>
-                  <div>
-                    <p className="font-bold text-slate-900">Kumpulkan Poin Kontribusi</p>
-                    <p className="text-slate-600">
-                      Setiap sesi belajar yang Anda bimbing dan berhasil selesai dengan rating positif dari peserta memberikan +10 hingga +25 Poin Kontribusi Tutor.
-                    </p>
+                {SKPI_GUIDE_STEPS.map((item) => (
+                  <div key={item.step} className="flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center shrink-0 text-xs">
+                      {item.step}
+                    </span>
+                    <div>
+                      <p className="font-bold text-slate-900">{item.title}</p>
+                      <p className="text-slate-600">{item.description}</p>
+                    </div>
                   </div>
-                </div>
+                ))}
+              </div>
 
-                <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center shrink-0 text-xs">
-                    2
-                  </span>
-                  <div>
-                    <p className="font-bold text-slate-900">Ekspor Portofolio Mandiri</p>
-                    <p className="text-slate-600">
-                      Gunakan fitur <strong>"Cetak SKPI"</strong> di profil Anda untuk mengunduh rekap riwayat sesi bimbingan, tanggal, topik keahlian, dan testimoni rekan belajar.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center shrink-0 text-xs">
-                    3
-                  </span>
-                  <div>
-                    <p className="font-bold text-slate-900">Verifikasi Kemahasiswaan FST</p>
-                    <p className="text-slate-600">
-                      Bawa cetakan portofolio ke bagian kemahasiswaan program studi atau dekanat FST sebagai bukti pengabdian kemahasiswaan dan tutor sebaya.
-                    </p>
-                  </div>
-                </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2 text-[11px] text-slate-600">
+                <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                <p>{SKPI_DISCLAIMER}</p>
               </div>
             </div>
           )}
@@ -187,10 +181,12 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
             <div className="space-y-3.5">
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <p className="font-bold text-slate-900 text-sm">
-                  Sistem Moderasi Dua Tahap
+                  Sistem Moderasi Komunitas Dua Tahap
                 </p>
                 <p className="text-slate-600">
-                  PeerLearn menerapkan sistem perlindungan komunitas untuk menjaga kenyamanan seluruh mahasiswa.
+                  PeerLearn dikelola oleh tim admin komunitas mahasiswa lintas
+                  fakultas (dimulai dari pilot project FST) untuk menjaga
+                  keamanan setiap sesi belajar.
                 </p>
               </div>
 
@@ -201,17 +197,22 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                     Tahap 1: Pembatasan Otomatis (≥ 3 Laporan)
                   </p>
                   <p className="text-slate-600 text-[11px]">
-                    Jika suatu akun menerima 3 atau lebih laporan unik dalam kurun waktu 7 hari, akun tersebut otomatis dibatasi sementara oleh sistem demi pencegahan gangguan meluas.
+                    Jika suatu akun menerima 3 atau lebih laporan unik dalam
+                    kurun waktu 7 hari, akun tersebut otomatis dibatasi
+                    sementara oleh sistem demi mencegah gangguan meluas.
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg border border-slate-200 bg-white space-y-1">
                   <p className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
                     <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                    Tahap 2: Keputusan Administrator Kampus
+                    Tahap 2: Peninjauan Tim Admin Komunitas
                   </p>
                   <p className="text-slate-600 text-[11px]">
-                    Tim administrator memeriksa laporan, keterangan kronologi, dan dapat mengambil keputusan untuk <em>Memulihkan Akses</em> jika laporan keliru, atau <em>Menangguhkan Akun</em> jika terbukti melanggar aturan.
+                    Admin komunitas memeriksa kronologi laporan berdasarkan
+                    Rulebook, lalu memutuskan untuk <em>Memulihkan Akses</em>{" "}
+                    jika laporan keliru atau <em>Menangguhkan Akun</em> jika
+                    terbukti melanggar.
                   </p>
                 </div>
 
@@ -220,7 +221,9 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                     Perlindungan Privasi Tautan & Lokasi
                   </p>
                   <p className="text-slate-600 text-[11px]">
-                    Link Google Meet / Zoom serta nomor kontak tutor hanya dibuka kepada peserta yang permohonannya telah disetujui host.
+                    Link Google Meet / Zoom serta detail lokasi pertemuan hanya
+                    terbuka kepada peserta yang permohonannya telah disetujui
+                    oleh penyelenggara.
                   </p>
                 </div>
               </div>
@@ -231,39 +234,51 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
             <div className="space-y-3.5">
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <p className="font-bold text-slate-900 text-sm">
-                  Pusat Bantuan & Layanan Mahasiswa
+                  Pusat Bantuan & Layanan Anggota
                 </p>
                 <p className="text-slate-600">
-                  Mengalami kendala akun, sesi belajar, atau ingin memberikan masukan perbaikan sistem?
+                  Mengalami kendala akun, jadwal sesi, atau ingin memberi
+                  masukan untuk pengembangan komunitas?
                 </p>
               </div>
 
               <div className="space-y-2">
                 <div className="p-3 rounded-lg border border-slate-200 bg-white space-y-1">
-                  <p className="font-bold text-slate-900 text-xs">Bagaimana jika jadwal sesi bentrok?</p>
+                  <p className="font-bold text-slate-900 text-xs">
+                    Bagaimana jika jadwal sesi bentrok?
+                  </p>
                   <p className="text-slate-600 text-[11px]">
-                    Penyelenggara (Host) dapat mengajukan <em>Reschedule Jadwal</em> kapan saja melalui menu Sesi Saya. Peserta terdaftar akan menerima notifikasi pembaruan secara instan.
+                    Penyelenggara (Host) dapat menekan tombol{" "}
+                    <em>Jadwalkan Ulang / Reschedule</em> pada detail sesi kapan
+                    saja. Peserta yang sudah diterima otomatis tetap terdaftar
+                    di jadwal baru.
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg border border-slate-200 bg-white space-y-1">
-                  <p className="font-bold text-slate-900 text-xs">Bagaimana jika peserta ingin membatalkan keikutsertaan?</p>
+                  <p className="font-bold text-slate-900 text-xs">
+                    Bagaimana jika peserta ingin membatalkan keikutsertaan?
+                  </p>
                   <p className="text-slate-600 text-[11px]">
-                    Buka menu <strong>"Sesi Saya"</strong>, pilih sesi yang ingin dibatalkan, lalu tekan <em>"Batal Bergabung"</em>. Kuota peserta akan otomatis bertambah kembali untuk mahasiswa lain.
+                    Buka menu <strong>&quot;Sesi Saya&quot;</strong>, pilih sesi
+                    terkait, lalu tekan <em>&quot;Batal Ikut Sesi&quot;</em>.
+                    Kuota peserta akan otomatis kembali tersedia bagi mahasiswa
+                    lain.
                   </p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-emerald-700 shrink-0" />
-                    <div>
-                      <p className="font-semibold text-emerald-950 text-xs">Sekretariat Laboratorium FST</p>
-                      <p className="text-emerald-800 text-[11px]">Gedung Fakultas Sains & Teknologi Lt. 2</p>
-                    </div>
+                <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-start gap-2.5">
+                  <MessageSquare className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-emerald-950 text-xs">
+                      Hubungi Tim Admin Komunitas PeerLearn
+                    </p>
+                    <p className="text-emerald-800 text-[11px]">
+                      Gunakan menu <strong>Bantuan Admin</strong> di bilah
+                      navigasi setelah login untuk mengirim pesan langsung ke
+                      tim pengelola yang sedang bertugas.
+                    </p>
                   </div>
-                  <span className="text-[11px] font-semibold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                    fst@uinsgd.ac.id
-                  </span>
                 </div>
               </div>
             </div>
