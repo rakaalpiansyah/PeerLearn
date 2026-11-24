@@ -12,7 +12,6 @@ import (
 
 	"peerlearn/backend/internal/config"
 	"peerlearn/backend/internal/database"
-	"peerlearn/backend/internal/domain"
 	"peerlearn/backend/internal/handler"
 	"peerlearn/backend/internal/middleware"
 	"peerlearn/backend/internal/repository"
@@ -62,6 +61,7 @@ func main() {
 	reportRepo := repository.NewReportRepository(db.Pool)
 	messageRepo := repository.NewMessageRepository(db.Pool)
 	supportRepo := repository.NewSupportRepository(db.Pool)
+	masterRepo := repository.NewMasterRepository(db.Pool)
 
 	// Services
 	healthService := service.NewHealthService(healthRepo)
@@ -72,6 +72,7 @@ func main() {
 	engagementService := service.NewEngagementService(feedbackRepo, reportRepo, groupRepo, userRepo)
 	messageService := service.NewMessageService(messageRepo, groupRepo, membershipRepo)
 	supportService := service.NewSupportService(supportRepo, userRepo)
+	masterService := service.NewMasterService(masterRepo)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(healthService)
@@ -82,6 +83,7 @@ func main() {
 	engagementHandler := handler.NewEngagementHandler(engagementService)
 	messageHandler := handler.NewMessageHandler(messageService)
 	supportHandler := handler.NewSupportHandler(supportService)
+	masterHandler := handler.NewMasterHandler(masterService)
 
 	jwtAuth := middleware.JWTMiddleware(cfg.JWTSecret)
 
@@ -89,6 +91,7 @@ func main() {
 	api := app.Group("/api/v1", middleware.APIRateLimiter())
 	api.Get("/health", healthHandler.Check)
 	api.Get("/skills", userHandler.GetSkills)
+	api.Get("/master/faculties", masterHandler.GetMasterCatalog)
 	api.Get("/users/:id/profile", userHandler.GetPublicProfile)
 	api.Get("/users/:id/public", userHandler.GetPublicProfile)
 
@@ -135,7 +138,7 @@ func main() {
 
 	// Community Safety, Approvals & Shared Admin Inbox
 	api.Post("/reports", jwtAuth, engagementHandler.CreateReport)
-	admin := api.Group("/admin", jwtAuth, middleware.RequireRole(domain.RoleAdmin))
+	admin := api.Group("/admin", jwtAuth, middleware.RequireAdmin())
 	admin.Get("/groups", groupHandler.AdminList)
 	admin.Patch("/groups/:id/review", groupHandler.AdminReview)
 	admin.Get("/reports", engagementHandler.ListReports)

@@ -9,10 +9,16 @@ import (
 type UserRole string
 
 const (
-	RoleStudent UserRole = "student"
-	RolePublic  UserRole = "public"
-	RoleAdmin   UserRole = "admin"
+	RoleStudent      UserRole = "student"
+	RolePublic       UserRole = "public"
+	RoleAdmin        UserRole = "admin"
+	RoleSuperAdmin   UserRole = "super_admin"
+	RoleFacultyAdmin UserRole = "faculty_admin"
 )
+
+func (r UserRole) IsAdmin() bool {
+	return r == RoleAdmin || r == RoleSuperAdmin || r == RoleFacultyAdmin
+}
 
 type AccountStatus string
 
@@ -29,6 +35,8 @@ type User struct {
 	FullName           string        `json:"full_name"`
 	Role               UserRole      `json:"role"`
 	CampusName         string        `json:"campus_name"`
+	FacultyID          *uuid.UUID    `json:"faculty_id,omitempty"`
+	DepartmentID       *uuid.UUID    `json:"department_id,omitempty"`
 	Gender             string        `json:"gender"`
 	Bio                string        `json:"bio"`
 	AvatarURL          string        `json:"avatar_url"`
@@ -81,6 +89,7 @@ const (
 type LearningGroup struct {
 	ID              uuid.UUID   `json:"id"`
 	HostID          uuid.UUID   `json:"host_id"`
+	FacultyID       *uuid.UUID  `json:"faculty_id,omitempty"`
 	Title           string      `json:"title"`
 	Description     string      `json:"description"`
 	Category        string      `json:"category"`
@@ -195,4 +204,40 @@ type SupportMessage struct {
 	SenderID  uuid.UUID `json:"sender_id"`
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type Faculty struct {
+	ID          uuid.UUID        `json:"id"`
+	Code        string           `json:"code"`
+	Name        string           `json:"name"`
+	IsActive    bool             `json:"is_active"`
+	CreatedAt   time.Time        `json:"created_at"`
+	Departments []Department     `json:"departments,omitempty"`
+	Locations   []CampusLocation `json:"locations,omitempty"`
+}
+
+type Department struct {
+	ID          uuid.UUID `json:"id"`
+	FacultyID   uuid.UUID `json:"faculty_id"`
+	Name        string    `json:"name"`
+	DegreeLevel string    `json:"degree_level"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type CampusLocation struct {
+	ID              uuid.UUID  `json:"id"`
+	FacultyID       *uuid.UUID `json:"faculty_id,omitempty"`
+	Name            string     `json:"name"`
+	ShortLabel      string     `json:"short_label"`
+	BuildingDetails string     `json:"building_details"`
+	Latitude        *float64   `json:"latitude,omitempty"`
+	Longitude       *float64   `json:"longitude,omitempty"`
+	IsActive        bool       `json:"is_active"`
+	CreatedAt       time.Time  `json:"created_at"`
+}
+
+type MasterCatalog struct {
+	Faculties       []Faculty        `json:"faculties"`
+	SharedLocations []CampusLocation `json:"shared_locations"`
 }

@@ -71,3 +71,7 @@ func RequireRole(allowedRoles ...domain.UserRole) fiber.Handler {
 		))
 	}
 }
+
+func RequireAdmin() fiber.Handler {
+	return RequireRole(domain.RoleAdmin, domain.RoleSuperAdmin, domain.RoleFacultyAdmin)
+}
