@@ -119,6 +119,8 @@ func (s *userService) GetPublicProfile(ctx context.Context, targetUserID uuid.UU
 		AvatarURL:          user.AvatarURL,
 		ContributionPoints: user.ContributionPoints,
 		AccountStatus:      user.AccountStatus,
+		EmailVerified:      user.EmailVerified,
+		IsCampusEmail:      domain.IsCampusEmail(user.Email),
 		HostedGroupsCount:  hostedCount,
 		Skills:             skills,
 		CreatedAt:          user.CreatedAt,
@@ -229,6 +231,7 @@ func (s *userService) GetSKPIVerification(ctx context.Context, targetUserID uuid
 		MasteredSkills:        masteredSkills,
 		VerifiedHostedCount:   verifiedHostedCount,
 		VerifiedAttendedCount: verifiedAttendedCount,
+		EmailVerified:         user.EmailVerified,
 		CompletedSessions:     completedSessions,
 		VerificationCode:      verificationCode,
 		Verified:              verified,
@@ -332,11 +335,12 @@ func (s *userService) SearchUsers(ctx context.Context, callerID uuid.UUID, query
 			continue
 		}
 		items = append(items, domain.UserSearchItem{
-			ID:         u.ID,
-			FullName:   u.FullName,
-			CampusName: u.CampusName,
-			AvatarURL:  u.AvatarURL,
-			Role:       u.Role,
+			ID:            u.ID,
+			FullName:      u.FullName,
+			CampusName:    u.CampusName,
+			AvatarURL:     u.AvatarURL,
+			Role:          u.Role,
+			EmailVerified: u.EmailVerified,
 		})
 	}
 	return items, nil

@@ -32,6 +32,8 @@ type UserResponse struct {
 	ContributionPoints int           `json:"contribution_points"`
 	AccountStatus      AccountStatus `json:"account_status"`
 	RestrictionNote    string        `json:"restriction_note,omitempty"`
+	EmailVerified      bool          `json:"email_verified"`
+	IsCampusEmail      bool          `json:"is_campus_email"`
 	CreatedAt          time.Time     `json:"created_at"`
 	Skills             []UserSkill   `json:"skills,omitempty"`
 }
@@ -46,6 +48,8 @@ type PublicProfileResponse struct {
 	AvatarURL          string        `json:"avatar_url"`
 	ContributionPoints int           `json:"contribution_points"`
 	AccountStatus      AccountStatus `json:"account_status"`
+	EmailVerified      bool          `json:"email_verified"`
+	IsCampusEmail      bool          `json:"is_campus_email"`
 	HostedGroupsCount  int           `json:"hosted_groups_count"`
 	Skills             []UserSkill   `json:"skills,omitempty"`
 	CreatedAt          time.Time     `json:"created_at"`
@@ -68,6 +72,7 @@ type SKPIVerificationResponse struct {
 	MasteredSkills        []string            `json:"mastered_skills"`
 	VerifiedHostedCount   int                 `json:"verified_hosted_count"`
 	VerifiedAttendedCount int                 `json:"verified_attended_count"`
+	EmailVerified         bool                `json:"email_verified"`
 	CompletedSessions     []SKPISessionRecord `json:"completed_sessions"`
 	VerificationCode      string              `json:"verification_code"`
 	Verified              bool                `json:"verified"`
@@ -107,11 +112,30 @@ type UpdateSkillsRequest struct {
 }
 
 type UserSearchItem struct {
-	ID         uuid.UUID `json:"id"`
-	FullName   string    `json:"full_name"`
-	CampusName string    `json:"campus_name"`
-	AvatarURL  string    `json:"avatar_url"`
-	Role       UserRole  `json:"role"`
+	ID            uuid.UUID `json:"id"`
+	FullName      string    `json:"full_name"`
+	CampusName    string    `json:"campus_name"`
+	AvatarURL     string    `json:"avatar_url"`
+	Role          UserRole  `json:"role"`
+	EmailVerified bool      `json:"email_verified"`
+}
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+type ForgotPasswordResponse struct {
+	Message  string `json:"message"`
+	DevToken string `json:"dev_token,omitempty"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+type VerifyEmailConfirmRequest struct {
+	Token string `json:"token"`
 }
 
 func ToUserResponse(user *User, skills []UserSkill) UserResponse {
@@ -127,6 +151,8 @@ func ToUserResponse(user *User, skills []UserSkill) UserResponse {
 		ContributionPoints: user.ContributionPoints,
 		AccountStatus:      user.AccountStatus,
 		RestrictionNote:    user.RestrictionNote,
+		EmailVerified:      user.EmailVerified,
+		IsCampusEmail:      IsCampusEmail(user.Email),
 		CreatedAt:          user.CreatedAt,
 		Skills:             skills,
 	}

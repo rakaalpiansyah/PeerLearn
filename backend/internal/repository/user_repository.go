@@ -33,6 +33,11 @@ type UserSearcher interface {
 	SearchUsers(ctx context.Context, query string, limit int) ([]domain.User, error)
 }
 
+type UserAuthUpdater interface {
+	UpdatePasswordHash(ctx context.Context, userID uuid.UUID, hash string) error
+	MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
+}
+
 type userRepository struct {
 	pool *pgxpool.Pool
 }
@@ -81,7 +86,7 @@ func (r *userRepository) Create(ctx context.Context, user *domain.User) error {
 
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
-		SELECT id, email, password_hash, full_name, role, campus_name, gender, bio, avatar_url, contribution_points, account_status, restriction_note, created_at, updated_at
+		SELECT id, email, password_hash, full_name, role, campus_name, gender, bio, avatar_url, contribution_points, account_status, restriction_note, COALESCE(email_verified, FALSE), email_verified_at, created_at, updated_at
 		FROM users
 		WHERE LOWER(email) = LOWER($1)
 	`
@@ -99,6 +104,8 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 		&u.ContributionPoints,
 		&u.AccountStatus,
 		&u.RestrictionNote,
+		&u.EmailVerified,
+		&u.EmailVerifiedAt,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
@@ -114,7 +121,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	query := `
-		SELECT id, email, password_hash, full_name, role, campus_name, gender, bio, avatar_url, contribution_points, account_status, restriction_note, created_at, updated_at
+		SELECT id, email, password_hash, full_name, role, campus_name, gender, bio, avatar_url, contribution_points, account_status, restriction_note, COALESCE(email_verified, FALSE), email_verified_at, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -132,6 +139,8 @@ func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 		&u.ContributionPoints,
 		&u.AccountStatus,
 		&u.RestrictionNote,
+		&u.EmailVerified,
+		&u.EmailVerifiedAt,
 		&u.CreatedAt,
 		&u.UpdatedAt,
 	)
@@ -255,7 +264,7 @@ func (r *userRepository) SearchUsers(ctx context.Context, query string, limit in
 	}
 
 	sqlQuery := `
-		SELECT id, email, full_name, role, campus_name, gender, avatar_url, contribution_points, account_status, created_at
+		SELECT id, email, full_name, role, campus_name, gender, avatar_url, contribution_points, account_status, COALESCE(email_verified, FALSE), created_at
 		FROM users
 		WHERE COALESCE(account_status, 'active') != 'suspended'
 		  AND (LOWER(full_name) LIKE $1 OR LOWER(email) = $2)
@@ -273,11 +282,34 @@ func (r *userRepository) SearchUsers(ctx context.Context, query string, limit in
 		var u domain.User
 		if err := rows.Scan(
 			&u.ID, &u.Email, &u.FullName, &u.Role, &u.CampusName, &u.Gender,
-			&u.AvatarURL, &u.ContributionPoints, &u.AccountStatus, &u.CreatedAt,
+			&u.AvatarURL, &u.ContributionPoints, &u.AccountStatus, &u.EmailVerified, &u.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("userRepository.SearchUsers.Scan: %w", err)
 		}
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func (r *userRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUID, hash string) error {
+	cmd, err := r.pool.Exec(ctx, `UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3`, hash, time.Now().UTC(), userID)
+	if err != nil {
+		return fmt.Errorf("userRepository.UpdatePasswordHash: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *userRepository) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
+	now := time.Now().UTC()
+	cmd, err := r.pool.Exec(ctx, `UPDATE users SET email_verified = TRUE, email_verified_at = $1, updated_at = $1 WHERE id = $2`, now, userID)
+	if err != nil {
+		return fmt.Errorf("userRepository.MarkEmailVerified: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return ErrUserNotFound
+	}
+	return nil
 }

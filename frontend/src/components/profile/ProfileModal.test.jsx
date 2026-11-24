@@ -120,4 +120,47 @@ describe('ProfileModal validation', () => {
       avatar_url: 'data:image/webp;base64,mockCompressedData',
     })
   })
+
+  it('requests and confirms campus email verification and refreshes profile', async () => {
+    const campusUnverified = {
+      ...account,
+      email: 'sari@student.uinsgd.ac.id',
+      is_campus_email: true,
+      email_verified: false,
+    }
+    const campusVerified = {
+      ...campusUnverified,
+      email_verified: true,
+    }
+    authApi.getMe
+      .mockResolvedValueOnce({ success: true, data: campusUnverified })
+      .mockResolvedValueOnce({ success: true, data: campusVerified })
+    vi.spyOn(authApi, 'requestEmailVerification').mockResolvedValue({
+      success: true,
+      data: { message: 'Kode verifikasi terkirim.', dev_token: 'VERIFY-CAMPUS-77' },
+    })
+    vi.spyOn(authApi, 'confirmEmailVerification').mockResolvedValue({
+      success: true,
+      data: { message: 'Email kampus terverifikasi.' },
+    })
+
+    await mount()
+    const requestBtn = await screen.findByRole('button', { name: /Verifikasi Email Kampus/i })
+    await act(async () => {
+      fireEvent.click(requestBtn)
+    })
+
+    expect(authApi.requestEmailVerification).toHaveBeenCalledTimes(1)
+    const tokenInput = await screen.findByLabelText(/Masukkan Kode Verifikasi/i)
+    fireEvent.change(tokenInput, { target: { value: 'VERIFY-CAMPUS-77' } })
+
+    const confirmBtn = screen.getByRole('button', { name: /Konfirmasi Kode/i })
+    await act(async () => {
+      fireEvent.click(confirmBtn)
+    })
+
+    expect(authApi.confirmEmailVerification).toHaveBeenCalledWith('VERIFY-CAMPUS-77')
+    await waitFor(() => expect(authApi.getMe).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText(/Email Kampus Terverifikasi/i)).toBeTruthy()
+  })
 })

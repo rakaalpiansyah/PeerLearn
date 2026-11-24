@@ -72,6 +72,7 @@ function AppContent() {
   const [previewStudentCatalog, setPreviewStudentCatalog] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState("login");
+  const [authResetToken, setAuthResetToken] = useState("");
   const [skillsModalOpen, setSkillsModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
@@ -93,6 +94,7 @@ function AppContent() {
   const [deepLinkError, setDeepLinkError] = useState(null);
 
   const handleOpenAuth = (mode = "login") => {
+    setAuthResetToken("");
     setAuthMode(mode);
     setAuthModalOpen(true);
   };
@@ -141,6 +143,15 @@ function AppContent() {
   };
 
   useEffect(() => {
+    const queryResetToken = new URLSearchParams(window.location.search).get("reset_token");
+    if (queryResetToken) {
+      setAuthResetToken(queryResetToken);
+      setAuthMode("reset");
+      setAuthModalOpen(true);
+      const nextUrl = `${window.location.pathname}${window.location.hash || ""}`;
+      window.history.replaceState({}, "", nextUrl || "/");
+    }
+
     const initialSessionId = getSessionIdFromPath(window.location.pathname);
     if (initialSessionId) {
       openGroupById(initialSessionId, { syncUrl: false });
@@ -290,8 +301,12 @@ function AppContent() {
 
       <AuthModal
         isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
+        onClose={() => {
+          setAuthModalOpen(false);
+          setAuthResetToken("");
+        }}
         initialMode={authMode}
+        initialResetToken={authResetToken}
       />
 
       <GroupDetailModal

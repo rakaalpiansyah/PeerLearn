@@ -16,6 +16,7 @@ import { Modal } from "../ui/Modal";
 import { membershipApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { buildSKPIVerifyUrl } from "../../utils/sessionRoute";
+import { SKPIQrCode } from "./SKPIQrCode";
 
 export function TutorSummaryModal({ isOpen, onClose }) {
   const { user } = useAuth();
@@ -216,9 +217,15 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium">
                   Akun Kampus Terverifikasi
                 </span>
-                <p className="font-mono text-slate-700 mt-0.5">
-                  {user.email}
-                </p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                  <p className="font-mono text-slate-700">{user.email}</p>
+                  {user.email_verified && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 print:bg-white print:text-black print:border-slate-400">
+                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-700 print:text-black" aria-hidden="true" />
+                      Terverifikasi
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -374,41 +381,48 @@ export function TutorSummaryModal({ isOpen, onClose }) {
 
             {/* Signature & Validation Footer */}
             <div className="pt-4 border-t border-slate-200 print:border-slate-300 flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-xs">
-              <div className="space-y-1.5 min-w-0">
-                <span className="text-[10px] text-slate-500 uppercase block font-medium">
-                  Kode Validasi & Verifikasi Online
-                </span>
-                <div className="font-mono text-[10px] text-slate-700 bg-slate-100 print:bg-transparent p-1.5 rounded border border-slate-200 print:border-none break-all">
-                  SEC-HASH: PL-{(user.id || "").replace(/-/g, "").toUpperCase()}
-                </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
                 {verifyUrl && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-[10px] text-slate-600 break-all">
-                      {verifyUrl}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleCopyVerifyUrl}
-                      className="no-print min-h-[36px] inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-emerald-800 text-[11px] font-semibold transition-colors"
-                    >
-                      {copiedVerifyUrl ? (
-                        <>
-                          <Check className="w-3 h-3 text-emerald-700" aria-hidden="true" />
-                          <span>Link Tersalin</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" aria-hidden="true" />
-                          <span>Salin Link Verifikasi</span>
-                        </>
-                      )}
-                    </button>
+                  <div className="shrink-0 self-start">
+                    <SKPIQrCode url={verifyUrl} size={88} />
                   </div>
                 )}
-                <p className="text-[10px] text-emerald-700 print:text-emerald-700 flex items-center gap-1 font-semibold">
-                  <CheckCircle2 className="w-3 h-3 shrink-0" />
-                  <span>Terverifikasi Otomatis oleh PeerLearn UIN SGD Bandung</span>
-                </p>
+                <div className="space-y-1.5 min-w-0">
+                  <span className="text-[10px] text-slate-500 uppercase block font-medium">
+                    Kode Validasi & Verifikasi Online
+                  </span>
+                  <div className="font-mono text-[10px] text-slate-700 bg-slate-100 print:bg-transparent p-1.5 rounded border border-slate-200 print:border-none break-all">
+                    SEC-HASH: PL-{(user.id || "").replace(/-/g, "").toUpperCase()}
+                  </div>
+                  {verifyUrl && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[10px] text-slate-600 break-all">
+                        {verifyUrl}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyVerifyUrl}
+                        className="no-print min-h-[36px] inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-emerald-800 text-[11px] font-semibold transition-colors"
+                      >
+                        {copiedVerifyUrl ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-700" aria-hidden="true" />
+                            <span>Link Tersalin</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" aria-hidden="true" />
+                            <span>Salin Link Verifikasi</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-emerald-700 print:text-emerald-700 flex items-center gap-1 font-semibold">
+                    <CheckCircle2 className="w-3 h-3 shrink-0" />
+                    <span>Terverifikasi Otomatis oleh PeerLearn UIN SGD Bandung</span>
+                  </p>
+                </div>
               </div>
 
               <div className="sm:text-right space-y-1 shrink-0">

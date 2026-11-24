@@ -129,11 +129,17 @@ export function SKPIVerifyPage({ userId, onBackHome }) {
                 <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                   {data.full_name}
                 </h1>
-                <p className="text-sm text-slate-600 flex items-center gap-1.5">
+                <p className="text-sm text-slate-600 flex flex-wrap items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
                   <span>
                     {data.campus_name || "UIN Sunan Gunung Djati Bandung"}
                   </span>
+                  {data.email_verified && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-700" aria-hidden="true" />
+                      <span>Email Kampus Terverifikasi</span>
+                    </span>
+                  )}
                 </p>
               </div>
 

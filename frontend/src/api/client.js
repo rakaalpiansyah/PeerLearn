@@ -39,6 +39,11 @@ export const authApi = {
   register: (payload) => apiClient.post("/auth/register", payload),
   login: (payload) => apiClient.post("/auth/login", payload),
   getMe: () => apiClient.get("/auth/me"),
+  forgotPassword: (email) => apiClient.post("/auth/forgot-password", { email }),
+  resetPassword: (payload) => apiClient.post("/auth/reset-password", payload),
+  requestEmailVerification: () => apiClient.post("/auth/verify-email/request"),
+  confirmEmailVerification: (token) =>
+    apiClient.post("/auth/verify-email/confirm", { token }),
 };
 
 export const userApi = {

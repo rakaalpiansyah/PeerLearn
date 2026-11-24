@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,8 +36,25 @@ type User struct {
 	ContributionPoints int           `json:"contribution_points"`
 	AccountStatus      AccountStatus `json:"account_status"`
 	RestrictionNote    string        `json:"restriction_note"`
+	EmailVerified      bool          `json:"email_verified"`
+	EmailVerifiedAt    *time.Time    `json:"email_verified_at,omitempty"`
 	CreatedAt          time.Time     `json:"created_at"`
 	UpdatedAt          time.Time     `json:"updated_at"`
+}
+
+func IsCampusEmail(email string) bool {
+	normalized := strings.TrimSpace(strings.ToLower(email))
+	return strings.HasSuffix(normalized, "@uinsgd.ac.id") || strings.HasSuffix(normalized, "@student.uinsgd.ac.id")
+}
+
+type AuthToken struct {
+	ID        uuid.UUID  `json:"id"`
+	UserID    uuid.UUID  `json:"user_id"`
+	TokenHash string     `json:"-"`
+	Purpose   string     `json:"purpose"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 type SkillType string

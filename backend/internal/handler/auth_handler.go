@@ -114,3 +114,70 @@ func (h *AuthHandler) Me(c *fiber.Ctx) error {
 		profile,
 	))
 }
+
+func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
+	var req domain.ForgotPasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("BAD_REQUEST", "Format permintaan tidak valid", nil))
+	}
+
+	resp, err := h.authService.RequestPasswordReset(c.Context(), req)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidInput) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(domain.FailureResponse("VALIDATION_FAILED", err.Error(), nil))
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(domain.FailureResponse("FORGOT_PASSWORD_FAILED", "Gagal memproses permintaan atur ulang kata sandi", nil))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse(resp.Message, resp))
+}
+
+func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
+	var req domain.ResetPasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("BAD_REQUEST", "Format permintaan tidak valid", nil))
+	}
+
+	if err := h.authService.ResetPassword(c.Context(), req); err != nil {
+		if errors.Is(err, service.ErrInvalidInput) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(domain.FailureResponse("VALIDATION_FAILED", err.Error(), nil))
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("RESET_PASSWORD_FAILED", err.Error(), nil))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse("Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru Anda.", nil))
+}
+
+func (h *AuthHandler) RequestEmailVerification(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(uuid.UUID)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.FailureResponse("UNAUTHORIZED", "Otorisasi pengguna tidak valid", nil))
+	}
+
+	resp, err := h.authService.RequestEmailVerification(c.Context(), userID)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidInput) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(domain.FailureResponse("VALIDATION_FAILED", err.Error(), nil))
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(domain.FailureResponse("VERIFY_REQUEST_FAILED", "Gagal membuat kode verifikasi email", nil))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse(resp.Message, resp))
+}
+
+func (h *AuthHandler) ConfirmEmailVerification(c *fiber.Ctx) error {
+	var req domain.VerifyEmailConfirmRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("BAD_REQUEST", "Format permintaan tidak valid", nil))
+	}
+
+	updatedUser, err := h.authService.ConfirmEmailVerification(c.Context(), req)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidInput) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(domain.FailureResponse("VALIDATION_FAILED", err.Error(), nil))
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("VERIFY_CONFIRM_FAILED", err.Error(), nil))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse("Email kampus berhasil diverifikasi.", updatedUser))
+}

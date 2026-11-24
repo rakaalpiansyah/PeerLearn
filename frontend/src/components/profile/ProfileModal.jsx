@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, User, Check, AlertCircle, Award, Upload, Trash2 } from "lucide-react";
+import { X, User, Check, AlertCircle, Award, Upload, Trash2, CheckCircle2, Mail } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { UserAvatar } from "../ui/UserAvatar";
+import { authApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { useFormValidation } from "../../hooks/useFormValidation";
 import { compressImageFile } from "../../utils/imageCompressor";
 import { UIN_PROGRAM_OPTIONS } from "../../data/campusData";
 
 export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, refreshProfile } = useAuth();
   const [fullName, setFullName] = useState("");
   const [campusName, setCampusName] = useState("");
   const [bio, setBio] = useState("");
@@ -20,6 +21,12 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
   const [compressing, setCompressing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [verifyTokenInput, setVerifyTokenInput] = useState("");
+  const [verifyMessage, setVerifyMessage] = useState(null);
+  const [verifyError, setVerifyError] = useState(null);
+  const [devVerifyToken, setDevVerifyToken] = useState("");
+  const [requestingVerify, setRequestingVerify] = useState(false);
+  const [confirmingVerify, setConfirmingVerify] = useState(false);
   const { errors, validate, clearError, clearErrors } = useFormValidation();
   const fileInputRef = useRef(null);
 
@@ -61,6 +68,53 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
   const handleRemoveAvatar = () => {
     setAvatarUrl("");
     setAvatarRemoved(true);
+  };
+
+  const handleRequestEmailVerification = async () => {
+    setRequestingVerify(true);
+    setVerifyError(null);
+    setVerifyMessage(null);
+    try {
+      const res = await authApi.requestEmailVerification();
+      setVerifyMessage(
+        res?.data?.message ||
+          res?.message ||
+          "Kode verifikasi telah dikirim ke email kampus Anda."
+      );
+      if (res?.data?.dev_token) {
+        setDevVerifyToken(res.data.dev_token);
+        setVerifyTokenInput(res.data.dev_token);
+      }
+    } catch (err) {
+      setVerifyError(err?.message || "Gagal mengirim kode verifikasi email kampus.");
+    } finally {
+      setRequestingVerify(false);
+    }
+  };
+
+  const handleConfirmEmailVerification = async (e) => {
+    e.preventDefault();
+    const trimmed = verifyTokenInput.trim();
+    if (!trimmed) {
+      setVerifyError("Masukkan kode verifikasi email terlebih dahulu.");
+      return;
+    }
+    setConfirmingVerify(true);
+    setVerifyError(null);
+    setVerifyMessage(null);
+    try {
+      const res = await authApi.confirmEmailVerification(trimmed);
+      if (res?.success) {
+        setDevVerifyToken("");
+        setVerifyTokenInput("");
+        setVerifyMessage("Email kampus berhasil diverifikasi.");
+        await refreshProfile?.();
+      }
+    } catch (err) {
+      setVerifyError(err?.message || "Kode verifikasi tidak valid atau kedaluwarsa.");
+    } finally {
+      setConfirmingVerify(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -155,6 +209,93 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
             </Button>
           )}
         </div>
+
+        {/* Campus Email Verification Card */}
+        {user?.email && (
+          <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2.5 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Mail className="w-4 h-4 text-emerald-700 shrink-0" aria-hidden="true" />
+                <span className="font-mono text-[11px] text-slate-800 truncate">
+                  {user.email}
+                </span>
+              </div>
+              {user.email_verified ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-900 border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-700" aria-hidden="true" />
+                  <span>Email Kampus Terverifikasi</span>
+                </span>
+              ) : user.is_campus_email ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRequestEmailVerification}
+                  isLoading={requestingVerify}
+                  className="text-xs"
+                >
+                  Verifikasi Email Kampus
+                </Button>
+              ) : (
+                <span className="text-[11px] text-slate-500">
+                  Lencana khusus email `@uinsgd.ac.id`
+                </span>
+              )}
+            </div>
+
+            {verifyError && (
+              <p role="alert" className="text-[11px] text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5">
+                {verifyError}
+              </p>
+            )}
+
+            {verifyMessage && (
+              <p role="status" aria-live="polite" className="text-[11px] text-emerald-900 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5">
+                {verifyMessage}
+              </p>
+            )}
+
+            {!user.email_verified && (devVerifyToken || verifyMessage) && user.is_campus_email && (
+              <form onSubmit={handleConfirmEmailVerification} className="space-y-2 pt-1">
+                {devVerifyToken && (
+                  <p className="font-mono text-[10px] text-slate-700 bg-slate-50 border border-slate-200 px-2 py-1 rounded break-all">
+                    Token lokal: {devVerifyToken}
+                  </p>
+                )}
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 min-w-0">
+                    <label
+                      htmlFor="verify-email-token-input"
+                      className="block text-[11px] font-semibold text-slate-700 mb-1"
+                    >
+                      Masukkan Kode Verifikasi
+                    </label>
+                    <input
+                      id="verify-email-token-input"
+                      type="text"
+                      value={verifyTokenInput}
+                      onChange={(e) => setVerifyTokenInput(e.target.value)}
+                      placeholder="Tempel kode verifikasi"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      className="w-full min-h-[40px] px-2.5 py-1.5 text-xs rounded-lg bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    isLoading={confirmingVerify}
+                    className="min-h-[40px] shrink-0"
+                  >
+                    Konfirmasi Kode
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
 
         {/* Avatar Upload Preview Section */}
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-4">

@@ -14,6 +14,7 @@ import (
 	"peerlearn/backend/internal/database"
 	"peerlearn/backend/internal/domain"
 	"peerlearn/backend/internal/handler"
+	"peerlearn/backend/internal/mailer"
 	"peerlearn/backend/internal/middleware"
 	"peerlearn/backend/internal/repository"
 	"peerlearn/backend/internal/service"
@@ -66,10 +67,15 @@ func main() {
 	coHostRepo := repository.NewGroupCoHostRepository(db.Pool)
 	materialRepo := repository.NewGroupMaterialRepository(db.Pool)
 	studyRequestRepo := repository.NewStudyRequestRepository(db.Pool)
+	authTokenRepo := repository.NewAuthTokenRepository(db.Pool)
+	appMailer := mailer.NewMailer(cfg)
 
 	// Services
 	healthService := service.NewHealthService(healthRepo)
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
+	if updater, ok := userRepo.(repository.UserAuthUpdater); ok {
+		authService.SetTokenDeps(authTokenRepo, updater, appMailer, cfg.AppEnv, cfg.AppBaseURL)
+	}
 	userService := service.NewUserService(userRepo, skillRepo, groupRepo, membershipRepo)
 	groupService := service.NewGroupServiceWithDeps(groupRepo, userRepo, membershipRepo)
 	membershipService := service.NewMembershipService(membershipRepo, groupRepo, feedbackRepo, userRepo)
@@ -117,6 +123,10 @@ func main() {
 	auth := api.Group("/auth", middleware.AuthRateLimiter())
 	auth.Post("/register", authHandler.Register)
 	auth.Post("/login", authHandler.Login)
+	auth.Post("/forgot-password", authHandler.ForgotPassword)
+	auth.Post("/reset-password", authHandler.ResetPassword)
+	auth.Post("/verify-email/request", jwtAuth, authHandler.RequestEmailVerification)
+	auth.Post("/verify-email/confirm", authHandler.ConfirmEmailVerification)
 	auth.Get("/me", jwtAuth, authHandler.Me)
 
 	// User Profile & Search

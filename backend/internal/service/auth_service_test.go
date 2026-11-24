@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -264,5 +265,168 @@ func TestAuthService_LoginRejectsRemovedAdminBackdoor(t *testing.T) {
 	})
 	if !errors.Is(err, service.ErrInvalidCredentials) {
 		t.Fatalf("expected ErrInvalidCredentials for hardcoded backdoor password, got %v", err)
+	}
+}
+
+func (m *mockUserRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUID, hash string) error {
+	for _, u := range m.users {
+		if u.ID == userID {
+			u.PasswordHash = hash
+			return nil
+		}
+	}
+	return repository.ErrUserNotFound
+}
+
+func (m *mockUserRepository) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
+	now := time.Now().UTC()
+	for _, u := range m.users {
+		if u.ID == userID {
+			u.EmailVerified = true
+			u.EmailVerifiedAt = &now
+			return nil
+		}
+	}
+	return repository.ErrUserNotFound
+}
+
+type mockAuthTokenRepo struct {
+	tokens []*domain.AuthToken
+}
+
+func (m *mockAuthTokenRepo) Create(ctx context.Context, token *domain.AuthToken) error {
+	cp := *token
+	cp.CreatedAt = time.Now().UTC()
+	m.tokens = append(m.tokens, &cp)
+	return nil
+}
+
+func (m *mockAuthTokenRepo) FindValidByHash(ctx context.Context, hash, purpose string) (*domain.AuthToken, error) {
+	now := time.Now().UTC()
+	for _, t := range m.tokens {
+		if t.TokenHash == hash && t.Purpose == purpose && t.UsedAt == nil && t.ExpiresAt.After(now) {
+			cp := *t
+			return &cp, nil
+		}
+	}
+	return nil, repository.ErrTokenNotFound
+}
+
+func (m *mockAuthTokenRepo) MarkUsed(ctx context.Context, id uuid.UUID) error {
+	now := time.Now().UTC()
+	for _, t := range m.tokens {
+		if t.ID == id {
+			t.UsedAt = &now
+			return nil
+		}
+	}
+	return repository.ErrTokenNotFound
+}
+
+func (m *mockAuthTokenRepo) InvalidateActiveForUser(ctx context.Context, userID uuid.UUID, purpose string) error {
+	now := time.Now().UTC()
+	for _, t := range m.tokens {
+		if t.UserID == userID && t.Purpose == purpose && t.UsedAt == nil {
+			t.UsedAt = &now
+		}
+	}
+	return nil
+}
+
+type mockTestMailer struct {
+	configured bool
+	sentCount  int
+}
+
+func (m *mockTestMailer) IsConfigured() bool { return m.configured }
+func (m *mockTestMailer) Send(ctx context.Context, to, subject, body string) error {
+	m.sentCount++
+	return nil
+}
+
+func TestAuthService_PasswordResetAndCampusEmailVerification(t *testing.T) {
+	ctx := context.Background()
+	userRepo := newMockUserRepository()
+	tokenRepo := &mockAuthTokenRepo{}
+	mail := &mockTestMailer{configured: false}
+	svc := service.NewAuthService(userRepo, "test-jwt-secret-12345")
+	svc.SetTokenDeps(tokenRepo, userRepo, mail, "development", "http://localhost:5173")
+
+	campusHash, _ := security.HashPassword("oldpassword1")
+	campusUser := &domain.User{
+		ID:            uuid.New(),
+		Email:         "nabila@student.uinsgd.ac.id",
+		PasswordHash:  campusHash,
+		FullName:      "Nabila UIN SGD",
+		Role:          domain.RoleStudent,
+		AccountStatus: domain.AccountActive,
+	}
+	gmailUser := &domain.User{
+		ID:            uuid.New(),
+		Email:         "luar@gmail.com",
+		PasswordHash:  campusHash,
+		FullName:      "Tamu Gmail",
+		Role:          domain.RolePublic,
+		AccountStatus: domain.AccountActive,
+	}
+	_ = userRepo.Create(ctx, campusUser)
+	_ = userRepo.Create(ctx, gmailUser)
+
+	// Non-existent email returns neutral message with empty DevToken
+	unknownResp, err := svc.RequestPasswordReset(ctx, domain.ForgotPasswordRequest{Email: "missing@uinsgd.ac.id"})
+	if err != nil || unknownResp.DevToken != "" {
+		t.Fatalf("expected neutral response with no token for unknown user, got resp=%+v err=%v", unknownResp, err)
+	}
+
+	// Campus user forgot password creates hashed token & returns DevToken in unconfigured dev env
+	resetResp, err := svc.RequestPasswordReset(ctx, domain.ForgotPasswordRequest{Email: campusUser.Email})
+	if err != nil || resetResp.DevToken == "" {
+		t.Fatalf("expected DevToken in development mode without SMTP, got resp=%+v err=%v", resetResp, err)
+	}
+	if len(tokenRepo.tokens) == 0 || tokenRepo.tokens[0].TokenHash == resetResp.DevToken {
+		t.Fatal("stored token_hash must be SHA-256 hash, never raw token")
+	}
+
+	// Production env must never expose DevToken
+	svc.SetTokenDeps(tokenRepo, userRepo, mail, "production", "https://peerlearn.uinsgd.ac.id")
+	prodResp, err := svc.RequestPasswordReset(ctx, domain.ForgotPasswordRequest{Email: campusUser.Email})
+	if err != nil || prodResp.DevToken != "" {
+		t.Fatalf("production mode must suppress dev_token, got %q", prodResp.DevToken)
+	}
+	svc.SetTokenDeps(tokenRepo, userRepo, mail, "development", "http://localhost:5173")
+
+	// Latest valid token resets password cleanly, and cannot be reused
+	latestToken := resetResp.DevToken
+	// Note: prodResp overwrote active token so let's request fresh dev token
+	freshResp, err := svc.RequestPasswordReset(ctx, domain.ForgotPasswordRequest{Email: campusUser.Email})
+	if err != nil || freshResp.DevToken == "" {
+		t.Fatalf("fresh reset failed: %v", err)
+	}
+	if err := svc.ResetPassword(ctx, domain.ResetPasswordRequest{Token: latestToken, NewPassword: "newpassword9"}); !errors.Is(err, service.ErrInvalidInput) {
+		t.Fatalf("expected invalidated previous token to fail, got %v", err)
+	}
+	if err := svc.ResetPassword(ctx, domain.ResetPasswordRequest{Token: freshResp.DevToken, NewPassword: "newpassword9"}); err != nil {
+		t.Fatalf("ResetPassword failed: %v", err)
+	}
+	if err := svc.ResetPassword(ctx, domain.ResetPasswordRequest{Token: freshResp.DevToken, NewPassword: "anotherpass9"}); !errors.Is(err, service.ErrInvalidInput) {
+		t.Fatalf("expected reused reset token rejected, got %v", err)
+	}
+	if _, err := svc.Login(ctx, domain.LoginRequest{Email: campusUser.Email, Password: "newpassword9"}); err != nil {
+		t.Fatalf("expected login with newly reset password to succeed, got %v", err)
+	}
+
+	// Non-campus email rejected for campus email verification
+	if _, err := svc.RequestEmailVerification(ctx, gmailUser.ID); !errors.Is(err, service.ErrInvalidInput) {
+		t.Fatalf("expected gmail blocked from campus email badge verification, got %v", err)
+	}
+
+	// Campus user requests & confirms email verification
+	verReq, err := svc.RequestEmailVerification(ctx, campusUser.ID)
+	if err != nil || verReq.DevToken == "" {
+		t.Fatalf("RequestEmailVerification failed: %+v err=%v", verReq, err)
+	}
+	confirmedUser, err := svc.ConfirmEmailVerification(ctx, domain.VerifyEmailConfirmRequest{Token: verReq.DevToken})
+	if err != nil || !confirmedUser.EmailVerified || !confirmedUser.IsCampusEmail {
+		t.Fatalf("expected EmailVerified=true IsCampusEmail=true, got %+v err=%v", confirmedUser, err)
 	}
 }

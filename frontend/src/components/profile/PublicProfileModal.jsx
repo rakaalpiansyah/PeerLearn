@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   AlertCircle,
   RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
@@ -174,6 +175,12 @@ export function PublicProfileModal({
                     <Badge variant="outline" className="text-[10px] py-0.5 text-sky-700 border-sky-200 bg-sky-50/50">
                       Laki-laki
                     </Badge>
+                  )}
+                  {profile.email_verified && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-700" aria-hidden="true" />
+                      <span>Email Kampus Terverifikasi</span>
+                    </span>
                   )}
                 </div>
 

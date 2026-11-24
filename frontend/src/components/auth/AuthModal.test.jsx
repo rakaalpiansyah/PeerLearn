@@ -166,4 +166,51 @@ describe('AuthModal validation', () => {
     expect(options.some((opt) => opt.value.includes('Akuntansi Syariah'))).toBe(true)
     expect(options.some((opt) => opt.value.includes('Pascasarjana'))).toBe(true)
   })
+
+  it('handles forgot-password dev token transition, mismatch check, and resetPassword submission', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(authApi, 'forgotPassword').mockResolvedValue({
+      success: true,
+      data: {
+        message: 'Instruksi pemulihan kata sandi telah diproses.',
+        dev_token: 'RESET-DEV-123',
+      },
+    })
+    vi.spyOn(authApi, 'resetPassword').mockResolvedValue({
+      success: true,
+      data: { message: 'Kata sandi berhasil diperbarui.' },
+    })
+
+    mount('login')
+    await user.click(screen.getByRole('button', { name: /Lupa kata sandi\?/i }))
+    change(/Alamat Email/, 'sari@student.uinsgd.ac.id')
+    submit()
+
+    await waitFor(() =>
+      expect(authApi.forgotPassword).toHaveBeenCalledWith('sari@student.uinsgd.ac.id'),
+    )
+    expect(await screen.findByText(/Instruksi pemulihan kata sandi telah diproses/)).toBeTruthy()
+    expect(screen.getByText(/RESET-DEV-123/)).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: /Lanjutkan ke Atur Ulang Kata Sandi/i }))
+    expect(field(/Kode Token Pemulihan/).value).toBe('RESET-DEV-123')
+
+    change(/^Kata Sandi Baru/i, 'baru1234')
+    change(/^Ulangi Kata Sandi Baru/i, 'tidak-sama')
+    submit()
+
+    expect(authApi.resetPassword).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('Konfirmasi kata sandi baru tidak cocok')
+
+    change(/^Ulangi Kata Sandi Baru/i, 'baru1234')
+    submit()
+
+    await waitFor(() =>
+      expect(authApi.resetPassword).toHaveBeenCalledWith({
+        token: 'RESET-DEV-123',
+        new_password: 'baru1234',
+      }),
+    )
+    expect(await screen.findByText(/Kata sandi berhasil diperbarui/)).toBeTruthy()
+  })
 })

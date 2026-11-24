@@ -101,6 +101,10 @@ describe("TutorSummaryModal verified SKPI transcript", () => {
         `${window.location.origin}/verifikasi-skpi/student-1`
       )
     ).toBeTruthy();
+    expect(
+      within(dialog).getByRole("img", { name: /QR Code Verifikasi SKPI PeerLearn/ })
+    ).toBeTruthy();
+    expect(within(dialog).getByText("Pindai Verifikasi SKPI")).toBeTruthy();
   });
 
   it("disables printing with honest notice when user has 0 points and 0 verified sessions", async () => {
