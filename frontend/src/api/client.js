@@ -114,3 +114,14 @@ export const supportApi = {
 export const masterApi = {
   getFaculties: () => apiClient.get("/master/faculties"),
 };
+
+export const cohostApi = {
+  listByGroup: (groupId) => apiClient.get(`/groups/${groupId}/cohosts`),
+  invite: (groupId, email) =>
+    apiClient.post(`/groups/${groupId}/cohosts`, { email }),
+  respond: (groupId, status) =>
+    apiClient.patch(`/groups/${groupId}/cohosts/respond`, { status }),
+  remove: (groupId, userId) =>
+    apiClient.delete(`/groups/${groupId}/cohosts/${userId}`),
+  listMyInvitations: () => apiClient.get("/my-cohost-invitations"),
+};

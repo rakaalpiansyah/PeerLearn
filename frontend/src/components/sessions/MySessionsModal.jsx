@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { X, CheckCircle, Clock3 } from "lucide-react";
+import { X, CheckCircle, Clock3, Users, Check, XCircle } from "lucide-react";
 import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
 import { LoadError } from "../ui/LoadError";
 import { Modal } from "../ui/Modal";
-import { membershipApi } from "../../api/client";
+import { membershipApi, cohostApi, groupApi } from "../../api/client";
 
 export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
   const [tab, setTab] = useState("joined"); // 'joined' | 'hosted'
   const [data, setData] = useState({ hosted: [], joined: [] });
+  const [cohostInvitations, setCohostInvitations] = useState([]);
+  const [busyCohostId, setBusyCohostId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -16,6 +19,20 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
   const loadSessions = useCallback(async () => {
     const requestId = ++requestSequence.current;
     setLoading(true);
+
+    // Muat undangan Co-Tutor secara terpisah (non-blocking) agar tidak menahan render sesi utama
+    cohostApi
+      .listMyInvitations()
+      .then((cohostRes) => {
+        if (requestId !== requestSequence.current) return;
+        if (cohostRes?.success && Array.isArray(cohostRes.data)) {
+          setCohostInvitations(cohostRes.data);
+        }
+      })
+      .catch(() => {
+        // Silent fallback
+      });
+
     try {
       const res = await membershipApi.getMySessions();
       if (requestId !== requestSequence.current) return;
@@ -38,6 +55,35 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
       requestSequence.current += 1;
     };
   }, [isOpen, loadSessions]);
+
+  const handleRespondCohost = async (groupId, status) => {
+    setBusyCohostId(groupId);
+    try {
+      const res = await cohostApi.respond(groupId, status);
+      if (res?.success) {
+        await loadSessions();
+      }
+    } catch {
+      // Fail gracefully
+    } finally {
+      setBusyCohostId(null);
+    }
+  };
+
+  const handleOpenCohostGroup = async (groupId) => {
+    setBusyCohostId(groupId);
+    try {
+      const res = await groupApi.getByID(groupId);
+      if (res?.success && res.data) {
+        onSelectGroup(res.data);
+        onClose();
+      }
+    } catch {
+      // Fail gracefully
+    } finally {
+      setBusyCohostId(null);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -98,6 +144,96 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
 
         {/* List */}
         <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {/* Co-Tutor Invitations & Active Co-Tutor Roles */}
+          {cohostInvitations.length > 0 && (
+            <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                <Users className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>
+                  Undangan & Peran Co-Tutor ({cohostInvitations.length})
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {cohostInvitations.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="p-3 rounded-lg bg-white border border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant={
+                            inv.status === "accepted" ? "success" : "warning"
+                          }
+                          className="text-[10px]"
+                        >
+                          {inv.status === "accepted"
+                            ? "Co-Tutor Aktif"
+                            : "Undangan Co-Tutor"}
+                        </Badge>
+                        {inv.start_time && (
+                          <span className="text-[11px] text-slate-500">
+                            {new Date(inv.start_time).toLocaleDateString(
+                              "id-ID",
+                              { day: "numeric", month: "short" },
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {inv.group_title || "Sesi Belajar"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {inv.status === "invited" ? (
+                        <>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="primary"
+                            isLoading={busyCohostId === inv.group_id}
+                            onClick={() =>
+                              handleRespondCohost(inv.group_id, "accepted")
+                            }
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            Terima
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={busyCohostId === inv.group_id}
+                            onClick={() =>
+                              handleRespondCohost(inv.group_id, "declined")
+                            }
+                            className="text-rose-600 hover:bg-rose-50"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            Tolak
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          isLoading={busyCohostId === inv.group_id}
+                          onClick={() => handleOpenCohostGroup(inv.group_id)}
+                          className="text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                        >
+                          Buka Sesi
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {error && (
             <LoadError
               message="Sesi Anda belum dapat dimuat."

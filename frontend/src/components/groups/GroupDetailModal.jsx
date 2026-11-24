@@ -16,12 +16,13 @@ import {
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
-import { groupApi, membershipApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { GroupReschedulePanel } from "./detail/GroupReschedulePanel";
 import { GroupInfoSection } from "./detail/GroupInfoSection";
 import { GroupParticipantsPanel } from "./detail/GroupParticipantsPanel";
 import { GroupChatPanel } from "./detail/GroupChatPanel";
+import { groupApi, membershipApi, cohostApi } from "../../api/client";
+import { GroupCohostsPanel } from "./detail/GroupCohostsPanel";
 
 export function GroupDetailModal({
   isOpen,
@@ -36,6 +37,7 @@ export function GroupDetailModal({
   const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("info"); // 'info' | 'chat'
   const [members, setMembers] = useState([]);
+  const [cohosts, setCohosts] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -47,22 +49,28 @@ export function GroupDetailModal({
   const [isRescheduling, setIsRescheduling] = useState(false);
 
   const isHost = isAuthenticated && user?.id === group?.host_id;
+  const isAcceptedCohost =
+    isAuthenticated &&
+    cohosts.some((c) => c.user_id === user?.id && c.status === "accepted");
+  const canManageSession = isHost || isAcceptedCohost;
   const isFull = group?.current_members >= group?.max_capacity;
 
   const userMembership =
     members.find((m) => m.user_id === user?.id)?.status ||
     group?.user_membership;
-  const hasAccessToPrivate = isHost || userMembership === "accepted";
+  const hasAccessToPrivate = canManageSession || userMembership === "accepted";
 
   const loadDetails = async () => {
     if (!group?.id) return;
     try {
-      const [membersRes, feedbacksRes] = await Promise.all([
+      const [membersRes, feedbacksRes, cohostsRes] = await Promise.all([
         groupApi.getMembers(group.id),
         groupApi.getFeedbacks(group.id),
+        cohostApi.listByGroup(group.id).catch(() => null),
       ]);
-      if (membersRes.success) setMembers(membersRes.data || []);
-      if (feedbacksRes.success) setFeedbacks(feedbacksRes.data || []);
+      if (membersRes?.success) setMembers(membersRes.data || []);
+      if (feedbacksRes?.success) setFeedbacks(feedbacksRes.data || []);
+      if (cohostsRes?.success) setCohosts(cohostsRes.data || []);
     } catch {
       // Fail gracefully
     }
@@ -397,14 +405,28 @@ export function GroupDetailModal({
               <GroupInfoSection
                 group={group}
                 hasAccessToPrivate={hasAccessToPrivate}
-                isHost={isHost}
+                isHost={canManageSession}
                 onOpenReschedule={handleOpenReschedule}
+                onOpenPublicProfile={onOpenPublicProfile}
+              />
+
+              <GroupCohostsPanel
+                groupId={group.id}
+                cohosts={cohosts}
+                currentUserId={user?.id}
+                isPrimaryHost={isHost}
+                onUpdated={() => {
+                  loadDetails();
+                  onActionComplete();
+                }}
+                onSuccess={setActionSuccess}
+                onError={setActionError}
                 onOpenPublicProfile={onOpenPublicProfile}
               />
 
               <GroupParticipantsPanel
                 group={group}
-                isHost={isHost}
+                isHost={canManageSession}
                 isFull={isFull}
                 members={members}
                 feedbacks={feedbacks}
