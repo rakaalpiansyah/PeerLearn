@@ -62,6 +62,7 @@ func main() {
 	messageRepo := repository.NewMessageRepository(db.Pool)
 	supportRepo := repository.NewSupportRepository(db.Pool)
 	masterRepo := repository.NewMasterRepository(db.Pool)
+	passwordResetRepo := repository.NewPasswordResetRepository(db.Pool)
 
 	// Services
 	healthService := service.NewHealthService(healthRepo)
@@ -73,6 +74,7 @@ func main() {
 	messageService := service.NewMessageService(messageRepo, groupRepo, membershipRepo)
 	supportService := service.NewSupportService(supportRepo, userRepo)
 	masterService := service.NewMasterService(masterRepo)
+	passwordResetService := service.NewPasswordResetService(userRepo, passwordResetRepo, cfg.AppEnv)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(healthService)
@@ -84,6 +86,7 @@ func main() {
 	messageHandler := handler.NewMessageHandler(messageService)
 	supportHandler := handler.NewSupportHandler(supportService)
 	masterHandler := handler.NewMasterHandler(masterService)
+	passwordResetHandler := handler.NewPasswordResetHandler(passwordResetService)
 
 	jwtAuth := middleware.JWTMiddleware(cfg.JWTSecret)
 
@@ -99,6 +102,8 @@ func main() {
 	auth := api.Group("/auth", middleware.AuthRateLimiter())
 	auth.Post("/register", authHandler.Register)
 	auth.Post("/login", authHandler.Login)
+	auth.Post("/forgot-password", passwordResetHandler.ForgotPassword)
+	auth.Post("/reset-password", passwordResetHandler.ResetPassword)
 	auth.Get("/me", jwtAuth, authHandler.Me)
 
 	// User Profile

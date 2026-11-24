@@ -4,12 +4,16 @@ import {
   GraduationCap,
   Users,
   AlertCircle,
+  CheckCircle2,
   Eye,
   EyeOff,
+  KeyRound,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
+import { authApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { useFormValidation } from "../../hooks/useFormValidation";
 import { useMasterCatalog } from "../../hooks/useMasterCatalog";
@@ -20,7 +24,8 @@ export function AuthModal({
   initialMode = "login",
   onOpenRulebook,
 }) {
-  const [mode, setMode] = useState(initialMode);
+  const [mode, setMode] = useState(initialMode); // "login" | "register" | "forgot"
+  const [resetStep, setResetStep] = useState("request"); // "request" | "confirm"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -29,12 +34,15 @@ export function AuthModal({
   const [gender, setGender] = useState("");
   const [role, setRole] = useState("student");
   const [acceptedRulebook, setAcceptedRulebook] = useState(false);
+  const [resetOtp, setResetOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [devOtpHint, setDevOtpHint] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useAuth();
   const { errors, validate, clearError, clearErrors } = useFormValidation();
-
   const masterCatalog = useMasterCatalog(isOpen && mode === "register");
   const departmentOptions = masterCatalog.faculties.flatMap((fac) =>
     (fac.departments || []).map(
@@ -44,7 +52,12 @@ export function AuthModal({
 
   useEffect(() => {
     setMode(initialMode);
+    setResetStep("request");
     setError(null);
+    setNotice(null);
+    setDevOtpHint(null);
+    setResetOtp("");
+    setNewPassword("");
     setShowPassword(false);
     setAcceptedRulebook(false);
   }, [initialMode, isOpen]);
@@ -53,6 +66,10 @@ export function AuthModal({
     clearErrors();
     setShowPassword(false);
     setAcceptedRulebook(false);
+    if (mode !== "forgot") {
+      setResetStep("request");
+      setDevOtpHint(null);
+    }
   }, [mode, isOpen, clearErrors]);
 
   const handleSubmit = async (e) => {
@@ -62,14 +79,25 @@ export function AuthModal({
       customErrors.auth_rulebook =
         "Anda wajib membaca dan menyetujui Rulebook PeerLearn";
     }
+    if (mode === "forgot" && resetStep === "confirm") {
+      if (resetOtp.trim().length !== 6) {
+        customErrors.reset_otp = "Kode OTP harus terdiri dari 6 digit";
+      }
+      if (newPassword.length < 6) {
+        customErrors.reset_new_password = "Kata sandi baru minimal 6 karakter";
+      }
+    }
+
     if (loading || !validate(e.currentTarget, customErrors)) return;
     setError(null);
+    setNotice(null);
     setLoading(true);
 
     try {
       if (mode === "login") {
         await login(email.trim(), password);
-      } else {
+        onClose();
+      } else if (mode === "register") {
         const payload = {
           email: email.trim(),
           password,
@@ -81,8 +109,32 @@ export function AuthModal({
           payload.gender = gender;
         }
         await register(payload);
+        onClose();
+      } else if (mode === "forgot" && resetStep === "request") {
+        const res = await authApi.forgotPassword({ email: email.trim() });
+        setResetStep("confirm");
+        setDevOtpHint(res?.data?.dev_otp || null);
+        setNotice(
+          res?.message ||
+            "Jika email terdaftar, kode OTP 6 digit telah dikirim dan berlaku 15 menit.",
+        );
+      } else if (mode === "forgot" && resetStep === "confirm") {
+        const res = await authApi.resetPassword({
+          email: email.trim(),
+          otp: resetOtp.trim(),
+          new_password: newPassword,
+        });
+        setPassword("");
+        setResetOtp("");
+        setNewPassword("");
+        setDevOtpHint(null);
+        setResetStep("request");
+        setMode("login");
+        setNotice(
+          res?.message ||
+            "Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru Anda.",
+        );
       }
-      onClose();
     } catch (err) {
       setError(err.message || "Terjadi kesalahan saat memproses akun.");
     } finally {
@@ -91,6 +143,22 @@ export function AuthModal({
   };
 
   if (!isOpen) return null;
+
+  const modalTitle =
+    mode === "login"
+      ? "Masuk ke PeerLearn"
+      : mode === "register"
+        ? "Buat Akun Komunitas"
+        : "Reset Kata Sandi";
+
+  const modalSubtitle =
+    mode === "login"
+      ? "Akses grup belajar dan profil Anda"
+      : mode === "register"
+        ? "Bergabung bersama rekan mahasiswa dan tutor kampus"
+        : resetStep === "request"
+          ? "Masukkan email terdaftar untuk menerima kode OTP 6 digit"
+          : "Masukkan kode OTP dan kata sandi baru Anda";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} labelledBy="auth-modal-title">
@@ -102,13 +170,9 @@ export function AuthModal({
               id="auth-modal-title"
               className="text-lg font-bold text-slate-900 tracking-tight"
             >
-              {mode === "login" ? "Masuk ke PeerLearn" : "Buat Akun Komunitas"}
+              {modalTitle}
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {mode === "login"
-                ? "Akses grup belajar dan profil Anda"
-                : "Bergabung bersama rekan mahasiswa dan tutor kampus"}
-            </p>
+            <p className="text-xs text-slate-500 mt-0.5">{modalSubtitle}</p>
           </div>
           <button
             type="button"
@@ -120,37 +184,72 @@ export function AuthModal({
           </button>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="grid grid-cols-2 p-1 rounded-lg bg-slate-100 border border-slate-200/80">
+        {/* Tab Switcher (Hidden during Forgot Password mode) */}
+        {mode !== "forgot" ? (
+          <div className="grid grid-cols-2 p-1 rounded-lg bg-slate-100 border border-slate-200/80">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("login");
+                setError(null);
+              }}
+              className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
+                mode === "login"
+                  ? "bg-white text-emerald-800 shadow-xs border border-slate-200/80 font-bold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Masuk
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("register");
+                setError(null);
+                setNotice(null);
+              }}
+              className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
+                mode === "register"
+                  ? "bg-white text-emerald-800 shadow-xs border border-slate-200/80 font-bold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Daftar
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
             onClick={() => {
               setMode("login");
+              setResetStep("request");
               setError(null);
+              setNotice(null);
+              setDevOtpHint(null);
             }}
-            className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
-              mode === "login"
-                ? "bg-white text-emerald-800 shadow-xs border border-slate-200/80 font-bold"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
           >
-            Masuk
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Kembali ke halaman Masuk
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("register");
-              setError(null);
-            }}
-            className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
-              mode === "register"
-                ? "bg-white text-emerald-800 shadow-xs border border-slate-200/80 font-bold"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+        )}
+
+        {notice && (
+          <div
+            role="status"
+            className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5"
           >
-            Daftar
-          </button>
-        </div>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p>{notice}</p>
+              {devOtpHint && (
+                <p className="font-mono text-[11px] bg-white px-2 py-1 rounded border border-emerald-200 text-emerald-900">
+                  [DEV OTP]: <strong>{devOtpHint}</strong>
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {error && (
           <div
@@ -280,51 +379,127 @@ export function AuthModal({
             onChange={(e) => setEmail(e.target.value)}
           />
 
-          <Input
-            label="Kata Sandi"
-            id="password"
-            name="password"
-            error={errors.password}
-            minLength={mode === "register" ? 6 : undefined}
-            helperText={
-              mode === "register" ? "Gunakan minimal 6 karakter." : undefined
-            }
-            type={showPassword ? "text" : "password"}
-            autoComplete={
-              mode === "login" ? "current-password" : "new-password"
-            }
-            placeholder={
-              mode === "register"
-                ? "Buat kata sandi akun"
-                : "Masukkan kata sandi"
-            }
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            rightElement={
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded-lg"
-                aria-label={
-                  showPassword
-                    ? "Sembunyikan kata sandi"
-                    : "Tampilkan kata sandi"
+          {mode !== "forgot" && (
+            <div className="space-y-1.5">
+              <Input
+                label="Kata Sandi"
+                id="password"
+                name="password"
+                error={errors.password}
+                minLength={mode === "register" ? 6 : undefined}
+                helperText={
+                  mode === "register"
+                    ? "Gunakan minimal 6 karakter."
+                    : undefined
                 }
-                title={
-                  showPassword
-                    ? "Sembunyikan kata sandi"
-                    : "Tampilkan kata sandi"
+                type={showPassword ? "text" : "password"}
+                autoComplete={
+                  mode === "login" ? "current-password" : "new-password"
                 }
-              >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4 text-slate-500" />
-                ) : (
-                  <Eye className="w-4 h-4 text-slate-500" />
-                )}
-              </button>
-            }
-          />
+                placeholder={
+                  mode === "register"
+                    ? "Buat kata sandi akun"
+                    : "Masukkan kata sandi"
+                }
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded-lg"
+                    aria-label={
+                      showPassword
+                        ? "Sembunyikan kata sandi"
+                        : "Tampilkan kata sandi"
+                    }
+                    title={
+                      showPassword
+                        ? "Sembunyikan kata sandi"
+                        : "Tampilkan kata sandi"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                }
+              />
+
+              {mode === "login" && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("forgot");
+                      setResetStep("request");
+                      setError(null);
+                      setNotice(null);
+                    }}
+                    className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline"
+                  >
+                    Lupa kata sandi?
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {mode === "forgot" && resetStep === "confirm" && (
+            <>
+              <Input
+                label="Kode OTP (6 Digit)"
+                id="reset_otp"
+                name="reset_otp"
+                error={errors.reset_otp}
+                placeholder="cth. 123456"
+                inputMode="numeric"
+                maxLength={6}
+                required
+                value={resetOtp}
+                onChange={(e) =>
+                  setResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                helperText="Masukkan 6 digit kode OTP yang berlaku 15 menit"
+              />
+
+              <Input
+                label="Kata Sandi Baru"
+                id="reset_new_password"
+                name="reset_new_password"
+                error={errors.reset_new_password}
+                minLength={6}
+                helperText="Gunakan minimal 6 karakter."
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="Buat kata sandi baru"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded-lg"
+                    aria-label={
+                      showPassword
+                        ? "Sembunyikan kata sandi"
+                        : "Tampilkan kata sandi"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                }
+              />
+            </>
+          )}
 
           {mode === "register" && (
             <div className="space-y-1">
@@ -375,7 +550,18 @@ export function AuthModal({
             className="w-full mt-2"
             isLoading={loading}
           >
-            {mode === "login" ? "Masuk ke Akun" : "Daftar Sekarang"}
+            {mode === "login" ? (
+              "Masuk ke Akun"
+            ) : mode === "register" ? (
+              "Daftar Sekarang"
+            ) : resetStep === "request" ? (
+              <>
+                <KeyRound className="w-4 h-4" />
+                Kirim Kode OTP
+              </>
+            ) : (
+              "Simpan Kata Sandi Baru"
+            )}
           </Button>
         </form>
 

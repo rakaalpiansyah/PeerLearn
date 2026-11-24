@@ -39,6 +39,8 @@ export const authApi = {
   register: (payload) => apiClient.post("/auth/register", payload),
   login: (payload) => apiClient.post("/auth/login", payload),
   getMe: () => apiClient.get("/auth/me"),
+  forgotPassword: (payload) => apiClient.post("/auth/forgot-password", payload),
+  resetPassword: (payload) => apiClient.post("/auth/reset-password", payload),
 };
 
 export const userApi = {

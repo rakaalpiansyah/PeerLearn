@@ -217,4 +217,43 @@ describe("AuthModal validation", () => {
     expect(screen.getByRole("alert").textContent).toMatch(/Rulebook/i);
     expect(authApi.register).not.toHaveBeenCalled();
   });
+
+  it("supports two-step forgot password OTP flow and returns to login", async () => {
+    vi.spyOn(authApi, "forgotPassword").mockResolvedValueOnce({
+      success: true,
+      message: "Jika email terdaftar, kode OTP 6 digit telah dikirim.",
+      data: { expires_in_minutes: 15, dev_otp: "654321" },
+    });
+    vi.spyOn(authApi, "resetPassword").mockResolvedValueOnce({
+      success: true,
+      message: "Kata sandi berhasil diperbarui.",
+    });
+
+    const user = userEvent.setup();
+    mount("login");
+
+    await user.click(screen.getByRole("button", { name: /Lupa kata sandi/i }));
+    change(/Alamat Email/, "sari@example.com");
+    submit();
+
+    await waitFor(() =>
+      expect(authApi.forgotPassword).toHaveBeenCalledWith({
+        email: "sari@example.com",
+      }),
+    );
+    expect(screen.getByText("654321")).toBeTruthy();
+
+    change(/Kode OTP/, "654321");
+    change(/Kata Sandi Baru/, "baru12345");
+    submit();
+
+    await waitFor(() =>
+      expect(authApi.resetPassword).toHaveBeenCalledWith({
+        email: "sari@example.com",
+        otp: "654321",
+        new_password: "baru12345",
+      }),
+    );
+    expect(screen.getByRole("button", { name: /Masuk ke Akun/i })).toBeTruthy();
+  });
 });
