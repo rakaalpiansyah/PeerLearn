@@ -63,13 +63,15 @@ func main() {
 	supportRepo := repository.NewSupportRepository(db.Pool)
 	masterRepo := repository.NewMasterRepository(db.Pool)
 	passwordResetRepo := repository.NewPasswordResetRepository(db.Pool)
+	cohostRepo := repository.NewCohostRepository(db.Pool)
 
 	// Services
 	healthService := service.NewHealthService(healthRepo)
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
 	userService := service.NewUserService(userRepo, skillRepo, groupRepo)
-	groupService := service.NewGroupService(groupRepo, userRepo)
-	membershipService := service.NewMembershipService(membershipRepo, groupRepo, feedbackRepo, userRepo)
+	groupService := service.NewGroupServiceWithCohosts(groupRepo, userRepo, cohostRepo)
+	membershipService := service.NewMembershipServiceWithCohosts(membershipRepo, groupRepo, feedbackRepo, userRepo, cohostRepo)
+	cohostService := service.NewCohostService(cohostRepo, groupRepo, userRepo)
 	engagementService := service.NewEngagementService(feedbackRepo, reportRepo, groupRepo, userRepo)
 	messageService := service.NewMessageService(messageRepo, groupRepo, membershipRepo)
 	supportService := service.NewSupportService(supportRepo, userRepo)
@@ -87,6 +89,7 @@ func main() {
 	supportHandler := handler.NewSupportHandler(supportService)
 	masterHandler := handler.NewMasterHandler(masterService)
 	passwordResetHandler := handler.NewPasswordResetHandler(passwordResetService)
+	cohostHandler := handler.NewCohostHandler(cohostService)
 
 	jwtAuth := middleware.JWTMiddleware(cfg.JWTSecret)
 
@@ -97,6 +100,7 @@ func main() {
 	api.Get("/master/faculties", masterHandler.GetMasterCatalog)
 	api.Get("/users/:id/profile", userHandler.GetPublicProfile)
 	api.Get("/users/:id/public", userHandler.GetPublicProfile)
+	api.Get("/groups/:id/cohosts", cohostHandler.ListByGroup)
 
 	// Auth Endpoints
 	auth := api.Group("/auth", middleware.AuthRateLimiter())
@@ -126,6 +130,9 @@ func main() {
 	protectedGroups.Put("/:id", groupHandler.Update)
 	protectedGroups.Patch("/:id/status", groupHandler.UpdateStatus)
 	protectedGroups.Post("/:id/join", membershipHandler.Join)
+	protectedGroups.Post("/:id/cohosts", cohostHandler.Invite)
+	protectedGroups.Patch("/:id/cohosts/respond", cohostHandler.Respond)
+	protectedGroups.Delete("/:id/cohosts/:userId", cohostHandler.Remove)
 	protectedGroups.Post("/:id/feedback", engagementHandler.CreateFeedback)
 	protectedGroups.Get("/:id/messages", messageHandler.GetMessages)
 	protectedGroups.Post("/:id/messages", messageHandler.SendMessage)
@@ -135,6 +142,7 @@ func main() {
 	// Protected Memberships & Sessions
 	api.Patch("/memberships/:id/status", jwtAuth, membershipHandler.UpdateStatus)
 	api.Get("/my-sessions", jwtAuth, membershipHandler.GetMySessions)
+	api.Get("/my-cohost-invitations", jwtAuth, cohostHandler.ListMyInvitations)
 
 	// Student Support Chat (Shared Admin Helpdesk)
 	support := api.Group("/support", jwtAuth)

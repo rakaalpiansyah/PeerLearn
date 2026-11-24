@@ -27,6 +27,7 @@ type membershipService struct {
 	groupRepo      repository.GroupRepository
 	feedbackRepo   repository.FeedbackRepository
 	userRepo       repository.UserRepository
+	cohostRepo     repository.CohostRepository
 }
 
 func NewMembershipService(
@@ -44,6 +45,22 @@ func NewMembershipService(
 		groupRepo:      groupRepo,
 		feedbackRepo:   feedbackRepo,
 		userRepo:       uRepo,
+	}
+}
+
+func NewMembershipServiceWithCohosts(
+	membershipRepo repository.MembershipRepository,
+	groupRepo repository.GroupRepository,
+	feedbackRepo repository.FeedbackRepository,
+	userRepo repository.UserRepository,
+	cohostRepo repository.CohostRepository,
+) MembershipService {
+	return &membershipService{
+		membershipRepo: membershipRepo,
+		groupRepo:      groupRepo,
+		feedbackRepo:   feedbackRepo,
+		userRepo:       userRepo,
+		cohostRepo:     cohostRepo,
 	}
 }
 
@@ -108,9 +125,13 @@ func (s *membershipService) UpdateStatus(ctx context.Context, callerID, membersh
 	}
 
 	isHost := group.HostID == callerID
+	isAcceptedCohost := false
+	if !isHost && s.cohostRepo != nil {
+		isAcceptedCohost, _ = s.cohostRepo.IsAcceptedCohost(ctx, group.ID, callerID)
+	}
 	isParticipant := m.UserID == callerID
 
-	if !isHost && !(isParticipant && status == domain.MembershipCancelled) {
+	if !isHost && !isAcceptedCohost && !(isParticipant && status == domain.MembershipCancelled) {
 		return ErrUnauthorizedAction
 	}
 
@@ -119,6 +140,13 @@ func (s *membershipService) UpdateStatus(ctx context.Context, callerID, membersh
 			return ErrGroupFull
 		}
 		_ = s.feedbackRepo.AddContributionPoints(ctx, group.HostID, 2)
+		if s.cohostRepo != nil {
+			if cohostIDs, err := s.cohostRepo.ListAcceptedUserIDs(ctx, group.ID); err == nil {
+				for _, cid := range cohostIDs {
+					_ = s.feedbackRepo.AddContributionPoints(ctx, cid, 2)
+				}
+			}
+		}
 	}
 
 	return s.membershipRepo.UpdateStatus(ctx, membershipID, status)

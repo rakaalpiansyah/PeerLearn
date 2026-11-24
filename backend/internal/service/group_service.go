@@ -44,8 +44,9 @@ type GroupService interface {
 }
 
 type groupService struct {
-	groupRepo repository.GroupRepository
-	userRepo  repository.UserRepository
+	groupRepo  repository.GroupRepository
+	userRepo   repository.UserRepository
+	cohostRepo repository.CohostRepository
 }
 
 func NewGroupService(groupRepo repository.GroupRepository, userRepo ...repository.UserRepository) GroupService {
@@ -54,6 +55,18 @@ func NewGroupService(groupRepo repository.GroupRepository, userRepo ...repositor
 		uRepo = userRepo[0]
 	}
 	return &groupService{groupRepo: groupRepo, userRepo: uRepo}
+}
+
+func NewGroupServiceWithCohosts(
+	groupRepo repository.GroupRepository,
+	userRepo repository.UserRepository,
+	cohostRepo repository.CohostRepository,
+) GroupService {
+	return &groupService{
+		groupRepo:  groupRepo,
+		userRepo:   userRepo,
+		cohostRepo: cohostRepo,
+	}
 }
 
 func (s *groupService) Create(ctx context.Context, hostID uuid.UUID, req domain.CreateGroupRequest) (*domain.GroupResponse, error) {
@@ -174,7 +187,14 @@ func (s *groupService) Update(ctx context.Context, hostID, groupID uuid.UUID, re
 	if err != nil {
 		return err
 	}
-	if existing.HostID != hostID {
+
+	isAuthorized := existing.HostID == hostID
+	if !isAuthorized && s.cohostRepo != nil {
+		if ok, _ := s.cohostRepo.IsAcceptedCohost(ctx, groupID, hostID); ok {
+			isAuthorized = true
+		}
+	}
+	if !isAuthorized {
 		return ErrUnauthorizedAction
 	}
 
@@ -191,7 +211,7 @@ func (s *groupService) Update(ctx context.Context, hostID, groupID uuid.UUID, re
 
 	g := &domain.LearningGroup{
 		ID:              groupID,
-		HostID:          hostID,
+		HostID:          existing.HostID,
 		Title:           strings.TrimSpace(req.Title),
 		Description:     strings.TrimSpace(req.Description),
 		Category:        req.Category,
@@ -215,8 +235,17 @@ func (s *groupService) UpdateStatus(ctx context.Context, hostID, groupID uuid.UU
 	if err != nil {
 		return err
 	}
-	if existing.HostID != hostID {
+
+	isPrimaryHost := existing.HostID == hostID
+	isAcceptedCohost := false
+	if !isPrimaryHost && s.cohostRepo != nil {
+		isAcceptedCohost, _ = s.cohostRepo.IsAcceptedCohost(ctx, groupID, hostID)
+	}
+	if !isPrimaryHost && !isAcceptedCohost {
 		return ErrUnauthorizedAction
+	}
+	if status == domain.StatusCancelled && !isPrimaryHost {
+		return fmt.Errorf("%w: hanya penyelenggara utama yang dapat membatalkan sesi", ErrUnauthorizedAction)
 	}
 
 	if (existing.Status == domain.StatusPendingApproval || existing.Status == domain.StatusRejected) && status != domain.StatusCancelled {
