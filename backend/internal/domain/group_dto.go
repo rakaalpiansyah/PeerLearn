@@ -70,10 +70,22 @@ type GroupResponse struct {
 	ReviewedAt      *time.Time        `json:"reviewed_at,omitempty"`
 	CreatedAt       time.Time         `json:"created_at"`
 	Host            *UserResponse     `json:"host,omitempty"`
+	CoHosts         []GroupCoHost     `json:"co_hosts,omitempty"`
+	ViewerRole      string            `json:"viewer_role,omitempty"`
 	UserMembership  *MembershipStatus `json:"user_membership,omitempty"`
 	MatchReason     string            `json:"match_reason,omitempty"`
 	MatchReasons    []string          `json:"match_reasons,omitempty"`
 	MatchScore      int               `json:"match_score,omitempty"`
+}
+
+type AddCoHostRequest struct {
+	UserID uuid.UUID `json:"user_id"`
+}
+
+type CreateMaterialRequest struct {
+	Title        string `json:"title"`
+	URL          string `json:"url"`
+	MaterialType string `json:"material_type"`
 }
 
 type ReviewGroupRequest struct {

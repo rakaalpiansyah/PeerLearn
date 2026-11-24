@@ -198,7 +198,7 @@ describe('attendance check-in and share link', () => {
       onActionComplete: vi.fn(),
     })
 
-    await user.click(screen.getByRole('button', { name: /Ruang Diskusi/ }))
+    await user.click(screen.getByRole('tab', { name: /Ruang Diskusi/ }))
     expect(screen.queryByText('Ruang Diskusi Tertutup')).toBeNull()
     expect(await screen.findByText(/Belum ada pesan di ruang diskusi sesi ini/)).toBeTruthy()
   })

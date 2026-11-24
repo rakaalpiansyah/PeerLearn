@@ -359,3 +359,126 @@ func (h *GroupHandler) AdminReview(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse(msg, updated))
 }
+
+func (h *GroupHandler) AddCoHost(c *fiber.Ctx) error {
+	callerID, ok := c.Locals("userID").(uuid.UUID)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.FailureResponse("UNAUTHORIZED", "Otorisasi pengguna tidak valid", nil))
+	}
+	groupID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("INVALID_UUID", "ID sesi belajar tidak valid", nil))
+	}
+	var req domain.AddCoHostRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("BAD_REQUEST", "Format data Co-Author tidak valid", nil))
+	}
+
+	coHosts, err := h.groupService.AddCoHost(c.Context(), callerID, groupID, req.UserID)
+	if err != nil {
+		if errors.Is(err, service.ErrUnauthorizedAction) {
+			return c.Status(fiber.StatusForbidden).JSON(domain.FailureResponse("FORBIDDEN", "Hanya pembuat sesi utama yang dapat menambah Co-Author", nil))
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("ADD_COHOST_FAILED", err.Error(), nil))
+	}
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse("Co-Author berhasil ditambahkan ke sesi belajar", coHosts))
+}
+
+func (h *GroupHandler) RemoveCoHost(c *fiber.Ctx) error {
+	callerID, ok := c.Locals("userID").(uuid.UUID)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.FailureResponse("UNAUTHORIZED", "Otorisasi pengguna tidak valid", nil))
+	}
+	groupID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("INVALID_UUID", "ID sesi belajar tidak valid", nil))
+	}
+	targetUserID, err := uuid.Parse(c.Params("userId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("INVALID_UUID", "ID pengguna Co-Author tidak valid", nil))
+	}
+
+	coHosts, err := h.groupService.RemoveCoHost(c.Context(), callerID, groupID, targetUserID)
+	if err != nil {
+		if errors.Is(err, service.ErrUnauthorizedAction) {
+			return c.Status(fiber.StatusForbidden).JSON(domain.FailureResponse("FORBIDDEN", "Hanya pembuat sesi utama yang dapat menghapus Co-Author", nil))
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("REMOVE_COHOST_FAILED", err.Error(), nil))
+	}
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse("Co-Author berhasil dihapus dari sesi belajar", coHosts))
+}
+
+func (h *GroupHandler) ListMaterials(c *fiber.Ctx) error {
+	callerID, ok := c.Locals("userID").(uuid.UUID)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.FailureResponse("UNAUTHORIZED", "Otorisasi pengguna tidak valid", nil))
+	}
+	groupID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("INVALID_UUID", "ID sesi belajar tidak valid", nil))
+	}
+
+	var ctx context.Context = c.Context()
+	if role, rOk := c.Locals("role").(domain.UserRole); rOk {
+		ctx = domain.WithViewerRole(ctx, role)
+	}
+
+	materials, err := h.groupService.ListMaterials(ctx, callerID, groupID)
+	if err != nil {
+		if errors.Is(err, service.ErrUnauthorizedAction) {
+			return c.Status(fiber.StatusForbidden).JSON(domain.FailureResponse("FORBIDDEN", "Materi sesi hanya tersedia untuk penyelenggara dan peserta terkonfirmasi", nil))
+		}
+		return c.Status(fiber.StatusNotFound).JSON(domain.FailureResponse("FETCH_MATERIALS_FAILED", err.Error(), nil))
+	}
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse("Daftar materi sesi berhasil diambil", materials))
+}
+
+func (h *GroupHandler) AddMaterial(c *fiber.Ctx) error {
+	callerID, ok := c.Locals("userID").(uuid.UUID)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.FailureResponse("UNAUTHORIZED", "Otorisasi pengguna tidak valid", nil))
+	}
+	groupID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("INVALID_UUID", "ID sesi belajar tidak valid", nil))
+	}
+	var req domain.CreateMaterialRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("BAD_REQUEST", "Format data materi tidak valid", nil))
+	}
+
+	mat, err := h.groupService.AddMaterial(c.Context(), callerID, groupID, req)
+	if err != nil {
+		if errors.Is(err, service.ErrUnauthorizedAction) {
+			return c.Status(fiber.StatusForbidden).JSON(domain.FailureResponse("FORBIDDEN", "Hanya tutor atau Co-Author yang dapat menambahkan materi", nil))
+		}
+		if errors.Is(err, service.ErrInvalidInput) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(domain.FailureResponse("VALIDATION_FAILED", err.Error(), nil))
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(domain.FailureResponse("ADD_MATERIAL_FAILED", err.Error(), nil))
+	}
+	return c.Status(fiber.StatusCreated).JSON(domain.SuccessResponse("Tautan materi sesi berhasil ditambahkan", mat))
+}
+
+func (h *GroupHandler) DeleteMaterial(c *fiber.Ctx) error {
+	callerID, ok := c.Locals("userID").(uuid.UUID)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.FailureResponse("UNAUTHORIZED", "Otorisasi pengguna tidak valid", nil))
+	}
+	groupID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("INVALID_UUID", "ID sesi belajar tidak valid", nil))
+	}
+	materialID, err := uuid.Parse(c.Params("materialId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("INVALID_UUID", "ID materi tidak valid", nil))
+	}
+
+	if err := h.groupService.DeleteMaterial(c.Context(), callerID, groupID, materialID); err != nil {
+		if errors.Is(err, service.ErrUnauthorizedAction) {
+			return c.Status(fiber.StatusForbidden).JSON(domain.FailureResponse("FORBIDDEN", "Hanya tutor atau Co-Author yang dapat menghapus materi", nil))
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse("DELETE_MATERIAL_FAILED", err.Error(), nil))
+	}
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse("Materi sesi berhasil dihapus", nil))
+}

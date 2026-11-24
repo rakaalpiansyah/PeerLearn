@@ -170,9 +170,16 @@ export function GroupCard({ group, onClick, onViewProfile }) {
         >
           <UserAvatar user={group.host} size="sm" />
           <div className="truncate text-left">
-            <p className="text-xs font-bold text-slate-900 truncate leading-tight hover:text-emerald-700">
-              {group.host?.full_name || "Penyelenggara"}
-            </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="text-xs font-bold text-slate-900 truncate leading-tight hover:text-emerald-700">
+                {group.host?.full_name || "Penyelenggara"}
+              </p>
+              {Array.isArray(group.co_hosts) && group.co_hosts.length > 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 shrink-0 tabular-nums">
+                  +{group.co_hosts.length} Co-Tutor
+                </span>
+              )}
+            </div>
             <p className="text-[11px] text-emerald-800 font-semibold flex items-center gap-1 mt-0.5">
               <Award className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
               <span>{group.host?.contribution_points || 0} Poin Tutor</span>

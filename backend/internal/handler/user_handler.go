@@ -185,3 +185,29 @@ func (h *UserHandler) VerifySKPI(c *fiber.Ctx) error {
 		data,
 	))
 }
+
+func (h *UserHandler) SearchUsers(c *fiber.Ctx) error {
+	callerID, ok := c.Locals("userID").(uuid.UUID)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.FailureResponse(
+			"UNAUTHORIZED",
+			"Otorisasi pengguna tidak valid",
+			nil,
+		))
+	}
+
+	query := c.Query("q")
+	items, err := h.userService.SearchUsers(c.Context(), callerID, query)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(domain.FailureResponse(
+			"SEARCH_USERS_FAILED",
+			"Gagal mencari pengguna kampus",
+			nil,
+		))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse(
+		"Daftar pengguna ditemukan",
+		items,
+	))
+}

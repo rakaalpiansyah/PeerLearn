@@ -126,12 +126,32 @@ type MessageReaction struct {
 type MembershipStatus string
 
 const (
-	MembershipPending   MembershipStatus = "pending"
-	MembershipAccepted  MembershipStatus = "accepted"
-	MembershipRejected  MembershipStatus = "rejected"
-	MembershipCancelled MembershipStatus = "cancelled"
-	MembershipAttended  MembershipStatus = "attended"
+	MembershipPending    MembershipStatus = "pending"
+	MembershipAccepted   MembershipStatus = "accepted"
+	MembershipRejected   MembershipStatus = "rejected"
+	MembershipCancelled  MembershipStatus = "cancelled"
+	MembershipAttended   MembershipStatus = "attended"
+	MembershipWaitlisted MembershipStatus = "waitlisted"
 )
+
+type GroupCoHost struct {
+	GroupID   uuid.UUID     `json:"group_id"`
+	UserID    uuid.UUID     `json:"user_id"`
+	AddedBy   *uuid.UUID    `json:"added_by,omitempty"`
+	CreatedAt time.Time     `json:"created_at"`
+	User      *UserResponse `json:"user,omitempty"`
+}
+
+type GroupMaterial struct {
+	ID           uuid.UUID     `json:"id"`
+	GroupID      uuid.UUID     `json:"group_id"`
+	UploadedBy   uuid.UUID     `json:"uploaded_by"`
+	Title        string        `json:"title"`
+	URL          string        `json:"url"`
+	MaterialType string        `json:"material_type"`
+	CreatedAt    time.Time     `json:"created_at"`
+	Uploader     *UserResponse `json:"uploader,omitempty"`
+}
 
 type Membership struct {
 	ID        uuid.UUID        `json:"id"`
@@ -208,6 +228,11 @@ const (
 	NotificationSessionRejected    NotificationType = "session_rejected"
 	NotificationSessionStatus      NotificationType = "session_status"
 	NotificationSupportReply       NotificationType = "support_reply"
+	NotificationCoHostAdded        NotificationType = "cohost_added"
+	NotificationCoHostRemoved      NotificationType = "cohost_removed"
+	NotificationWaitlistJoined     NotificationType = "waitlist_joined"
+	NotificationWaitlistPromoted   NotificationType = "waitlist_promoted"
+	NotificationRequestFulfilled   NotificationType = "request_fulfilled"
 )
 
 type Notification struct {

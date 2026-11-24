@@ -39,3 +39,21 @@ it('renders recommendation match score and explanation badges when present', () 
   expect(screen.getByText('Cocok target belajar: Basis Data')).toBeTruthy()
   expect(screen.getByText('Sesuai rumpun prodi kamu')).toBeTruthy()
 })
+
+it('renders Co-Tutor badge when session has co-hosts', () => {
+  render(
+    <GroupCard
+      group={{
+        ...group,
+        host: { id: 'h1', full_name: 'Nabila Azzahra', contribution_points: 20 },
+        co_hosts: [
+          { user_id: 'c1', user: { id: 'c1', full_name: 'Fajar Ramadhan' } },
+          { user_id: 'c2', user: { id: 'c2', full_name: 'Raka' } },
+        ],
+      }}
+      onClick={vi.fn()}
+    />,
+  )
+
+  expect(screen.getByText('+2 Co-Tutor')).toBeTruthy()
+})

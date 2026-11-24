@@ -334,7 +334,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                           </td>
                           <td className="py-2 px-3 whitespace-nowrap">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 print:bg-white print:text-black print:border-slate-400">
-                              Tutor ({g.attended_count || 0} hadir)
+                              {g.viewer_role === "cohost" ? "Co-Tutor" : "Tutor"} ({g.attended_count || 0} hadir)
                             </span>
                           </td>
                         </tr>

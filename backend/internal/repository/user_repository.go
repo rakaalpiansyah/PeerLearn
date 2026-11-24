@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,6 +27,10 @@ type UserRepository interface {
 	UpdateAccountStatus(ctx context.Context, id uuid.UUID, status domain.AccountStatus, note string) error
 	GetUserSkills(ctx context.Context, userID uuid.UUID) ([]domain.UserSkill, error)
 	SyncUserSkills(ctx context.Context, userID uuid.UUID, skills []domain.UserSkill) error
+}
+
+type UserSearcher interface {
+	SearchUsers(ctx context.Context, query string, limit int) ([]domain.User, error)
 }
 
 type userRepository struct {
@@ -238,4 +243,41 @@ func (r *userRepository) SyncUserSkills(ctx context.Context, userID uuid.UUID, s
 		return fmt.Errorf("userRepository.SyncUserSkills.Commit: %w", err)
 	}
 	return nil
+}
+
+func (r *userRepository) SearchUsers(ctx context.Context, query string, limit int) ([]domain.User, error) {
+	trimmed := strings.TrimSpace(strings.ToLower(query))
+	if trimmed == "" {
+		return []domain.User{}, nil
+	}
+	if limit <= 0 || limit > 20 {
+		limit = 8
+	}
+
+	sqlQuery := `
+		SELECT id, email, full_name, role, campus_name, gender, avatar_url, contribution_points, account_status, created_at
+		FROM users
+		WHERE COALESCE(account_status, 'active') != 'suspended'
+		  AND (LOWER(full_name) LIKE $1 OR LOWER(email) = $2)
+		ORDER BY full_name ASC
+		LIMIT $3
+	`
+	rows, err := r.pool.Query(ctx, sqlQuery, "%"+trimmed+"%", trimmed, limit)
+	if err != nil {
+		return nil, fmt.Errorf("userRepository.SearchUsers: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]domain.User, 0)
+	for rows.Next() {
+		var u domain.User
+		if err := rows.Scan(
+			&u.ID, &u.Email, &u.FullName, &u.Role, &u.CampusName, &u.Gender,
+			&u.AvatarURL, &u.ContributionPoints, &u.AccountStatus, &u.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("userRepository.SearchUsers.Scan: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, nil
 }

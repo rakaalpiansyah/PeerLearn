@@ -13,19 +13,32 @@ import (
 )
 
 type UserService interface {
+	SetCoHostRepo(repo repository.GroupCoHostRepository)
+	SetUserSearcher(searcher repository.UserSearcher)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, req domain.UpdateProfileRequest) (*domain.UserResponse, error)
 	GetSkills(ctx context.Context) ([]domain.Skill, error)
 	SyncSkills(ctx context.Context, userID uuid.UUID, req domain.UpdateSkillsRequest) error
 	AddCustomSkill(ctx context.Context, userID uuid.UUID, req domain.AddCustomSkillRequest) (*domain.Skill, error)
 	GetPublicProfile(ctx context.Context, targetUserID uuid.UUID) (*domain.PublicProfileResponse, error)
 	GetSKPIVerification(ctx context.Context, targetUserID uuid.UUID) (*domain.SKPIVerificationResponse, error)
+	SearchUsers(ctx context.Context, callerID uuid.UUID, query string) ([]domain.UserSearchItem, error)
 }
 
 type userService struct {
 	userRepo       repository.UserRepository
+	userSearcher   repository.UserSearcher
 	skillRepo      repository.SkillRepository
 	groupRepo      repository.GroupRepository
 	membershipRepo repository.MembershipRepository
+	coHostRepo     repository.GroupCoHostRepository
+}
+
+func (s *userService) SetCoHostRepo(repo repository.GroupCoHostRepository) {
+	s.coHostRepo = repo
+}
+
+func (s *userService) SetUserSearcher(searcher repository.UserSearcher) {
+	s.userSearcher = searcher
 }
 
 func NewUserService(
@@ -38,8 +51,13 @@ func NewUserService(
 	if len(membershipRepo) > 0 {
 		mRepo = membershipRepo[0]
 	}
+	var searcher repository.UserSearcher
+	if s, ok := userRepo.(repository.UserSearcher); ok {
+		searcher = s
+	}
 	return &userService{
 		userRepo:       userRepo,
+		userSearcher:   searcher,
 		skillRepo:      skillRepo,
 		groupRepo:      groupRepo,
 		membershipRepo: mRepo,
@@ -124,6 +142,7 @@ func (s *userService) GetSKPIVerification(ctx context.Context, targetUserID uuid
 	completedSessions := make([]domain.SKPISessionRecord, 0)
 	verifiedHostedCount := 0
 	verifiedAttendedCount := 0
+	seenHostedGroupIDs := make(map[uuid.UUID]bool)
 
 	if s.groupRepo != nil {
 		hostedGroups, err := s.groupRepo.ListByHost(ctx, targetUserID)
@@ -132,12 +151,38 @@ func (s *userService) GetSKPIVerification(ctx context.Context, targetUserID uuid
 				if g.Status != domain.StatusCompleted {
 					continue
 				}
+				seenHostedGroupIDs[g.ID] = true
 				verifiedHostedCount++
 				completedSessions = append(completedSessions, domain.SKPISessionRecord{
 					GroupID:       g.ID,
 					Title:         g.Title,
 					Category:      g.Category,
 					Role:          "tutor",
+					StartTime:     g.StartTime,
+					AttendedCount: g.AttendedCount,
+				})
+			}
+		}
+	}
+
+	if s.coHostRepo != nil && s.groupRepo != nil {
+		coHostedIDs, err := s.coHostRepo.ListGroupIDsByUser(ctx, targetUserID)
+		if err == nil {
+			for _, gid := range coHostedIDs {
+				if seenHostedGroupIDs[gid] {
+					continue
+				}
+				g, gErr := s.groupRepo.FindByID(ctx, gid)
+				if gErr != nil || g == nil || g.Status != domain.StatusCompleted {
+					continue
+				}
+				seenHostedGroupIDs[gid] = true
+				verifiedHostedCount++
+				completedSessions = append(completedSessions, domain.SKPISessionRecord{
+					GroupID:       g.ID,
+					Title:         g.Title,
+					Category:      g.Category,
+					Role:          "co_tutor",
 					StartTime:     g.StartTime,
 					AttendedCount: g.AttendedCount,
 				})
@@ -267,4 +312,32 @@ func (s *userService) AddCustomSkill(ctx context.Context, userID uuid.UUID, req 
 	}
 
 	return skill, nil
+}
+
+func (s *userService) SearchUsers(ctx context.Context, callerID uuid.UUID, query string) ([]domain.UserSearchItem, error) {
+	trimmed := strings.TrimSpace(query)
+	if len(trimmed) < 2 {
+		return []domain.UserSearchItem{}, nil
+	}
+	if s.userSearcher == nil {
+		return []domain.UserSearchItem{}, nil
+	}
+	users, err := s.userSearcher.SearchUsers(ctx, trimmed, 8)
+	if err != nil {
+		return nil, fmt.Errorf("userService.SearchUsers: %w", err)
+	}
+	items := make([]domain.UserSearchItem, 0, len(users))
+	for _, u := range users {
+		if u.ID == callerID {
+			continue
+		}
+		items = append(items, domain.UserSearchItem{
+			ID:         u.ID,
+			FullName:   u.FullName,
+			CampusName: u.CampusName,
+			AvatarURL:  u.AvatarURL,
+			Role:       u.Role,
+		})
+	}
+	return items, nil
 }

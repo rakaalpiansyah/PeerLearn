@@ -187,6 +187,11 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
                         </Badge>
                       ))}
 
+                    {tab === "hosted" && g.viewer_role === "cohost" && (
+                      <Badge variant="neutral" className="text-xs bg-emerald-50 text-emerald-900 border-emerald-200">
+                        Co-Tutor
+                      </Badge>
+                    )}
                     {tab === "hosted" &&
                       (g.status === "pending_approval" ? (
                         <Badge variant="warning" className="text-xs">

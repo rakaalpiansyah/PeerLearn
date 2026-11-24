@@ -33,6 +33,8 @@ var (
 
 type GroupService interface {
 	SetNotifier(notifier NotificationDispatcher)
+	SetCoHostRepo(repo repository.GroupCoHostRepository)
+	SetMaterialRepo(repo repository.GroupMaterialRepository)
 	Create(ctx context.Context, hostID uuid.UUID, req domain.CreateGroupRequest) (*domain.GroupResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, currentUserID *uuid.UUID) (*domain.GroupResponse, error)
 	List(ctx context.Context, filter domain.GroupFilter, currentUserID *uuid.UUID) ([]domain.GroupResponse, error)
@@ -43,17 +45,32 @@ type GroupService interface {
 	ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error)
 	GetRecommendations(ctx context.Context, userID uuid.UUID) ([]domain.GroupResponse, error)
 	ResolveMapLink(ctx context.Context, rawInput string) (*domain.MapLocationResolution, error)
+	AddCoHost(ctx context.Context, callerID, groupID, targetUserID uuid.UUID) ([]domain.GroupCoHost, error)
+	RemoveCoHost(ctx context.Context, callerID, groupID, targetUserID uuid.UUID) ([]domain.GroupCoHost, error)
+	ListMaterials(ctx context.Context, callerID, groupID uuid.UUID) ([]domain.GroupMaterial, error)
+	AddMaterial(ctx context.Context, callerID, groupID uuid.UUID, req domain.CreateMaterialRequest) (*domain.GroupMaterial, error)
+	DeleteMaterial(ctx context.Context, callerID, groupID, materialID uuid.UUID) error
 }
 
 type groupService struct {
 	groupRepo      repository.GroupRepository
 	userRepo       repository.UserRepository
 	membershipRepo repository.MembershipRepository
+	coHostRepo     repository.GroupCoHostRepository
+	materialRepo   repository.GroupMaterialRepository
 	notifier       NotificationDispatcher
 }
 
 func (s *groupService) SetNotifier(notifier NotificationDispatcher) {
 	s.notifier = notifier
+}
+
+func (s *groupService) SetCoHostRepo(repo repository.GroupCoHostRepository) {
+	s.coHostRepo = repo
+}
+
+func (s *groupService) SetMaterialRepo(repo repository.GroupMaterialRepository) {
+	s.materialRepo = repo
 }
 
 func NewGroupService(groupRepo repository.GroupRepository, userRepo ...repository.UserRepository) GroupService {
@@ -158,11 +175,57 @@ func (s *groupService) resolveViewerRole(ctx context.Context, currentUserID *uui
 	return ""
 }
 
+func (s *groupService) isGroupManager(ctx context.Context, group *domain.GroupResponse, callerID uuid.UUID) bool {
+	if group == nil || callerID == uuid.Nil {
+		return false
+	}
+	if group.HostID == callerID {
+		return true
+	}
+	if s.coHostRepo != nil {
+		isCo, err := s.coHostRepo.IsCoHost(ctx, group.ID, callerID)
+		if err == nil && isCo {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *groupService) hydrateCoHostsSingle(ctx context.Context, g *domain.GroupResponse) {
+	if s.coHostRepo == nil || g == nil {
+		return
+	}
+	coHosts, err := s.coHostRepo.ListByGroup(ctx, g.ID)
+	if err == nil && len(coHosts) > 0 {
+		g.CoHosts = coHosts
+	}
+}
+
+func (s *groupService) hydrateCoHostsSlice(ctx context.Context, groups []domain.GroupResponse) {
+	if s.coHostRepo == nil || len(groups) == 0 {
+		return
+	}
+	ids := make([]uuid.UUID, 0, len(groups))
+	for _, g := range groups {
+		ids = append(ids, g.ID)
+	}
+	byGroup, err := s.coHostRepo.ListByGroupIDs(ctx, ids)
+	if err != nil {
+		return
+	}
+	for i := range groups {
+		if ch, ok := byGroup[groups[i].ID]; ok && len(ch) > 0 {
+			groups[i].CoHosts = ch
+		}
+	}
+}
+
 func (s *groupService) GetByID(ctx context.Context, id uuid.UUID, currentUserID *uuid.UUID) (*domain.GroupResponse, error) {
 	resp, err := s.groupRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("groupService.GetByID: %w", err)
 	}
+	s.hydrateCoHostsSingle(ctx, resp)
 	if currentUserID != nil && s.membershipRepo != nil && resp.UserMembership == nil {
 		if m, mErr := s.membershipRepo.Find(ctx, id, *currentUserID); mErr == nil && m != nil {
 			st := m.Status
@@ -179,6 +242,7 @@ func (s *groupService) List(ctx context.Context, filter domain.GroupFilter, curr
 	if err != nil {
 		return nil, err
 	}
+	s.hydrateCoHostsSlice(ctx, groups)
 	viewerRole := s.resolveViewerRole(ctx, currentUserID)
 	for i := range groups {
 		domain.SanitizeGroupForViewer(&groups[i], currentUserID, viewerRole)
@@ -188,7 +252,12 @@ func (s *groupService) List(ctx context.Context, filter domain.GroupFilter, curr
 
 func (s *groupService) ListForAdmin(ctx context.Context, filter domain.GroupFilter) ([]domain.GroupResponse, error) {
 	filter.IncludeUnapproved = true
-	return s.groupRepo.List(ctx, filter, nil)
+	groups, err := s.groupRepo.List(ctx, filter, nil)
+	if err != nil {
+		return nil, err
+	}
+	s.hydrateCoHostsSlice(ctx, groups)
+	return groups, nil
 }
 
 func (s *groupService) ReviewGroup(ctx context.Context, adminID, groupID uuid.UUID, req domain.ReviewGroupRequest) (*domain.GroupResponse, error) {
@@ -230,7 +299,7 @@ func (s *groupService) Update(ctx context.Context, hostID, groupID uuid.UUID, re
 	if err != nil {
 		return err
 	}
-	if existing.HostID != hostID {
+	if !s.isGroupManager(ctx, existing, hostID) {
 		return ErrUnauthorizedAction
 	}
 
@@ -256,7 +325,7 @@ func (s *groupService) Update(ctx context.Context, hostID, groupID uuid.UUID, re
 
 	g := &domain.LearningGroup{
 		ID:              groupID,
-		HostID:          hostID,
+		HostID:          existing.HostID,
 		Title:           strings.TrimSpace(req.Title),
 		Description:     strings.TrimSpace(req.Description),
 		Category:        req.Category,
@@ -280,7 +349,11 @@ func (s *groupService) UpdateStatus(ctx context.Context, hostID, groupID uuid.UU
 	if err != nil {
 		return err
 	}
-	if existing.HostID != hostID {
+	if status == domain.StatusCancelled {
+		if existing.HostID != hostID {
+			return ErrUnauthorizedAction
+		}
+	} else if !s.isGroupManager(ctx, existing, hostID) {
 		return ErrUnauthorizedAction
 	}
 
@@ -325,7 +398,12 @@ func (s *groupService) UpdateStatus(ctx context.Context, hostID, groupID uuid.UU
 }
 
 func (s *groupService) ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error) {
-	return s.groupRepo.ListByHost(ctx, hostID)
+	groups, err := s.groupRepo.ListByHost(ctx, hostID)
+	if err != nil {
+		return nil, err
+	}
+	s.hydrateCoHostsSlice(ctx, groups)
+	return groups, nil
 }
 
 func (s *groupService) GetRecommendations(ctx context.Context, userID uuid.UUID) ([]domain.GroupResponse, error) {
@@ -369,6 +447,19 @@ func (s *groupService) GetRecommendations(ctx context.Context, userID uuid.UUID)
 			excludedIDs[h.ID] = true
 			if (h.Status == domain.StatusOpen || h.Status == domain.StatusOngoing) && h.EndTime.After(now) {
 				bookedWindows = append(bookedWindows, scheduleWindow{start: h.StartTime, end: h.EndTime})
+			}
+		}
+	}
+
+	if s.coHostRepo != nil {
+		if coHostedIDs, chErr := s.coHostRepo.ListGroupIDsByUser(ctx, userID); chErr == nil {
+			for _, gid := range coHostedIDs {
+				excludedIDs[gid] = true
+				if g, gErr := s.groupRepo.FindByID(ctx, gid); gErr == nil && g != nil {
+					if (g.Status == domain.StatusOpen || g.Status == domain.StatusOngoing) && g.EndTime.After(now) {
+						bookedWindows = append(bookedWindows, scheduleWindow{start: g.StartTime, end: g.EndTime})
+					}
+				}
 			}
 		}
 	}
@@ -520,6 +611,8 @@ func (s *groupService) GetRecommendations(ctx context.Context, userID uuid.UUID)
 		matched = matched[:20]
 	}
 
+	s.hydrateCoHostsSlice(ctx, matched)
+
 	for i := range matched {
 		uid := userID
 		domain.SanitizeGroupForViewer(&matched[i], &uid, viewerRole)
@@ -655,4 +748,218 @@ func extractCoordsFromURL(raw string) (float64, float64, string, bool) {
 	}
 
 	return lat, lng, placeName, true
+}
+
+func sanitizeCoHostList(list []domain.GroupCoHost) []domain.GroupCoHost {
+	out := make([]domain.GroupCoHost, 0, len(list))
+	for _, ch := range list {
+		cp := ch
+		if ch.User != nil {
+			uCopy := *ch.User
+			uCopy.Email = ""
+			cp.User = &uCopy
+		}
+		out = append(out, cp)
+	}
+	return out
+}
+
+func (s *groupService) AddCoHost(ctx context.Context, callerID, groupID, targetUserID uuid.UUID) ([]domain.GroupCoHost, error) {
+	if s.coHostRepo == nil || s.userRepo == nil {
+		return nil, fmt.Errorf("%w: layanan co-author belum tersedia", ErrInvalidInput)
+	}
+	existing, err := s.groupRepo.FindByID(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if existing.HostID != callerID {
+		return nil, ErrUnauthorizedAction
+	}
+	if targetUserID == uuid.Nil || targetUserID == existing.HostID {
+		return nil, fmt.Errorf("%w: pilih mahasiswa atau rekan lain yang valid sebagai Co-Author", ErrInvalidInput)
+	}
+
+	targetUser, err := s.userRepo.FindByID(ctx, targetUserID)
+	if err != nil || targetUser == nil {
+		return nil, fmt.Errorf("%w: akun calon Co-Author tidak ditemukan", ErrInvalidInput)
+	}
+	if targetUser.AccountStatus == domain.AccountSuspended {
+		return nil, fmt.Errorf("%w: akun yang sedang ditangguhkan tidak dapat dijadikan Co-Author", ErrInvalidInput)
+	}
+
+	currentCoHosts, err := s.coHostRepo.ListByGroup(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("groupService.AddCoHost list: %w", err)
+	}
+	for _, ch := range currentCoHosts {
+		if ch.UserID == targetUserID {
+			return sanitizeCoHostList(currentCoHosts), nil
+		}
+	}
+	if len(currentCoHosts) >= 5 {
+		return nil, fmt.Errorf("%w: maksimal 5 Co-Author dalam satu sesi belajar", ErrInvalidInput)
+	}
+
+	if err := s.coHostRepo.Add(ctx, groupID, targetUserID, callerID); err != nil {
+		return nil, fmt.Errorf("groupService.AddCoHost add: %w", err)
+	}
+
+	if s.membershipRepo != nil {
+		if m, mErr := s.membershipRepo.Find(ctx, groupID, targetUserID); mErr == nil && m != nil {
+			if m.Status == domain.MembershipPending || m.Status == domain.MembershipWaitlisted {
+				_ = s.membershipRepo.UpdateStatus(ctx, m.ID, domain.MembershipCancelled)
+			}
+		}
+	}
+
+	if s.notifier != nil {
+		gid := existing.ID
+		_ = s.notifier.Notify(ctx, targetUserID, domain.NotificationCoHostAdded, "Ditambahkan sebagai Co-Author", fmt.Sprintf("Anda ditambahkan sebagai Co-Author untuk ikut mengelola sesi %q.", existing.Title), &gid)
+	}
+
+	updated, err := s.coHostRepo.ListByGroup(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("groupService.AddCoHost refresh: %w", err)
+	}
+	return sanitizeCoHostList(updated), nil
+}
+
+func (s *groupService) RemoveCoHost(ctx context.Context, callerID, groupID, targetUserID uuid.UUID) ([]domain.GroupCoHost, error) {
+	if s.coHostRepo == nil {
+		return nil, fmt.Errorf("%w: layanan co-author belum tersedia", ErrInvalidInput)
+	}
+	existing, err := s.groupRepo.FindByID(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if existing.HostID != callerID {
+		return nil, ErrUnauthorizedAction
+	}
+	if targetUserID == uuid.Nil {
+		return nil, fmt.Errorf("%w: ID Co-Author tidak valid", ErrInvalidInput)
+	}
+
+	if err := s.coHostRepo.Remove(ctx, groupID, targetUserID); err != nil {
+		return nil, fmt.Errorf("groupService.RemoveCoHost: %w", err)
+	}
+
+	if s.notifier != nil {
+		gid := existing.ID
+		_ = s.notifier.Notify(ctx, targetUserID, domain.NotificationCoHostRemoved, "Status Co-Author Dicabut", fmt.Sprintf("Akses Co-Author Anda pada sesi %q telah dicabut oleh penyelenggara utama.", existing.Title), &gid)
+	}
+
+	updated, err := s.coHostRepo.ListByGroup(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("groupService.RemoveCoHost refresh: %w", err)
+	}
+	return sanitizeCoHostList(updated), nil
+}
+
+func (s *groupService) ListMaterials(ctx context.Context, callerID, groupID uuid.UUID) ([]domain.GroupMaterial, error) {
+	if s.materialRepo == nil {
+		return []domain.GroupMaterial{}, nil
+	}
+	existing, err := s.groupRepo.FindByID(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	var callerPtr *uuid.UUID
+	if callerID != uuid.Nil {
+		callerPtr = &callerID
+	}
+	viewerRole := s.resolveViewerRole(ctx, callerPtr)
+	allowed := viewerRole == domain.RoleAdmin || s.isGroupManager(ctx, existing, callerID)
+	if !allowed && callerID != uuid.Nil && s.membershipRepo != nil {
+		if m, mErr := s.membershipRepo.Find(ctx, groupID, callerID); mErr == nil && m != nil {
+			if m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended {
+				allowed = true
+			}
+		}
+	}
+	if !allowed {
+		return nil, ErrUnauthorizedAction
+	}
+
+	return s.materialRepo.ListByGroup(ctx, groupID)
+}
+
+func (s *groupService) AddMaterial(ctx context.Context, callerID, groupID uuid.UUID, req domain.CreateMaterialRequest) (*domain.GroupMaterial, error) {
+	if s.materialRepo == nil {
+		return nil, fmt.Errorf("%w: layanan materi sesi belum tersedia", ErrInvalidInput)
+	}
+	existing, err := s.groupRepo.FindByID(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !s.isGroupManager(ctx, existing, callerID) {
+		return nil, ErrUnauthorizedAction
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if len(title) < 2 || len(title) > 160 {
+		return nil, fmt.Errorf("%w: judul materi wajib antara 2 hingga 160 karakter", ErrInvalidInput)
+	}
+
+	rawURL := strings.TrimSpace(req.URL)
+	parsedURL, err := url.ParseRequestURI(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("%w: tautan materi tidak valid, gunakan format https://...", ErrInvalidInput)
+	}
+	scheme := strings.ToLower(parsedURL.Scheme)
+	if (scheme != "https" && scheme != "http") || parsedURL.Host == "" {
+		return nil, fmt.Errorf("%w: tautan materi harus menggunakan protokol http:// atau https://", ErrInvalidInput)
+	}
+	if len(rawURL) > 1000 {
+		return nil, fmt.Errorf("%w: tautan materi melebihi batas 1.000 karakter", ErrInvalidInput)
+	}
+
+	matType := strings.TrimSpace(strings.ToLower(req.MaterialType))
+	switch matType {
+	case "slide", "modul", "catatan", "rekaman", "referensi":
+	case "":
+		matType = "referensi"
+	default:
+		return nil, fmt.Errorf("%w: jenis materi harus berupa slide, modul, catatan, rekaman, atau referensi", ErrInvalidInput)
+	}
+
+	m := &domain.GroupMaterial{
+		ID:           uuid.New(),
+		GroupID:      groupID,
+		UploadedBy:   callerID,
+		Title:        title,
+		URL:          rawURL,
+		MaterialType: matType,
+	}
+	if err := s.materialRepo.Create(ctx, m); err != nil {
+		return nil, fmt.Errorf("groupService.AddMaterial: %w", err)
+	}
+
+	if s.userRepo != nil {
+		if uploader, uErr := s.userRepo.FindByID(ctx, callerID); uErr == nil && uploader != nil {
+			uResp := domain.ToUserResponse(uploader, nil)
+			uResp.Email = ""
+			m.Uploader = &uResp
+		}
+	}
+	return m, nil
+}
+
+func (s *groupService) DeleteMaterial(ctx context.Context, callerID, groupID, materialID uuid.UUID) error {
+	if s.materialRepo == nil {
+		return fmt.Errorf("%w: layanan materi sesi belum tersedia", ErrInvalidInput)
+	}
+	existing, err := s.groupRepo.FindByID(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	if !s.isGroupManager(ctx, existing, callerID) {
+		return ErrUnauthorizedAction
+	}
+
+	mat, err := s.materialRepo.FindByID(ctx, materialID)
+	if err != nil || mat == nil || mat.GroupID != groupID {
+		return fmt.Errorf("%w: materi tidak ditemukan pada sesi ini", ErrInvalidInput)
+	}
+	return s.materialRepo.Delete(ctx, materialID)
 }

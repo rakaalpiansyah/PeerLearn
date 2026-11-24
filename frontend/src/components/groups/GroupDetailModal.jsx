@@ -25,15 +25,22 @@ import {
   Smile,
   Share2,
   CheckCircle2,
+  BookOpen,
+  Download,
+  Plus,
+  Search,
+  Trash2,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
 import { UserAvatar } from "../ui/UserAvatar";
 import LinkifiedText from "../common/LinkifiedText";
-import { groupApi, membershipApi } from "../../api/client";
+import { groupApi, membershipApi, userApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { buildSessionUrl } from "../../utils/sessionRoute";
+import { downloadGroupIcs } from "../../utils/calendarIcs";
 
 function formatGoogleCalendarDates(startIso, endIso) {
   const format = (iso) => {
@@ -78,16 +85,40 @@ export function GroupDetailModal({
   const [replyingTo, setReplyingTo] = useState(null);
   const [activeEmojiPicker, setActiveEmojiPicker] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [coHostOverride, setCoHostOverride] = useState({ groupId: null, items: [] });
+  const [coHostQuery, setCoHostQuery] = useState("");
+  const [coHostResults, setCoHostResults] = useState([]);
+  const [searchingCoHosts, setSearchingCoHosts] = useState(false);
+  const [savingCoHostId, setSavingCoHostId] = useState(null);
+  const [materials, setMaterials] = useState([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [materialsError, setMaterialsError] = useState(null);
+  const [materialTitle, setMaterialTitle] = useState("");
+  const [materialUrl, setMaterialUrl] = useState("");
+  const [materialType, setMaterialType] = useState("referensi");
+  const [materialFormError, setMaterialFormError] = useState(null);
+  const [savingMaterial, setSavingMaterial] = useState(false);
+  const [deletingMaterialId, setDeletingMaterialId] = useState(null);
   const chatBottomRef = useRef(null);
 
+  const activeCoHosts =
+    group?.id && coHostOverride.groupId === group.id
+      ? coHostOverride.items
+      : group?.co_hosts || [];
+
   const isHost = isAuthenticated && user?.id === group?.host_id;
+  const isCoHost =
+    isAuthenticated &&
+    Boolean(user?.id) &&
+    activeCoHosts.some((ch) => ch.user_id === user.id);
+  const isManager = isHost || isCoHost;
   const isFull = group?.current_members >= group?.max_capacity;
 
   const userMembership =
     members.find((m) => m.user_id === user?.id)?.status ||
     group?.user_membership;
   const hasAccessToPrivate =
-    isHost ||
+    isManager ||
     user?.role === "admin" ||
     userMembership === "accepted" ||
     userMembership === "attended";
@@ -177,8 +208,138 @@ export function GroupDetailModal({
     }
   };
 
+  const loadMaterials = async () => {
+    if (!group?.id || !hasAccessToPrivate) return;
+    setLoadingMaterials(true);
+    setMaterialsError(null);
+    try {
+      const res = await groupApi.getMaterials(group.id);
+      if (res?.success) {
+        setMaterials(res.data || []);
+      }
+    } catch (err) {
+      setMaterialsError(err?.message || "Materi sesi belum dapat dimuat.");
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
+
+  const handleSearchCoHosts = async (e) => {
+    if (e) e.preventDefault();
+    const q = coHostQuery.trim();
+    if (q.length < 2) {
+      setCoHostResults([]);
+      return;
+    }
+    setSearchingCoHosts(true);
+    setActionError(null);
+    try {
+      const res = await userApi.searchUsers(q);
+      if (res?.success) {
+        const existingIds = new Set([
+          group.host_id,
+          ...activeCoHosts.map((c) => c.user_id),
+        ]);
+        setCoHostResults((res.data || []).filter((u) => !existingIds.has(u.id)));
+      }
+    } catch (err) {
+      setActionError(err?.message || "Gagal mencari pengguna kampus.");
+    } finally {
+      setSearchingCoHosts(false);
+    }
+  };
+
+  const handleAddCoHost = async (targetUser) => {
+    if (!group?.id || !isHost || !targetUser?.id) return;
+    setSavingCoHostId(targetUser.id);
+    setActionError(null);
+    try {
+      const res = await groupApi.addCoHost(group.id, targetUser.id);
+      if (res?.success) {
+        setCoHostOverride({ groupId: group.id, items: res.data || [] });
+        setCoHostResults((prev) => prev.filter((u) => u.id !== targetUser.id));
+        setCoHostQuery("");
+        setActionSuccess(`${targetUser.full_name} berhasil ditambahkan sebagai Co-Author.`);
+        onActionComplete?.();
+      }
+    } catch (err) {
+      setActionError(err?.message || "Gagal menambahkan Co-Author.");
+    } finally {
+      setSavingCoHostId(null);
+    }
+  };
+
+  const handleRemoveCoHost = async (targetUserId, targetName) => {
+    if (!group?.id || !isHost || !targetUserId) return;
+    setSavingCoHostId(targetUserId);
+    setActionError(null);
+    try {
+      const res = await groupApi.removeCoHost(group.id, targetUserId);
+      if (res?.success) {
+        setCoHostOverride({ groupId: group.id, items: res.data || [] });
+        setActionSuccess(`${targetName || "Rekan"} dihapus dari daftar Co-Author.`);
+        onActionComplete?.();
+      }
+    } catch (err) {
+      setActionError(err?.message || "Gagal menghapus Co-Author.");
+    } finally {
+      setSavingCoHostId(null);
+    }
+  };
+
+  const handleAddMaterial = async (e) => {
+    e.preventDefault();
+    const title = materialTitle.trim();
+    const url = materialUrl.trim();
+    if (title.length < 2) {
+      setMaterialFormError("Judul materi wajib diisi minimal 2 karakter.");
+      return;
+    }
+    if (!/^https?:\/\/\S+/i.test(url)) {
+      setMaterialFormError("Tautan materi harus diawali http:// atau https://.");
+      return;
+    }
+    setSavingMaterial(true);
+    setMaterialFormError(null);
+    try {
+      const res = await groupApi.addMaterial(group.id, {
+        title,
+        url,
+        material_type: materialType,
+      });
+      if (res?.success && res?.data) {
+        setMaterials((prev) => [res.data, ...prev]);
+        setMaterialTitle("");
+        setMaterialUrl("");
+        setMaterialType("referensi");
+        setActionSuccess("Tautan materi sesi berhasil ditambahkan.");
+      }
+    } catch (err) {
+      setMaterialFormError(err?.message || "Gagal menyimpan materi sesi.");
+    } finally {
+      setSavingMaterial(false);
+    }
+  };
+
+  const handleDeleteMaterial = async (materialId) => {
+    if (!group?.id || !isManager || !materialId) return;
+    setDeletingMaterialId(materialId);
+    setActionError(null);
+    try {
+      const res = await groupApi.deleteMaterial(group.id, materialId);
+      if (res?.success) {
+        setMaterials((prev) => prev.filter((item) => item.id !== materialId));
+        setActionSuccess("Materi sesi dihapus.");
+      }
+    } catch (err) {
+      setActionError(err?.message || "Gagal menghapus materi sesi.");
+    } finally {
+      setDeletingMaterialId(null);
+    }
+  };
+
   const handleTogglePin = async (messageId) => {
-    if (!group?.id || !isHost) return;
+    if (!group?.id || !isManager) return;
     try {
       const res = await groupApi.togglePinMessage(group.id, messageId);
       if (res.success) {
@@ -209,6 +370,7 @@ export function GroupDetailModal({
   useEffect(() => {
     if (isOpen && group && hasAccessToPrivate) {
       loadMessages();
+      loadMaterials();
     }
   }, [isOpen, group?.id, hasAccessToPrivate, activeTab]);
 
@@ -442,6 +604,16 @@ export function GroupDetailModal({
   );
   const attendedMembers = members.filter((m) => m.status === "attended");
 
+  const googleCalendarLocation = hasAccessToPrivate
+    ? group.format === "online"
+      ? group.location_or_link
+      : group.building_details
+      ? `${group.location_or_link} (${group.building_details})`
+      : group.location_or_link
+    : group.format === "offline"
+    ? group.location_or_link
+    : "Akan dibagikan setelah pendaftaran disetujui";
+
   const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
     group.title
   )}&dates=${formatGoogleCalendarDates(
@@ -452,19 +624,13 @@ export function GroupDetailModal({
       (group.agenda && group.agenda.length > 0
         ? "\n\nAgenda:\n" + group.agenda.map((a, i) => `${i + 1}. ${a}`).join("\n")
         : "")
-  )}&location=${encodeURIComponent(
-    group.format === "online"
-      ? group.location_or_link
-      : group.building_details
-      ? `${group.location_or_link} (${group.building_details})`
-      : group.location_or_link
-  )}`;
+  )}&location=${encodeURIComponent(googleCalendarLocation)}`;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} labelledBy="group-detail-title">
       <div className="relative w-full max-w-2xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] flex flex-col rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between p-4 sm:p-6 border-b border-slate-100 bg-white">
+        <div className="shrink-0 flex items-start justify-between p-4 sm:p-6 border-b border-slate-100 bg-white">
           <div className="space-y-1.5 pr-3 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <Badge variant="neutral" className="text-xs font-medium">
@@ -525,44 +691,78 @@ export function GroupDetailModal({
         </div>
 
         {/* Tab Navigation */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center px-3 sm:px-6 border-b border-slate-200 bg-slate-50/70">
+        <div
+          role="tablist"
+          aria-label="Bagian detail sesi belajar"
+          className="shrink-0 flex items-center overflow-x-auto px-3 sm:px-6 border-b border-slate-200 bg-slate-50/70 gap-1"
+        >
           <button
             type="button"
+            id="tab-info"
+            role="tab"
+            aria-selected={activeTab === "info"}
             onClick={() => setActiveTab("info")}
-            className={`py-3 px-2 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 whitespace-nowrap ${
+            className={`min-h-[44px] py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${
               activeTab === "info"
                 ? "border-emerald-700 text-emerald-800"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
-            <ListOrdered className={`w-3.5 h-3.5 shrink-0 ${activeTab === "info" ? "text-emerald-700" : "text-slate-400"}`} />
-            <span className="truncate">Informasi & Agenda Sesi</span>
+            <ListOrdered className={`w-3.5 h-3.5 shrink-0 ${activeTab === "info" ? "text-emerald-700" : "text-slate-400"}`} aria-hidden="true" />
+            <span>Informasi & Agenda Sesi</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("chat")}
-            className={`py-3 px-2 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 whitespace-nowrap ${
-              activeTab === "chat"
+            id="tab-materials"
+            role="tab"
+            aria-selected={activeTab === "materials"}
+            onClick={() => setActiveTab("materials")}
+            className={`min-h-[44px] py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${
+              activeTab === "materials"
                 ? "border-emerald-700 text-emerald-800"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
-            <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${activeTab === "chat" ? "text-emerald-700" : "text-slate-400"}`} />
-            <span className="truncate">Ruang Diskusi</span>
+            <BookOpen className={`w-3.5 h-3.5 shrink-0 ${activeTab === "materials" ? "text-emerald-700" : "text-slate-400"}`} aria-hidden="true" />
+            <span>Materi Sesi</span>
+            {hasAccessToPrivate && materials.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-900 font-bold border border-emerald-200 shrink-0 tabular-nums">
+                {materials.length}
+              </span>
+            )}
+            {!hasAccessToPrivate && (
+              <Lock className="w-3 h-3 text-slate-400 shrink-0" aria-hidden="true" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            id="tab-chat"
+            role="tab"
+            aria-selected={activeTab === "chat"}
+            onClick={() => setActiveTab("chat")}
+            className={`min-h-[44px] py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${
+              activeTab === "chat"
+                ? "border-emerald-700 text-emerald-800"
+                : "border-transparent text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${activeTab === "chat" ? "text-emerald-700" : "text-slate-400"}`} aria-hidden="true" />
+            <span>Ruang Diskusi</span>
             {hasAccessToPrivate && messages.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-200 shrink-0">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-900 font-bold border border-emerald-200 shrink-0 tabular-nums">
                 {messages.length}
               </span>
             )}
             {!hasAccessToPrivate && (
-              <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+              <Lock className="w-3 h-3 text-slate-400 shrink-0" aria-hidden="true" />
             )}
           </button>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-6">
           {group.status === "pending_approval" && (
             <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
               <Clock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
@@ -622,7 +822,7 @@ export function GroupDetailModal({
           )}
 
           {actionSuccess && (
-            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between gap-2">
+            <div role="status" aria-live="polite" className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{actionSuccess}</span>
@@ -646,8 +846,8 @@ export function GroupDetailModal({
           )}
 
           {activeTab === "info" && (
-            <>
-              {/* Reschedule Form (Only visible to Host when activated) */}
+            <div role="tabpanel" aria-labelledby="tab-info" className="space-y-6">
+              {/* Reschedule Form (Only visible to Host or Co-Author when activated) */}
               {isRescheduling && (
                 <div className="p-4 rounded-xl bg-emerald-50/40 border border-emerald-200/80 space-y-3 text-xs shadow-2xs">
                   <div className="flex items-center justify-between">
@@ -770,18 +970,30 @@ export function GroupDetailModal({
                   <p className="font-bold text-slate-900 text-sm">{dateStr}</p>
                   <p className="text-slate-600 text-xs">{timeStr}</p>
 
-                  {hasAccessToPrivate && (
-                    <a
-                      href={googleCalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 pt-1 text-emerald-800 hover:text-emerald-950 font-medium transition-colors"
-                    >
-                      <Calendar className="w-3 h-3 text-emerald-700" />
-                      Simpan ke Google Calendar
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  )}
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    {hasAccessToPrivate && (
+                      <a
+                        href={googleCalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-emerald-800 hover:text-emerald-950 font-medium transition-colors"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                        <span>Simpan ke Google Calendar</span>
+                        <ExternalLink className="w-2.5 h-2.5" aria-hidden="true" />
+                      </a>
+                    )}
+                    {group.status !== "cancelled" && (
+                      <button
+                        type="button"
+                        onClick={() => downloadGroupIcs(group, hasAccessToPrivate)}
+                        className="min-h-[36px] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 hover:text-emerald-800 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                      >
+                        <Download className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                        <span>Unduh .ics</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -830,8 +1042,8 @@ export function GroupDetailModal({
                   )}
                 </div>
 
-                {/* Host Reschedule Action Bar */}
-                {isHost &&
+                {/* Host & Co-Author Reschedule Action Bar */}
+                {isManager &&
                   group.status !== "completed" &&
                   group.status !== "cancelled" && (
                     <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
@@ -947,8 +1159,8 @@ export function GroupDetailModal({
                 </p>
               </div>
 
-              {/* Host Card */}
-              <div className="p-4 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+              {/* Host & Co-Author Section */}
+              <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-3 shadow-2xs">
                 <button
                   type="button"
                   onClick={() =>
@@ -965,6 +1177,9 @@ export function GroupDetailModal({
                       <span className="text-sm font-bold text-slate-900 hover:text-emerald-800">
                         {group.host?.full_name}
                       </span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200">
+                        Penyelenggara Utama
+                      </span>
                       {group.host?.role === "student" && (
                         <Badge variant="neutral" className="text-[10px] py-0.5 max-w-full">
                           <GraduationCap className="w-3 h-3 shrink-0 text-emerald-700" />
@@ -978,10 +1193,142 @@ export function GroupDetailModal({
                     </p>
                   </div>
                 </button>
+
+                {activeCoHosts.length > 0 && (
+                  <div className="pt-3 border-t border-slate-100 space-y-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block">
+                      Co-Author / Rekan Penyelenggara ({activeCoHosts.length})
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {activeCoHosts.map((ch) => (
+                        <div
+                          key={ch.user_id}
+                          className="inline-flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs"
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onOpenPublicProfile &&
+                              ch.user?.id &&
+                              onOpenPublicProfile(ch.user.id, ch.user)
+                            }
+                            className="inline-flex items-center gap-1.5 text-left hover:text-emerald-800 font-semibold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded"
+                          >
+                            <UserAvatar user={ch.user} size="xs" />
+                            <span>{ch.user?.full_name || "Co-Author"}</span>
+                          </button>
+                          {isHost && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRemoveCoHost(ch.user_id, ch.user?.full_name)
+                              }
+                              disabled={savingCoHostId === ch.user_id}
+                              aria-label={`Hapus ${ch.user?.full_name || "rekan"} dari Co-Author`}
+                              className="min-w-[28px] min-h-[28px] inline-flex items-center justify-center rounded-md text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isHost && (
+                  <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <UserPlus className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                        <span>Tambah Co-Author ({activeCoHosts.length}/5)</span>
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        Bisa ACC peserta, catat hadir SKPI, dan unggah materi
+                      </span>
+                    </div>
+
+                    <div role="search">
+                      <form
+                        onSubmit={handleSearchCoHosts}
+                        className="flex flex-col sm:flex-row sm:items-end gap-2"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <label
+                            htmlFor="cohost-search-input"
+                            className="block text-[11px] font-semibold text-slate-700 mb-1"
+                          >
+                            Cari mahasiswa atau rekan berdasarkan nama atau email
+                          </label>
+                          <div className="relative">
+                            <Search
+                              className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                              aria-hidden="true"
+                            />
+                            <input
+                              id="cohost-search-input"
+                              type="search"
+                              value={coHostQuery}
+                              onChange={(e) => setCoHostQuery(e.target.value)}
+                              placeholder="Ketik minimal 2 huruf nama atau email kampus"
+                              autoCorrect="off"
+                              autoCapitalize="none"
+                              spellCheck={false}
+                              className="w-full min-h-[44px] pl-8 pr-3 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          type="submit"
+                          variant="outline"
+                          size="sm"
+                          isLoading={searchingCoHosts}
+                          className="min-h-[44px] shrink-0"
+                        >
+                          Cari Rekan
+                        </Button>
+                      </form>
+                    </div>
+
+                    {coHostResults.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        {coHostResults.map((candidate) => (
+                          <div
+                            key={candidate.id}
+                            className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2.5 text-xs"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <UserAvatar user={candidate} size="xs" />
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-900 truncate">
+                                  {candidate.full_name}
+                                </p>
+                                <p className="text-[11px] text-slate-600 truncate">
+                                  {candidate.campus_name || "Mahasiswa UIN SGD Bandung"}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleAddCoHost(candidate)}
+                              isLoading={savingCoHostId === candidate.id}
+                              className="min-h-[40px] shrink-0 text-xs"
+                            >
+                              <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                              <span>Jadikan Co-Author</span>
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Host Management Panel (Only visible to Host) */}
-              {isHost && (
+              {/* Management Panel (Visible to Host & Co-Author) */}
+              {isManager && (
                 <div className="p-4 rounded-xl bg-slate-50/90 border border-slate-200 space-y-3.5 shadow-2xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div className="flex items-center gap-2">
@@ -1014,15 +1361,17 @@ export function GroupDetailModal({
                               ? "Menunggu ACC Admin"
                               : "Perlu Revisi"}
                           </Badge>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => requestGroupStatusChange("cancelled")}
-                            className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50"
-                          >
-                            Batalkan
-                          </Button>
+                          {isHost && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => requestGroupStatusChange("cancelled")}
+                              className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50"
+                            >
+                              Batalkan
+                            </Button>
+                          )}
                         </div>
                       ) : (
                         <select
@@ -1034,7 +1383,7 @@ export function GroupDetailModal({
                           <option value="open">Buka (Pendaftaran Aktif)</option>
                           <option value="ongoing">Sedang Berlangsung</option>
                           <option value="completed">Selesai</option>
-                          <option value="cancelled">Dibatalkan</option>
+                          {isHost && <option value="cancelled">Dibatalkan</option>}
                         </select>
                       )}
                     </div>
@@ -1188,7 +1537,7 @@ export function GroupDetailModal({
                             Hadir (SKPI)
                           </span>
                         ) : (
-                          isHost &&
+                          isManager &&
                           ["open", "ongoing", "completed"].includes(
                             group.status
                           ) && (
@@ -1242,11 +1591,211 @@ export function GroupDetailModal({
                   </div>
                 </div>
               )}
-            </>
+            </div>
+          )}
+
+          {activeTab === "materials" && (
+            <div
+              role="tabpanel"
+              aria-labelledby="tab-materials"
+              className="space-y-4"
+            >
+              {!hasAccessToPrivate ? (
+                <div className="m-auto text-center p-6 rounded-2xl bg-slate-50 border border-slate-200 max-w-sm space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
+                    <Lock className="w-6 h-6" aria-hidden="true" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Materi Sesi Tertutup
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Daftar slide, modul, dan catatan belajar hanya dapat diakses
+                    oleh penyelenggara dan peserta yang telah diterima.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {isManager && (
+                    <form
+                      onSubmit={handleAddMaterial}
+                      className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-emerald-700" aria-hidden="true" />
+                          <span>Bagikan Tautan Materi Sesi</span>
+                        </h3>
+                      </div>
+
+                      {materialFormError && (
+                        <p
+                          id="material-form-error"
+                          role="alert"
+                          aria-live="polite"
+                          className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2"
+                        >
+                          {materialFormError}
+                        </p>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div className="sm:col-span-2">
+                          <label
+                            htmlFor="material-title-input"
+                            className="block text-[11px] font-semibold text-slate-700 mb-1"
+                          >
+                            Judul Materi
+                          </label>
+                          <input
+                            id="material-title-input"
+                            type="text"
+                            value={materialTitle}
+                            onChange={(e) => {
+                              setMaterialTitle(e.target.value);
+                              if (materialFormError) setMaterialFormError(null);
+                            }}
+                            placeholder="cth. Slide Pertemuan 1: Konsep Dasar"
+                            maxLength={160}
+                            aria-describedby={materialFormError ? "material-form-error" : undefined}
+                            className="w-full min-h-[44px] px-3 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="material-type-select"
+                            className="block text-[11px] font-semibold text-slate-700 mb-1"
+                          >
+                            Jenis Materi
+                          </label>
+                          <select
+                            id="material-type-select"
+                            value={materialType}
+                            onChange={(e) => setMaterialType(e.target.value)}
+                            className="w-full min-h-[44px] px-3 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
+                          >
+                            <option value="slide">Slide Presentasi</option>
+                            <option value="modul">Modul / PDF</option>
+                            <option value="catatan">Catatan Diskusi</option>
+                            <option value="rekaman">Rekaman Sesi</option>
+                            <option value="referensi">Referensi Lainnya</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-2.5">
+                        <div className="flex-1 min-w-0">
+                          <label
+                            htmlFor="material-url-input"
+                            className="block text-[11px] font-semibold text-slate-700 mb-1"
+                          >
+                            Alamat Tautan Materi (Google Drive, PDF, YouTube, atau GitHub)
+                          </label>
+                          <input
+                            id="material-url-input"
+                            type="url"
+                            value={materialUrl}
+                            onChange={(e) => {
+                              setMaterialUrl(e.target.value);
+                              if (materialFormError) setMaterialFormError(null);
+                            }}
+                            placeholder="https://drive.google.com/..."
+                            autoCorrect="off"
+                            autoCapitalize="none"
+                            spellCheck={false}
+                            aria-describedby={materialFormError ? "material-form-error" : undefined}
+                            className="w-full min-h-[44px] px-3 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          variant="primary"
+                          size="sm"
+                          isLoading={savingMaterial}
+                          className="min-h-[44px] shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>Tambah Materi</span>
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+
+                  {loadingMaterials ? (
+                    <div role="status" className="py-8 text-center text-xs text-slate-500">
+                      Memuat daftar materi sesi...
+                    </div>
+                  ) : materialsError ? (
+                    <div role="alert" className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 flex items-center justify-between gap-2">
+                      <span>{materialsError}</span>
+                      <Button type="button" variant="outline" size="sm" onClick={loadMaterials}>
+                        Coba Lagi
+                      </Button>
+                    </div>
+                  ) : materials.length === 0 ? (
+                    <div className="py-10 text-center space-y-2 rounded-xl bg-slate-50 border border-slate-200">
+                      <BookOpen className="w-8 h-8 mx-auto text-slate-400" aria-hidden="true" />
+                      <p className="text-xs font-semibold text-slate-800">
+                        Belum ada materi atau tautan referensi yang dibagikan pada sesi ini.
+                      </p>
+                      <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                        Tutor dan Co-Author dapat menautkan slide, modul PDF, atau ringkasan materi di sini.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {materials.map((mat) => (
+                        <article
+                          key={mat.id}
+                          className="p-3.5 rounded-xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase bg-emerald-50 text-emerald-900 border border-emerald-200">
+                                {mat.material_type || "referensi"}
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                {mat.uploader?.full_name || "Penyelenggara"}
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-900 break-words">
+                              {mat.title}
+                            </h4>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <a
+                              href={mat.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="min-h-[40px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                            >
+                              <span>Buka Materi</span>
+                              <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                            </a>
+                            {isManager && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMaterial(mat.id)}
+                                disabled={deletingMaterialId === mat.id}
+                                aria-label={`Hapus materi ${mat.title}`}
+                                className="min-w-[40px] min-h-[40px] inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                              </button>
+                            )}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           {activeTab === "chat" && (
-            <div className="flex flex-col h-[min(480px,50dvh)] min-h-[300px]">
+            <div role="tabpanel" aria-labelledby="tab-chat" className="flex flex-col h-[min(480px,50dvh)] min-h-[300px]">
               {!hasAccessToPrivate ? (
                 <div className="m-auto text-center p-6 rounded-2xl bg-slate-50 border border-slate-200 max-w-sm space-y-3">
                   <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
@@ -1291,7 +1840,7 @@ export function GroupDetailModal({
                           >
                             Lihat
                           </button>
-                          {isHost && (
+                          {isManager && (
                             <button
                               type="button"
                               onClick={() => handleTogglePin(pinnedMsg.id)}
@@ -1328,6 +1877,7 @@ export function GroupDetailModal({
                         const senderObj = msg.sender || msg.user;
                         const isMe = senderId === user?.id;
                         const isMsgHost = senderId === group.host_id;
+                        const isMsgCoHost = activeCoHosts.some((ch) => ch.user_id === senderId);
                         const msgTime = new Date(msg.created_at).toLocaleTimeString(
                           "id-ID",
                           { hour: "2-digit", minute: "2-digit" }
@@ -1353,6 +1903,11 @@ export function GroupDetailModal({
                               {isMsgHost && (
                                 <span className="px-1.5 py-0.2 rounded text-[9px] bg-amber-50 text-amber-800 border border-amber-200 font-medium">
                                   Tutor
+                                </span>
+                              )}
+                              {!isMsgHost && isMsgCoHost && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-50 text-emerald-900 border border-emerald-200 font-medium">
+                                  Co-Tutor
                                 </span>
                               )}
                               <span>• {msgTime}</span>
@@ -1381,7 +1936,7 @@ export function GroupDetailModal({
                                 >
                                   <Smile className="w-3 h-3" />
                                 </button>
-                                {isHost && (
+                                {isManager && (
                                   <button
                                     type="button"
                                     onClick={() => handleTogglePin(msg.id)}
@@ -1534,7 +2089,7 @@ export function GroupDetailModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 bg-slate-50/70">
+        <div className="shrink-0 p-4 sm:px-6 sm:py-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 bg-slate-50/70">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -1550,9 +2105,9 @@ export function GroupDetailModal({
             </Button>
           </div>
 
-          {!isHost && (
+          {!isManager && (
             <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
-              {userMembership === "accepted" ? (
+              {userMembership === "accepted" || userMembership === "attended" ? (
                 group.status === "completed" ? (
                   <Button
                     variant="primary"

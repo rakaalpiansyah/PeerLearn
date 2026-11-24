@@ -46,6 +46,7 @@ export const userApi = {
   getSkills: () => apiClient.get("/skills"),
   updateSkills: (skills) => apiClient.post("/users/skills", { skills }),
   addCustomSkill: (payload) => apiClient.post("/users/skills/custom", payload),
+  searchUsers: (q) => apiClient.get("/users/search", { params: { q } }),
   getPublicProfile: (userId) => apiClient.get(`/users/${userId}/public`),
   verifySKPI: (userId) => apiClient.get(`/skpi/${userId}/verify`),
 };
@@ -61,6 +62,15 @@ export const groupApi = {
   update: (id, payload) => apiClient.put(`/groups/${id}`, payload),
   updateStatus: (id, status) =>
     apiClient.patch(`/groups/${id}/status`, { status }),
+  addCoHost: (groupId, userId) =>
+    apiClient.post(`/groups/${groupId}/cohosts`, { user_id: userId }),
+  removeCoHost: (groupId, userId) =>
+    apiClient.delete(`/groups/${groupId}/cohosts/${userId}`),
+  getMaterials: (groupId) => apiClient.get(`/groups/${groupId}/materials`),
+  addMaterial: (groupId, payload) =>
+    apiClient.post(`/groups/${groupId}/materials`, payload),
+  deleteMaterial: (groupId, materialId) =>
+    apiClient.delete(`/groups/${groupId}/materials/${materialId}`),
   getMembers: (id) => apiClient.get(`/groups/${id}/members`),
   getFeedbacks: (id) => apiClient.get(`/groups/${id}/feedbacks`),
   getMessages: (groupId) => apiClient.get(`/groups/${groupId}/messages`),

@@ -23,17 +23,36 @@ func ViewerRoleFromContext(ctx context.Context) (UserRole, bool) {
 }
 
 // SanitizeGroupForViewer masks private session links, exact campus room/GPS coordinates,
-// and host email unless the caller is the host, an accepted/attended member, or an admin.
+// and host/co-host emails unless the caller is a manager, accepted/attended member, or admin.
 func SanitizeGroupForViewer(g *GroupResponse, viewerID *uuid.UUID, viewerRole UserRole) {
 	if g == nil {
 		return
 	}
 
-	isPrivileged := viewerRole == RoleAdmin || (viewerID != nil && g.HostID == *viewerID)
+	isCoHost := false
+	if viewerID != nil {
+		for _, ch := range g.CoHosts {
+			if ch.UserID == *viewerID {
+				isCoHost = true
+				break
+			}
+		}
+	}
+
+	isPrivileged := viewerRole == RoleAdmin || (viewerID != nil && g.HostID == *viewerID) || isCoHost
 	isAccepted := g.UserMembership != nil && (*g.UserMembership == MembershipAccepted || *g.UserMembership == MembershipAttended)
 
-	if g.Host != nil && !isPrivileged {
-		g.Host.Email = ""
+	if !isPrivileged {
+		if g.Host != nil {
+			g.Host.Email = ""
+		}
+		for i := range g.CoHosts {
+			if g.CoHosts[i].User != nil {
+				userCopy := *g.CoHosts[i].User
+				userCopy.Email = ""
+				g.CoHosts[i].User = &userCopy
+			}
+		}
 	}
 
 	if !isPrivileged && !isAccepted {

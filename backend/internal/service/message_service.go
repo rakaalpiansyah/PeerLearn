@@ -13,6 +13,7 @@ import (
 )
 
 type MessageService interface {
+	SetCoHostRepo(repo repository.GroupCoHostRepository)
 	SendMessage(ctx context.Context, senderID, groupID uuid.UUID, message string, replyToID *uuid.UUID) (*domain.GroupMessageResponse, error)
 	GetMessages(ctx context.Context, callerID, groupID uuid.UUID) ([]domain.GroupMessageResponse, error)
 	ToggleReaction(ctx context.Context, callerID, groupID, messageID uuid.UUID, emoji string) ([]domain.ReactionSummary, error)
@@ -23,6 +24,26 @@ type messageService struct {
 	msgRepo        repository.MessageRepository
 	groupRepo      repository.GroupRepository
 	membershipRepo repository.MembershipRepository
+	coHostRepo     repository.GroupCoHostRepository
+}
+
+func (s *messageService) SetCoHostRepo(repo repository.GroupCoHostRepository) {
+	s.coHostRepo = repo
+}
+
+func (s *messageService) isGroupManager(ctx context.Context, group *domain.GroupResponse, userID uuid.UUID) bool {
+	if group == nil || userID == uuid.Nil {
+		return false
+	}
+	if group.HostID == userID {
+		return true
+	}
+	if s.coHostRepo != nil {
+		if isCo, err := s.coHostRepo.IsCoHost(ctx, group.ID, userID); err == nil && isCo {
+			return true
+		}
+	}
+	return false
 }
 
 func NewMessageService(
@@ -43,14 +64,12 @@ func (s *messageService) checkAccess(ctx context.Context, userID, groupID uuid.U
 		return fmt.Errorf("messageService.checkAccess: %w", err)
 	}
 
-	// Host always has access
-	if group.HostID == userID {
+	if s.isGroupManager(ctx, group, userID) {
 		return nil
 	}
 
-	// Check if user is accepted member
 	membership, err := s.membershipRepo.Find(ctx, groupID, userID)
-	if err != nil || membership == nil || membership.Status != domain.MembershipAccepted {
+	if err != nil || membership == nil || (membership.Status != domain.MembershipAccepted && membership.Status != domain.MembershipAttended) {
 		return ErrUnauthorizedAction
 	}
 
@@ -181,8 +200,7 @@ func (s *messageService) TogglePinMessage(ctx context.Context, callerID, groupID
 		return nil, fmt.Errorf("messageService.TogglePinMessage: %w", err)
 	}
 
-	// Only host can pin/unpin
-	if group.HostID != callerID {
+	if !s.isGroupManager(ctx, group, callerID) {
 		return nil, ErrUnauthorizedAction
 	}
 

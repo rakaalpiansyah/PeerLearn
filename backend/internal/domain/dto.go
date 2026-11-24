@@ -106,6 +106,14 @@ type UpdateSkillsRequest struct {
 	Skills []SkillItemRequest `json:"skills"`
 }
 
+type UserSearchItem struct {
+	ID         uuid.UUID `json:"id"`
+	FullName   string    `json:"full_name"`
+	CampusName string    `json:"campus_name"`
+	AvatarURL  string    `json:"avatar_url"`
+	Role       UserRole  `json:"role"`
+}
+
 func ToUserResponse(user *User, skills []UserSkill) UserResponse {
 	return UserResponse{
 		ID:                 user.ID,

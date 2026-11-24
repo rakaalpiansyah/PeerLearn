@@ -17,6 +17,7 @@ type MySessionsResponse struct {
 
 type MembershipService interface {
 	SetNotifier(notifier NotificationDispatcher)
+	SetCoHostRepo(repo repository.GroupCoHostRepository)
 	JoinGroup(ctx context.Context, userID, groupID uuid.UUID) (*domain.Membership, error)
 	UpdateStatus(ctx context.Context, callerID, membershipID uuid.UUID, status domain.MembershipStatus) error
 	GetGroupMembers(ctx context.Context, groupID, callerID uuid.UUID) ([]domain.Membership, error)
@@ -28,11 +29,52 @@ type membershipService struct {
 	groupRepo      repository.GroupRepository
 	feedbackRepo   repository.FeedbackRepository
 	userRepo       repository.UserRepository
+	coHostRepo     repository.GroupCoHostRepository
 	notifier       NotificationDispatcher
 }
 
 func (s *membershipService) SetNotifier(notifier NotificationDispatcher) {
 	s.notifier = notifier
+}
+
+func (s *membershipService) SetCoHostRepo(repo repository.GroupCoHostRepository) {
+	s.coHostRepo = repo
+}
+
+func (s *membershipService) isGroupManager(ctx context.Context, group *domain.GroupResponse, callerID uuid.UUID) bool {
+	if group == nil || callerID == uuid.Nil {
+		return false
+	}
+	if group.HostID == callerID {
+		return true
+	}
+	if s.coHostRepo != nil {
+		isCo, err := s.coHostRepo.IsCoHost(ctx, group.ID, callerID)
+		if err == nil && isCo {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *membershipService) notifyManagers(ctx context.Context, group *domain.GroupResponse, nType domain.NotificationType, title, msg string) {
+	if s.notifier == nil || group == nil {
+		return
+	}
+	gid := group.ID
+	notified := map[uuid.UUID]bool{group.HostID: true}
+	_ = s.notifier.Notify(ctx, group.HostID, nType, title, msg, &gid)
+	if s.coHostRepo != nil {
+		if coHosts, err := s.coHostRepo.ListByGroup(ctx, group.ID); err == nil {
+			for _, ch := range coHosts {
+				if notified[ch.UserID] {
+					continue
+				}
+				notified[ch.UserID] = true
+				_ = s.notifier.Notify(ctx, ch.UserID, nType, title, msg, &gid)
+			}
+		}
+	}
 }
 
 func NewMembershipService(
@@ -78,6 +120,11 @@ func (s *membershipService) JoinGroup(ctx context.Context, userID, groupID uuid.
 	if group.HostID == userID {
 		return nil, fmt.Errorf("%w: Anda adalah penyelenggara sesi ini", ErrInvalidInput)
 	}
+	if s.coHostRepo != nil {
+		if isCo, _ := s.coHostRepo.IsCoHost(ctx, groupID, userID); isCo {
+			return nil, fmt.Errorf("%w: Anda sudah tercatat sebagai Co-Author sesi ini", ErrInvalidInput)
+		}
+	}
 
 	if group.Status != domain.StatusOpen {
 		return nil, fmt.Errorf("%w: sesi belajar tidak lagi menerima pendaftaran", ErrInvalidInput)
@@ -94,10 +141,7 @@ func (s *membershipService) JoinGroup(ctx context.Context, userID, groupID uuid.
 				return nil, fmt.Errorf("membershipService.JoinGroup rejoin: %w", err)
 			}
 			existing.Status = domain.MembershipPending
-			if s.notifier != nil {
-				gid := group.ID
-				_ = s.notifier.Notify(ctx, group.HostID, domain.NotificationJoinRequest, "Permintaan Bergabung Ulang", fmt.Sprintf("%s mengajukan ulang permohonan bergabung ke sesi %q.", joinerName, group.Title), &gid)
-			}
+			s.notifyManagers(ctx, group, domain.NotificationJoinRequest, "Permintaan Bergabung Ulang", fmt.Sprintf("%s mengajukan ulang permohonan bergabung ke sesi %q.", joinerName, group.Title))
 			return existing, nil
 		}
 		return nil, repository.ErrAlreadyJoined
@@ -114,10 +158,7 @@ func (s *membershipService) JoinGroup(ctx context.Context, userID, groupID uuid.
 		return nil, fmt.Errorf("membershipService.JoinGroup create: %w", err)
 	}
 
-	if s.notifier != nil {
-		gid := group.ID
-		_ = s.notifier.Notify(ctx, group.HostID, domain.NotificationJoinRequest, "Permintaan Bergabung Baru", fmt.Sprintf("%s meminta bergabung ke sesi %q.", joinerName, group.Title), &gid)
-	}
+	s.notifyManagers(ctx, group, domain.NotificationJoinRequest, "Permintaan Bergabung Baru", fmt.Sprintf("%s meminta bergabung ke sesi %q.", joinerName, group.Title))
 
 	return m, nil
 }
@@ -139,10 +180,10 @@ func (s *membershipService) UpdateStatus(ctx context.Context, callerID, membersh
 		return fmt.Errorf("membershipService.UpdateStatus group: %w", err)
 	}
 
-	isHost := group.HostID == callerID
+	isManager := s.isGroupManager(ctx, group, callerID)
 	isParticipant := m.UserID == callerID
 
-	if !isHost && !(isParticipant && status == domain.MembershipCancelled) {
+	if !isManager && !(isParticipant && status == domain.MembershipCancelled) {
 		return ErrUnauthorizedAction
 	}
 
@@ -178,6 +219,18 @@ func (s *membershipService) UpdateStatus(ctx context.Context, callerID, membersh
 	if status == domain.MembershipAttended && s.feedbackRepo != nil {
 		_ = s.feedbackRepo.AddContributionPoints(ctx, group.HostID, 3)
 		_ = s.feedbackRepo.AddContributionPoints(ctx, m.UserID, 1)
+		if s.coHostRepo != nil {
+			if coHosts, chErr := s.coHostRepo.ListByGroup(ctx, group.ID); chErr == nil {
+				awarded := map[uuid.UUID]bool{group.HostID: true}
+				for _, ch := range coHosts {
+					if awarded[ch.UserID] {
+						continue
+					}
+					awarded[ch.UserID] = true
+					_ = s.feedbackRepo.AddContributionPoints(ctx, ch.UserID, 2)
+				}
+			}
+		}
 	}
 
 	if s.notifier != nil {
@@ -207,7 +260,7 @@ func (s *membershipService) GetGroupMembers(ctx context.Context, groupID, caller
 			viewerRole = u.Role
 		}
 	}
-	isPrivileged := viewerRole == domain.RoleAdmin || (callerID != uuid.Nil && group.HostID == callerID)
+	isPrivileged := viewerRole == domain.RoleAdmin || s.isGroupManager(ctx, group, callerID)
 
 	members, err := s.membershipRepo.ListByGroup(ctx, groupID)
 	if err != nil {
@@ -241,6 +294,41 @@ func (s *membershipService) GetMySessions(ctx context.Context, userID uuid.UUID)
 	}
 	if hosted == nil {
 		hosted = []domain.GroupResponse{}
+	}
+	seenHosted := make(map[uuid.UUID]bool, len(hosted))
+	for i := range hosted {
+		hosted[i].ViewerRole = "host"
+		seenHosted[hosted[i].ID] = true
+	}
+
+	if s.coHostRepo != nil {
+		if coHostedIDs, chErr := s.coHostRepo.ListGroupIDsByUser(ctx, userID); chErr == nil {
+			for _, gid := range coHostedIDs {
+				if seenHosted[gid] {
+					continue
+				}
+				if g, gErr := s.groupRepo.FindByID(ctx, gid); gErr == nil && g != nil {
+					g.CoHosts, _ = s.coHostRepo.ListByGroup(ctx, gid)
+					g.ViewerRole = "cohost"
+					seenHosted[gid] = true
+					hosted = append(hosted, *g)
+				}
+			}
+		}
+	}
+
+	if s.coHostRepo != nil && len(hosted) > 0 {
+		ids := make([]uuid.UUID, 0, len(hosted))
+		for _, h := range hosted {
+			ids = append(ids, h.ID)
+		}
+		if byGroup, bErr := s.coHostRepo.ListByGroupIDs(ctx, ids); bErr == nil {
+			for i := range hosted {
+				if len(hosted[i].CoHosts) == 0 {
+					hosted[i].CoHosts = byGroup[hosted[i].ID]
+				}
+			}
+		}
 	}
 
 	memberships, err := s.membershipRepo.ListByUser(ctx, userID)

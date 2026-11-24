@@ -244,9 +244,9 @@ export function SKPIVerifyPage({ userId, onBackHome }) {
                             {item.category}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap">
-                            {item.role === "tutor" ? (
+                            {item.role === "tutor" || item.role === "co_tutor" ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200">
-                                Tutor ({item.attended_count || 0} hadir)
+                                {item.role === "co_tutor" ? "Co-Tutor" : "Tutor"} ({item.attended_count || 0} hadir)
                               </span>
                             ) : (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200">

@@ -63,6 +63,8 @@ func main() {
 	messageRepo := repository.NewMessageRepository(db.Pool)
 	supportRepo := repository.NewSupportRepository(db.Pool)
 	notificationRepo := repository.NewNotificationRepository(db.Pool)
+	coHostRepo := repository.NewGroupCoHostRepository(db.Pool)
+	materialRepo := repository.NewGroupMaterialRepository(db.Pool)
 
 	// Services
 	healthService := service.NewHealthService(healthRepo)
@@ -76,7 +78,12 @@ func main() {
 	notificationService := service.NewNotificationService(notificationRepo)
 
 	groupService.SetNotifier(notificationService)
+	groupService.SetCoHostRepo(coHostRepo)
+	groupService.SetMaterialRepo(materialRepo)
 	membershipService.SetNotifier(notificationService)
+	membershipService.SetCoHostRepo(coHostRepo)
+	messageService.SetCoHostRepo(coHostRepo)
+	userService.SetCoHostRepo(coHostRepo)
 	supportService.SetNotifier(notificationService)
 
 	// Handlers
@@ -107,8 +114,9 @@ func main() {
 	auth.Post("/login", authHandler.Login)
 	auth.Get("/me", jwtAuth, authHandler.Me)
 
-	// User Profile
+	// User Profile & Search
 	users := api.Group("/users", jwtAuth)
+	users.Get("/search", userHandler.SearchUsers)
 	users.Put("/profile", userHandler.UpdateProfile)
 	users.Post("/skills", userHandler.SetSkills)
 	users.Post("/skills/custom", userHandler.AddCustomSkill)
@@ -126,6 +134,11 @@ func main() {
 	protectedGroups.Post("/", groupHandler.Create)
 	protectedGroups.Put("/:id", groupHandler.Update)
 	protectedGroups.Patch("/:id/status", groupHandler.UpdateStatus)
+	protectedGroups.Post("/:id/cohosts", groupHandler.AddCoHost)
+	protectedGroups.Delete("/:id/cohosts/:userId", groupHandler.RemoveCoHost)
+	protectedGroups.Get("/:id/materials", groupHandler.ListMaterials)
+	protectedGroups.Post("/:id/materials", groupHandler.AddMaterial)
+	protectedGroups.Delete("/:id/materials/:materialId", groupHandler.DeleteMaterial)
 	protectedGroups.Post("/:id/join", membershipHandler.Join)
 	protectedGroups.Post("/:id/feedback", engagementHandler.CreateFeedback)
 	protectedGroups.Get("/:id/messages", messageHandler.GetMessages)
