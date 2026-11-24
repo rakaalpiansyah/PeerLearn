@@ -20,6 +20,7 @@ type CreateGroupRequest struct {
 	StartTime       time.Time   `json:"start_time"`
 	EndTime         time.Time   `json:"end_time"`
 	MaxCapacity     int         `json:"max_capacity"`
+	StudyRequestID  *uuid.UUID  `json:"study_request_id,omitempty"`
 }
 
 type UpdateGroupRequest struct {
@@ -36,6 +37,7 @@ type UpdateGroupRequest struct {
 	StartTime       time.Time   `json:"start_time"`
 	EndTime         time.Time   `json:"end_time"`
 	MaxCapacity     int         `json:"max_capacity"`
+	StudyRequestID  *uuid.UUID  `json:"study_request_id,omitempty"`
 }
 
 type GroupFilter struct {

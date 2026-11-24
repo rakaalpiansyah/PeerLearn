@@ -19,12 +19,13 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
-  SlidersHorizontal,
+  MessageSquarePlus,
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { GroupCard } from "../components/groups/GroupCard";
+import { StudyRequestBoard } from "../components/requests/StudyRequestBoard";
 import { LoadError } from "../components/ui/LoadError";
 import { groupApi, systemApi } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -43,6 +44,8 @@ export function HomePage({
   onOpenGroupDetail,
   onOpenTutorSummary,
   onOpenPublicProfile,
+  onOpenGroupById,
+  onFulfillStudyRequest,
 }) {
   const { user, isAuthenticated } = useAuth();
   const [groups, setGroups] = useState([]);
@@ -567,39 +570,42 @@ export function HomePage({
         {/* Unified Filter & Mode Control Bar */}
         <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            {/* Catalog Mode Tabs (All vs Smart Recommendations) */}
-            {isAuthenticated ? (
-              <div className="grid grid-cols-2 sm:inline-flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/80 w-full sm:w-fit">
+            {/* Catalog Mode Tabs (All vs Smart Recommendations vs Study Request Board) */}
+            <div className="flex items-center overflow-x-auto gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/80 w-full sm:w-fit">
+              <button
+                type="button"
+                aria-pressed={catalogView === "all"}
+                onClick={() => setCatalogView("all")}
+                className={`min-h-[36px] shrink-0 whitespace-nowrap flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  catalogView === "all"
+                    ? "bg-emerald-700 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                <span>Semua Sesi</span>
+              </button>
+
+              {isAuthenticated && (
                 <button
                   type="button"
-                  onClick={() => setCatalogView("all")}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    catalogView === "all"
-                      ? "bg-emerald-700 text-white shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                  <span>Semua Sesi</span>
-                </button>
-                <button
-                  type="button"
+                  aria-pressed={catalogView === "recommendations"}
                   onClick={() => {
                     setCatalogView("recommendations");
                     fetchRecommendations();
                   }}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  className={`min-h-[36px] shrink-0 whitespace-nowrap flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     catalogView === "recommendations"
                       ? "bg-emerald-700 text-white shadow-2xs"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5 shrink-0 text-current" />
+                  <Sparkles className="w-3.5 h-3.5 shrink-0 text-current" aria-hidden="true" />
                   <span className="sm:hidden">Rekomendasi</span>
                   <span className="hidden sm:inline">Direkomendasikan Untuk Anda</span>
                   {recommendations.length > 0 && (
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold shrink-0 ${
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold shrink-0 tabular-nums ${
                         catalogView === "recommendations"
                           ? "bg-white/20 text-white"
                           : "bg-emerald-100 text-emerald-800"
@@ -609,52 +615,63 @@ export function HomePage({
                     </span>
                   )}
                 </button>
-              </div>
-            ) : (
-              <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600" />
-                Filter Rumpun Ilmu & Format Sesi
-              </span>
-            )}
+              )}
 
-            {/* Format Toggle (All / Online / Offline) */}
-            <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80 shrink-0 w-full sm:w-fit">
               <button
                 type="button"
-                onClick={() => handleFormatChange("all")}
-                className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
-                  activeFormat === "all"
-                    ? "bg-white text-slate-900 font-semibold shadow-2xs"
+                aria-pressed={catalogView === "requests"}
+                onClick={() => setCatalogView("requests")}
+                className={`min-h-[36px] shrink-0 whitespace-nowrap flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  catalogView === "requests"
+                    ? "bg-emerald-700 text-white shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                Semua
-              </button>
-              <button
-                type="button"
-                onClick={() => handleFormatChange("online")}
-                className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                  activeFormat === "online"
-                    ? "bg-white text-emerald-800 font-semibold shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Video className="w-3 h-3 text-emerald-600 shrink-0" />
-                <span>Daring</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleFormatChange("offline")}
-                className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                  activeFormat === "offline"
-                    ? "bg-white text-emerald-800 font-semibold shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                <span>Luring</span>
+                <MessageSquarePlus className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                <span>Usulan Topik</span>
               </button>
             </div>
+
+            {/* Format Toggle (All / Online / Offline) */}
+            {catalogView !== "requests" && (
+              <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80 shrink-0 w-full sm:w-fit">
+                <button
+                  type="button"
+                  onClick={() => handleFormatChange("all")}
+                  className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                    activeFormat === "all"
+                      ? "bg-white text-slate-900 font-semibold shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Semua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormatChange("online")}
+                  className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                    activeFormat === "online"
+                      ? "bg-white text-emerald-800 font-semibold shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Video className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span>Daring</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormatChange("offline")}
+                  className={`min-h-[32px] px-3 py-1 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                    activeFormat === "offline"
+                      ? "bg-white text-emerald-800 font-semibold shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span>Luring</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Collapsible Category Chips (No Horizontal Overflow!) */}
@@ -697,7 +714,19 @@ export function HomePage({
           )}
         </div>
 
-        {catalogView === "recommendations" ? (
+        {catalogView === "requests" ? (
+          <StudyRequestBoard
+            onOpenAuth={onOpenAuth}
+            onFulfillRequest={(req) => {
+              if (onFulfillStudyRequest) {
+                onFulfillStudyRequest(req);
+              } else {
+                onOpenCreateGroup?.();
+              }
+            }}
+            onOpenGroupById={onOpenGroupById}
+          />
+        ) : catalogView === "recommendations" ? (
           /* Smart Recommendations View */
           <div className="space-y-4">
             <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

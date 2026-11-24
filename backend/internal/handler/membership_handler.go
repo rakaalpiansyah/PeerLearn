@@ -63,8 +63,13 @@ func (h *MembershipHandler) Join(c *fiber.Ctx) error {
 		))
 	}
 
+	msg := "Permintaan bergabung berhasil dikirim ke penyelenggara!"
+	if membership != nil && membership.Status == domain.MembershipWaitlisted {
+		msg = "Kuota sesi penuh. Anda berhasil masuk ke daftar tunggu dan akan diproses otomatis jika ada kursi kosong."
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(domain.SuccessResponse(
-		"Permintaan bergabung berhasil dikirim ke penyelenggara!",
+		msg,
 		membership,
 	))
 }

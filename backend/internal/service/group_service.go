@@ -35,6 +35,7 @@ type GroupService interface {
 	SetNotifier(notifier NotificationDispatcher)
 	SetCoHostRepo(repo repository.GroupCoHostRepository)
 	SetMaterialRepo(repo repository.GroupMaterialRepository)
+	SetStudyRequestFulfiller(fulfiller StudyRequestFulfiller)
 	Create(ctx context.Context, hostID uuid.UUID, req domain.CreateGroupRequest) (*domain.GroupResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, currentUserID *uuid.UUID) (*domain.GroupResponse, error)
 	List(ctx context.Context, filter domain.GroupFilter, currentUserID *uuid.UUID) ([]domain.GroupResponse, error)
@@ -53,12 +54,17 @@ type GroupService interface {
 }
 
 type groupService struct {
-	groupRepo      repository.GroupRepository
-	userRepo       repository.UserRepository
-	membershipRepo repository.MembershipRepository
-	coHostRepo     repository.GroupCoHostRepository
-	materialRepo   repository.GroupMaterialRepository
-	notifier       NotificationDispatcher
+	groupRepo             repository.GroupRepository
+	userRepo              repository.UserRepository
+	membershipRepo        repository.MembershipRepository
+	coHostRepo            repository.GroupCoHostRepository
+	materialRepo          repository.GroupMaterialRepository
+	studyRequestFulfiller StudyRequestFulfiller
+	notifier              NotificationDispatcher
+}
+
+func (s *groupService) SetStudyRequestFulfiller(fulfiller StudyRequestFulfiller) {
+	s.studyRequestFulfiller = fulfiller
 }
 
 func (s *groupService) SetNotifier(notifier NotificationDispatcher) {
@@ -158,6 +164,10 @@ func (s *groupService) Create(ctx context.Context, hostID uuid.UUID, req domain.
 
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, fmt.Errorf("groupService.Create: %w", err)
+	}
+
+	if req.StudyRequestID != nil && *req.StudyRequestID != uuid.Nil && s.studyRequestFulfiller != nil {
+		_ = s.studyRequestFulfiller.FulfillFromGroup(ctx, *req.StudyRequestID, group.ID, group.Title, hostID)
 	}
 
 	return s.groupRepo.FindByID(ctx, group.ID)
@@ -467,7 +477,7 @@ func (s *groupService) GetRecommendations(ctx context.Context, userID uuid.UUID)
 	if s.membershipRepo != nil {
 		if mems, mErr := s.membershipRepo.ListByUser(ctx, userID); mErr == nil {
 			for _, m := range mems {
-				if m.Status == domain.MembershipPending || m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended {
+				if m.Status == domain.MembershipPending || m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended || m.Status == domain.MembershipWaitlisted {
 					excludedIDs[m.GroupID] = true
 				}
 				if m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended {

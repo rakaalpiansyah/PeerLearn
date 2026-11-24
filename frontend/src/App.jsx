@@ -76,6 +76,7 @@ function AppContent() {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
+  const [prefillStudyRequest, setPrefillStudyRequest] = useState(null);
   const [mySessionsOpen, setMySessionsOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [feedbackGroupId, setFeedbackGroupId] = useState(null);
@@ -271,6 +272,7 @@ function AppContent() {
         onOpenProfile={() => setProfileModalOpen(true)}
         onOpenCreateGroup={() => {
           setEditingGroup(null);
+          setPrefillStudyRequest(null);
           setCreateGroupOpen(true);
         }}
         onOpenGroupDetail={handleOpenGroupDetail}
@@ -278,6 +280,12 @@ function AppContent() {
         onOpenPublicProfile={(userId, initialData) =>
           setPublicProfileTarget({ userId, initialData })
         }
+        onOpenGroupById={(groupId) => openGroupById(groupId, { syncUrl: true })}
+        onFulfillStudyRequest={(reqItem) => {
+          setEditingGroup(null);
+          setPrefillStudyRequest(reqItem);
+          setCreateGroupOpen(true);
+        }}
       />
 
       <AuthModal
@@ -361,9 +369,11 @@ function AppContent() {
           <CreateGroupModal
             isOpen={createGroupOpen}
             editingGroup={editingGroup}
+            prefillRequest={prefillStudyRequest}
             onClose={() => {
               setCreateGroupOpen(false);
               setEditingGroup(null);
+              setPrefillStudyRequest(null);
             }}
             onCreated={() => handleGroupActionComplete()}
           />

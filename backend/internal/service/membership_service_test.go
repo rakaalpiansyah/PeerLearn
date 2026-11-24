@@ -524,10 +524,13 @@ func TestMembershipService_AttendanceTransitionsAndPoints(t *testing.T) {
 		t.Errorf("expected student points 1, got %d", fbRepo.points[studentID])
 	}
 
-	// Attended member still counts toward group capacity
+	// Attended member still counts toward group capacity: new join enters waitlist and accept stays blocked
 	otherJoined, err := svc.JoinGroup(ctx, otherStudentID, groupID)
 	if err != nil {
 		t.Fatalf("other JoinGroup failed: %v", err)
+	}
+	if otherJoined.Status != domain.MembershipWaitlisted {
+		t.Errorf("expected full session join to enter waitlist, got %s", otherJoined.Status)
 	}
 	err = svc.UpdateStatus(ctx, hostID, otherJoined.ID, domain.MembershipAccepted)
 	if !errors.Is(err, service.ErrGroupFull) {
@@ -540,15 +543,15 @@ func TestMembershipService_AttendanceTransitionsAndPoints(t *testing.T) {
 	}
 
 	hostNotifs, _ := notifSvc.ListForUser(ctx, hostID, 10)
-	if len(hostNotifs.Notifications) != 2 {
-		t.Errorf("expected 2 join request notifications for host, got %d", len(hostNotifs.Notifications))
+	if len(hostNotifs.Notifications) != 1 || hostNotifs.Notifications[0].Type != domain.NotificationJoinRequest {
+		t.Errorf("expected 1 join request notification for host while second applicant waits in queue, got %+v", hostNotifs.Notifications)
 	}
 	studentNotifs, _ := notifSvc.ListForUser(ctx, studentID, 10)
 	if len(studentNotifs.Notifications) != 2 {
 		t.Errorf("expected 2 notifications (accepted + attended) for student, got %d", len(studentNotifs.Notifications))
 	}
 	otherNotifs, _ := notifSvc.ListForUser(ctx, otherStudentID, 10)
-	if len(otherNotifs.Notifications) != 1 || otherNotifs.Notifications[0].Type != domain.NotificationMembershipRejected {
-		t.Errorf("expected 1 rejection notification for other student, got %+v", otherNotifs.Notifications)
+	if len(otherNotifs.Notifications) != 2 || otherNotifs.Notifications[0].Type != domain.NotificationMembershipRejected || otherNotifs.Notifications[1].Type != domain.NotificationWaitlistJoined {
+		t.Errorf("expected [rejected, waitlist_joined] notifications for other student, got %+v", otherNotifs.Notifications)
 	}
 }

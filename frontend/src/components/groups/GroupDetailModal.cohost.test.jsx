@@ -159,4 +159,45 @@ describe("GroupDetailModal Phase 4A: Co-Author, Materials Tab, and .ics", () => 
     });
     expect(await screen.findByText("Slide Pertemuan 1")).toBeTruthy();
   });
+
+  it("shows Masuk Daftar Tunggu on full session and displays Keluar dari Antrean once waitlisted", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("peerlearn_token", "student-jwt");
+    vi.spyOn(authApi, "getMe").mockResolvedValue({
+      success: true,
+      data: { id: "student-3", full_name: "Siti Aminah", role: "student" },
+    });
+    const joinSpy = vi
+      .spyOn(await import("../../api/client").then((m) => m.membershipApi), "join")
+      .mockResolvedValue({
+        success: true,
+        data: { id: "mem-w1", group_id: "group-cohost-1", status: "waitlisted" },
+      });
+
+    await renderWithSession({
+      ...baseGroup,
+      current_members: 10,
+      max_capacity: 10,
+    });
+
+    const waitlistBtn = await screen.findByRole("button", {
+      name: "Masuk Daftar Tunggu",
+    });
+    await user.click(waitlistBtn);
+    expect(joinSpy).toHaveBeenCalledWith("group-cohost-1");
+    expect(
+      await screen.findByText(/Anda masuk daftar tunggu/i)
+    ).toBeTruthy();
+
+    cleanup();
+    await renderWithSession({
+      ...baseGroup,
+      current_members: 10,
+      max_capacity: 10,
+      user_membership: "waitlisted",
+    });
+    expect(
+      await screen.findByRole("button", { name: "Keluar dari Antrean" })
+    ).toBeTruthy();
+  });
 });

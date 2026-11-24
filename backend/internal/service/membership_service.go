@@ -18,6 +18,7 @@ type MySessionsResponse struct {
 type MembershipService interface {
 	SetNotifier(notifier NotificationDispatcher)
 	SetCoHostRepo(repo repository.GroupCoHostRepository)
+	SetWaitlistRepo(repo repository.WaitlistRepository)
 	JoinGroup(ctx context.Context, userID, groupID uuid.UUID) (*domain.Membership, error)
 	UpdateStatus(ctx context.Context, callerID, membershipID uuid.UUID, status domain.MembershipStatus) error
 	GetGroupMembers(ctx context.Context, groupID, callerID uuid.UUID) ([]domain.Membership, error)
@@ -26,6 +27,7 @@ type MembershipService interface {
 
 type membershipService struct {
 	membershipRepo repository.MembershipRepository
+	waitlistRepo   repository.WaitlistRepository
 	groupRepo      repository.GroupRepository
 	feedbackRepo   repository.FeedbackRepository
 	userRepo       repository.UserRepository
@@ -39,6 +41,10 @@ func (s *membershipService) SetNotifier(notifier NotificationDispatcher) {
 
 func (s *membershipService) SetCoHostRepo(repo repository.GroupCoHostRepository) {
 	s.coHostRepo = repo
+}
+
+func (s *membershipService) SetWaitlistRepo(repo repository.WaitlistRepository) {
+	s.waitlistRepo = repo
 }
 
 func (s *membershipService) isGroupManager(ctx context.Context, group *domain.GroupResponse, callerID uuid.UUID) bool {
@@ -87,8 +93,13 @@ func NewMembershipService(
 	if len(userRepo) > 0 {
 		uRepo = userRepo[0]
 	}
+	var waitlistRepo repository.WaitlistRepository
+	if w, ok := membershipRepo.(repository.WaitlistRepository); ok {
+		waitlistRepo = w
+	}
 	return &membershipService{
 		membershipRepo: membershipRepo,
+		waitlistRepo:   waitlistRepo,
 		groupRepo:      groupRepo,
 		feedbackRepo:   feedbackRepo,
 		userRepo:       uRepo,
@@ -130,18 +141,31 @@ func (s *membershipService) JoinGroup(ctx context.Context, userID, groupID uuid.
 		return nil, fmt.Errorf("%w: sesi belajar tidak lagi menerima pendaftaran", ErrInvalidInput)
 	}
 
-	if group.CurrentMembers >= group.MaxCapacity {
-		return nil, ErrGroupFull
+	acceptedCount, countErr := s.membershipRepo.CountAccepted(ctx, groupID)
+	if countErr != nil {
+		acceptedCount = group.CurrentMembers
+	}
+	isFull := group.MaxCapacity > 0 && acceptedCount >= group.MaxCapacity
+	targetStatus := domain.MembershipPending
+	if isFull {
+		targetStatus = domain.MembershipWaitlisted
 	}
 
 	existing, err := s.membershipRepo.Find(ctx, groupID, userID)
 	if err == nil && existing != nil {
 		if existing.Status == domain.MembershipCancelled {
-			if err := s.membershipRepo.UpdateStatus(ctx, existing.ID, domain.MembershipPending); err != nil {
+			if err := s.membershipRepo.UpdateStatus(ctx, existing.ID, targetStatus); err != nil {
 				return nil, fmt.Errorf("membershipService.JoinGroup rejoin: %w", err)
 			}
-			existing.Status = domain.MembershipPending
-			s.notifyManagers(ctx, group, domain.NotificationJoinRequest, "Permintaan Bergabung Ulang", fmt.Sprintf("%s mengajukan ulang permohonan bergabung ke sesi %q.", joinerName, group.Title))
+			existing.Status = targetStatus
+			if targetStatus == domain.MembershipWaitlisted {
+				if s.notifier != nil {
+					gid := group.ID
+					_ = s.notifier.Notify(ctx, userID, domain.NotificationWaitlistJoined, "Masuk Daftar Tunggu", fmt.Sprintf("Kuota sesi %q sedang penuh. Anda masuk daftar tunggu dan akan diproses otomatis bila ada kursi kosong.", group.Title), &gid)
+				}
+			} else {
+				s.notifyManagers(ctx, group, domain.NotificationJoinRequest, "Permintaan Bergabung Ulang", fmt.Sprintf("%s mengajukan ulang permohonan bergabung ke sesi %q.", joinerName, group.Title))
+			}
 			return existing, nil
 		}
 		return nil, repository.ErrAlreadyJoined
@@ -151,21 +175,28 @@ func (s *membershipService) JoinGroup(ctx context.Context, userID, groupID uuid.
 		ID:      uuid.New(),
 		GroupID: groupID,
 		UserID:  userID,
-		Status:  domain.MembershipPending,
+		Status:  targetStatus,
 	}
 
 	if err := s.membershipRepo.Create(ctx, m); err != nil {
 		return nil, fmt.Errorf("membershipService.JoinGroup create: %w", err)
 	}
 
-	s.notifyManagers(ctx, group, domain.NotificationJoinRequest, "Permintaan Bergabung Baru", fmt.Sprintf("%s meminta bergabung ke sesi %q.", joinerName, group.Title))
+	if targetStatus == domain.MembershipWaitlisted {
+		if s.notifier != nil {
+			gid := group.ID
+			_ = s.notifier.Notify(ctx, userID, domain.NotificationWaitlistJoined, "Masuk Daftar Tunggu", fmt.Sprintf("Kuota sesi %q sedang penuh. Anda masuk daftar tunggu dan akan diproses otomatis bila ada kursi kosong.", group.Title), &gid)
+		}
+	} else {
+		s.notifyManagers(ctx, group, domain.NotificationJoinRequest, "Permintaan Bergabung Baru", fmt.Sprintf("%s meminta bergabung ke sesi %q.", joinerName, group.Title))
+	}
 
 	return m, nil
 }
 
 func (s *membershipService) UpdateStatus(ctx context.Context, callerID, membershipID uuid.UUID, status domain.MembershipStatus) error {
 	switch status {
-	case domain.MembershipPending, domain.MembershipAccepted, domain.MembershipRejected, domain.MembershipCancelled, domain.MembershipAttended:
+	case domain.MembershipPending, domain.MembershipAccepted, domain.MembershipRejected, domain.MembershipCancelled, domain.MembershipAttended, domain.MembershipWaitlisted:
 	default:
 		return fmt.Errorf("%w: status keanggotaan tidak valid", ErrInvalidInput)
 	}
@@ -209,8 +240,31 @@ func (s *membershipService) UpdateStatus(ctx context.Context, callerID, membersh
 		}
 	}
 
+	wasOccupyingSeat := m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended
+
 	if err := s.membershipRepo.UpdateStatus(ctx, membershipID, status); err != nil {
 		return err
+	}
+
+	if wasOccupyingSeat && (status == domain.MembershipCancelled || status == domain.MembershipRejected) && s.waitlistRepo != nil && group.Status == domain.StatusOpen {
+		acceptedCount, countErr := s.membershipRepo.CountAccepted(ctx, m.GroupID)
+		if countErr == nil && acceptedCount < group.MaxCapacity {
+			if next, wErr := s.waitlistRepo.FindOldestWaitlisted(ctx, m.GroupID); wErr == nil && next != nil {
+				if pErr := s.membershipRepo.UpdateStatus(ctx, next.ID, domain.MembershipPending); pErr == nil {
+					if s.notifier != nil {
+						gid := group.ID
+						_ = s.notifier.Notify(ctx, next.UserID, domain.NotificationWaitlistPromoted, "Slot Sesi Tersedia", fmt.Sprintf("Ada kursi kosong pada sesi %q. Permohonan Anda otomatis dipromosikan dari daftar tunggu ke antrean persetujuan tutor.", group.Title), &gid)
+					}
+					nextName := "Peserta daftar tunggu"
+					if s.userRepo != nil {
+						if nu, uErr := s.userRepo.FindByID(ctx, next.UserID); uErr == nil && nu != nil && nu.FullName != "" {
+							nextName = nu.FullName
+						}
+					}
+					s.notifyManagers(ctx, group, domain.NotificationJoinRequest, "Antrean Daftar Tunggu Naik", fmt.Sprintf("%s naik otomatis dari daftar tunggu karena ada kursi kosong pada sesi %q.", nextName, group.Title))
+				}
+			}
+		}
 	}
 
 	if status == domain.MembershipAccepted && s.feedbackRepo != nil {

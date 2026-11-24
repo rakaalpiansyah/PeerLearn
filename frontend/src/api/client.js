@@ -123,3 +123,9 @@ export const notificationApi = {
   markRead: (id) => apiClient.patch(`/notifications/${id}/read`),
   markAllRead: () => apiClient.patch("/notifications/read-all"),
 };
+
+export const studyRequestApi = {
+  list: (params) => apiClient.get("/study-requests", { params }),
+  create: (payload) => apiClient.post("/study-requests", payload),
+  toggleVote: (requestId) => apiClient.post(`/study-requests/${requestId}/vote`),
+};

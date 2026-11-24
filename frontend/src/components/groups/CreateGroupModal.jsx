@@ -71,6 +71,7 @@ export function CreateGroupModal({
   onClose,
   onCreated,
   editingGroup = null,
+  prefillRequest = null,
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -137,6 +138,22 @@ export function CreateGroupModal({
       setStartTime(startParts.time || "14:00");
       setEndTime(endParts.time || "16:00");
       setMaxCapacity(editingGroup.max_capacity || 5);
+    } else if (prefillRequest) {
+      setTitle(prefillRequest.title || "");
+      setDescription(prefillRequest.description || "");
+      setCategory(prefillRequest.category || "Teknologi");
+      setFormat(prefillRequest.preferred_format || "online");
+      setLocationOrLink("");
+      setBuildingDetails("");
+      setLatitude("");
+      setLongitude("");
+      setMapInputLink("");
+      setAgenda(DEFAULT_AGENDA);
+      setPrerequisites("");
+      setDate("");
+      setStartTime("14:00");
+      setEndTime("16:00");
+      setMaxCapacity(10);
     } else {
       setTitle("");
       setDescription("");
@@ -154,7 +171,7 @@ export function CreateGroupModal({
       setEndTime("16:00");
       setMaxCapacity(5);
     }
-  }, [isOpen, editingGroup, clearErrors]);
+  }, [isOpen, editingGroup, prefillRequest, clearErrors]);
 
   const handlePresetChange = (e) => {
     const selected = CAMPUS_PRESETS.find((p) => p.name === e.target.value);
@@ -299,6 +316,7 @@ export function CreateGroupModal({
         max_capacity: Number(maxCapacity),
         agenda: agenda.filter((item) => item.trim().length > 0),
         prerequisites: prerequisites.trim(),
+        ...(prefillRequest?.id && !editingGroup ? { study_request_id: prefillRequest.id } : {}),
       };
 
       if (format === "offline") {

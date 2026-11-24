@@ -28,6 +28,10 @@ type MembershipRepository interface {
 	CountAccepted(ctx context.Context, groupID uuid.UUID) (int, error)
 }
 
+type WaitlistRepository interface {
+	FindOldestWaitlisted(ctx context.Context, groupID uuid.UUID) (*domain.Membership, error)
+}
+
 type membershipRepository struct {
 	pool *pgxpool.Pool
 }
@@ -199,4 +203,25 @@ func (r *membershipRepository) CountAccepted(ctx context.Context, groupID uuid.U
 		return 0, fmt.Errorf("membershipRepository.CountAccepted: %w", err)
 	}
 	return count, nil
+}
+
+func (r *membershipRepository) FindOldestWaitlisted(ctx context.Context, groupID uuid.UUID) (*domain.Membership, error) {
+	query := `
+		SELECT id, group_id, user_id, status, created_at, updated_at
+		FROM memberships
+		WHERE group_id = $1 AND status = 'waitlisted'
+		ORDER BY updated_at ASC, created_at ASC
+		LIMIT 1
+	`
+	var m domain.Membership
+	err := r.pool.QueryRow(ctx, query, groupID).Scan(
+		&m.ID, &m.GroupID, &m.UserID, &m.Status, &m.CreatedAt, &m.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrMembershipNotFound
+		}
+		return nil, fmt.Errorf("membershipRepository.FindOldestWaitlisted: %w", err)
+	}
+	return &m, nil
 }

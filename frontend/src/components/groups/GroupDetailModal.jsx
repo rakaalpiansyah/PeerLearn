@@ -405,6 +405,13 @@ export function GroupDetailModal({
     try {
       const res = await membershipApi.join(group.id);
       if (res.success) {
+        if (res.data?.status === "waitlisted") {
+          setActionSuccess(
+            "Kuota penuh. Anda masuk daftar tunggu dan akan otomatis diproses jika ada kursi kosong."
+          );
+        } else {
+          setActionSuccess("Permintaan bergabung berhasil dikirim ke penyelenggara.");
+        }
         onActionComplete();
         loadDetails();
       }
@@ -599,6 +606,13 @@ export function GroupDetailModal({
   const timeStr = `${startDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} - ${endDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB`;
 
   const pendingMembers = members.filter((m) => m.status === "pending");
+  const waitlistedMembers = members
+    .filter((m) => m.status === "waitlisted")
+    .sort(
+      (a, b) =>
+        new Date(a.updated_at || a.created_at) -
+        new Date(b.updated_at || b.created_at)
+    );
   const acceptedMembers = members.filter(
     (m) => m.status === "accepted" || m.status === "attended"
   );
@@ -1561,6 +1575,44 @@ export function GroupDetailModal({
                 )}
               </div>
 
+              {isManager && waitlistedMembers.length > 0 && (
+                <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                      Daftar Tunggu Antrean ({waitlistedMembers.length})
+                    </h3>
+                    <span className="text-[11px] text-amber-900">
+                      Dipromosikan otomatis saat ada kursi kosong
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {waitlistedMembers.map((wm, idx) => (
+                      <div
+                        key={wm.id}
+                        className="p-2.5 rounded-lg bg-white border border-amber-200/80 flex items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 tabular-nums shrink-0">
+                            #{idx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-900 truncate">
+                              {wm.user?.full_name || "Peserta Antrean"}
+                            </p>
+                            <p className="text-[10px] text-slate-600 truncate">
+                              {wm.user?.campus_name || "Mahasiswa UIN SGD Bandung"}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-semibold text-amber-900 shrink-0">
+                          Menunggu Kursi
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Feedback & Ratings section */}
               {feedbacks.length > 0 && (
                 <div className="space-y-3 pt-2">
@@ -2159,6 +2211,26 @@ export function GroupDetailModal({
                     <span>Tarik Permohonan</span>
                   </Button>
                 </>
+              ) : userMembership === "waitlisted" ? (
+                <>
+                  <Badge
+                    variant="warning"
+                    className="rounded-xl py-1.5 px-3 text-xs whitespace-nowrap"
+                  >
+                    <span>Masuk Daftar Tunggu</span>
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLeaveGroup}
+                    isLoading={cancellingMembership}
+                    className="min-h-[40px] text-xs text-rose-700 border-rose-200 hover:bg-rose-50 whitespace-nowrap"
+                  >
+                    <XCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <span>Keluar dari Antrean</span>
+                  </Button>
+                </>
               ) : userMembership === "cancelled" ? (
                 <>
                   <span className="text-xs text-slate-500 italic">
@@ -2168,10 +2240,10 @@ export function GroupDetailModal({
                     variant="primary"
                     size="sm"
                     onClick={handleJoin}
-                    disabled={isFull || group.status !== "open"}
+                    disabled={group.status !== "open"}
                     isLoading={joining}
                   >
-                    Daftar Kembali
+                    {isFull ? "Daftar Tunggu Ulang" : "Daftar Kembali"}
                   </Button>
                 </>
               ) : (
@@ -2179,10 +2251,10 @@ export function GroupDetailModal({
                   variant="primary"
                   size="sm"
                   onClick={handleJoin}
-                  disabled={isFull || group.status !== "open"}
+                  disabled={group.status !== "open"}
                   isLoading={joining}
                 >
-                  {isFull ? "Kuota Penuh" : "Minta Bergabung"}
+                  {isFull ? "Masuk Daftar Tunggu" : "Minta Bergabung"}
                 </Button>
               )}
             </div>

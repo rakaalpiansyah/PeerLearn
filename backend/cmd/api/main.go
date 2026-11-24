@@ -65,6 +65,7 @@ func main() {
 	notificationRepo := repository.NewNotificationRepository(db.Pool)
 	coHostRepo := repository.NewGroupCoHostRepository(db.Pool)
 	materialRepo := repository.NewGroupMaterialRepository(db.Pool)
+	studyRequestRepo := repository.NewStudyRequestRepository(db.Pool)
 
 	// Services
 	healthService := service.NewHealthService(healthRepo)
@@ -76,15 +77,18 @@ func main() {
 	messageService := service.NewMessageService(messageRepo, groupRepo, membershipRepo)
 	supportService := service.NewSupportService(supportRepo, userRepo)
 	notificationService := service.NewNotificationService(notificationRepo)
+	studyRequestService := service.NewStudyRequestService(studyRequestRepo, userRepo)
 
 	groupService.SetNotifier(notificationService)
 	groupService.SetCoHostRepo(coHostRepo)
 	groupService.SetMaterialRepo(materialRepo)
+	groupService.SetStudyRequestFulfiller(studyRequestService)
 	membershipService.SetNotifier(notificationService)
 	membershipService.SetCoHostRepo(coHostRepo)
 	messageService.SetCoHostRepo(coHostRepo)
 	userService.SetCoHostRepo(coHostRepo)
 	supportService.SetNotifier(notificationService)
+	studyRequestService.SetNotifier(notificationService)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(healthService)
@@ -96,6 +100,7 @@ func main() {
 	messageHandler := handler.NewMessageHandler(messageService)
 	supportHandler := handler.NewSupportHandler(supportService)
 	notificationHandler := handler.NewNotificationHandler(notificationService)
+	studyRequestHandler := handler.NewStudyRequestHandler(studyRequestService)
 
 	jwtAuth := middleware.JWTMiddleware(cfg.JWTSecret)
 	optionalJWT := middleware.OptionalJWTMiddleware(cfg.JWTSecret)
@@ -128,6 +133,11 @@ func main() {
 	api.Get("/groups/:id", optionalJWT, groupHandler.GetByID)
 	api.Get("/groups/:id/members", optionalJWT, membershipHandler.GetMembers)
 	api.Get("/groups/:id/feedbacks", engagementHandler.GetFeedbacks)
+
+	// Study Request Board
+	api.Get("/study-requests", optionalJWT, studyRequestHandler.List)
+	api.Post("/study-requests", jwtAuth, studyRequestHandler.Create)
+	api.Post("/study-requests/:id/vote", jwtAuth, studyRequestHandler.ToggleVote)
 
 	// Protected Group Actions
 	protectedGroups := api.Group("/groups", jwtAuth)
