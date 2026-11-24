@@ -14,6 +14,8 @@ export function MainLayout({
   onOpenModeration,
   onOpenSupport,
   onOpenGuide,
+  onOpenGroupById,
+  refreshTrigger,
 }) {
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-900">
@@ -33,6 +35,9 @@ export function MainLayout({
         onOpenTutorSummary={onOpenTutorSummary}
         onOpenModeration={onOpenModeration}
         onOpenSupport={onOpenSupport}
+        onOpenGuide={onOpenGuide}
+        onOpenGroupById={onOpenGroupById}
+        refreshTrigger={refreshTrigger}
       />
       <main
         id="main-content"

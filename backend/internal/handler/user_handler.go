@@ -160,3 +160,28 @@ func (h *UserHandler) GetPublicProfile(c *fiber.Ctx) error {
 		profile,
 	))
 }
+
+func (h *UserHandler) VerifySKPI(c *fiber.Ctx) error {
+	targetID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(domain.FailureResponse(
+			"INVALID_UUID",
+			"ID verifikasi SKPI tidak valid",
+			nil,
+		))
+	}
+
+	data, err := h.userService.GetSKPIVerification(c.Context(), targetID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(domain.FailureResponse(
+			"SKPI_NOT_FOUND",
+			"Data verifikasi SKPI tidak ditemukan",
+			nil,
+		))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(domain.SuccessResponse(
+		"Data verifikasi SKPI berhasil diambil",
+		data,
+	))
+}

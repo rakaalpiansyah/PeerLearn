@@ -1,11 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   X,
-  Calendar,
-  Clock,
   MapPin,
   Video,
-  Users,
   Check,
   AlertCircle,
   Plus,
@@ -17,71 +14,64 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   Compass,
+  Building2,
+  FlaskConical,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { groupApi } from "../../api/client";
 import { useFormValidation } from "../../hooks/useFormValidation";
+import {
+  SESSION_CATEGORIES,
+  UIN_CAMPUS_PRESETS,
+  DEFAULT_UIN_COORDS,
+} from "../../data/campusData";
 
-const CATEGORIES = [
-  "Teknologi",
-  "Teknik Elektro",
-  "Teknik Lingkungan",
-  "Matematika",
-  "Fisika",
-  "Kimia",
-  "Biologi",
-  "Agroteknologi",
-  "Sains Data",
-  "Desain",
-  "Bahasa",
-  "Soft Skills",
+const DEFAULT_AGENDA = [
+  "Pengenalan konsep dan materi pokok",
+  "Latihan studi kasus atau bedah soal",
+  "Tanya jawab dan diskusi kendala belajar",
 ];
 
 const CAMPUS_PRESETS = [
-  { name: "Pilih Preset Kampus (Opsional)", lat: null, lng: null },
-  {
-    name: "UIN SGD Bandung: Gedung FST & Lab Kampus 1 Cipadung",
-    lat: -6.931754,
-    lng: 107.717145,
-    building: "Gedung FST Lt. 3 Lab Komputer",
-  },
-  {
-    name: "UIN SGD Bandung: Laboratorium Terpadu MIPA FST",
-    lat: -6.93185,
-    lng: 107.7173,
-    building: "Lab Fisika, Kimia, & Biologi Terpadu",
-  },
-  {
-    name: "UIN SGD Bandung: Perpustakaan Utama Kampus 1",
-    lat: -6.9322,
-    lng: 107.7175,
-    building: "Lt. 2 Area Belajar Mandiri / Diskusi",
-  },
-  {
-    name: "UIN SGD Bandung: Gedung Kuliah Bersama (GKB) Kampus 1",
-    lat: -6.9315,
-    lng: 107.7168,
-    building: "Gazebo & Selasar Diskusi Mahasiswa",
-  },
-  {
-    name: "UIN SGD Bandung: Kampus 2 (Jl. Soekarno-Hatta)",
-    lat: -6.9388,
-    lng: 107.698,
-    building: "Gedung Perkuliahan Kampus 2",
-  },
-  { name: "UI Depok: Perpustakaan Pusat", lat: -6.3653, lng: 106.8315 },
-  { name: "UI Depok: Fasilkom Gedung Baru", lat: -6.3644, lng: 106.8286 },
-  { name: "ITB Bandung: Perpustakaan Pusat", lat: -6.8929, lng: 107.6106 },
-  { name: "UGM Yogyakarta: Perpustakaan Pusat", lat: -7.7713, lng: 110.3775 },
-  { name: "ITS Surabaya: Perpustakaan Pusat", lat: -7.2819, lng: 112.7953 },
-  { name: "Binus Anggrek Jakarta: Kampus Utama", lat: -6.2018, lng: 106.7822 },
-  { name: "Undip Tembalang: Gedung Widya Puraya", lat: -7.0505, lng: 110.4398 },
-  { name: "Unair Surabaya: Kampus B", lat: -7.2842, lng: 112.7582 },
+  { name: "Pilih Preset Kampus UIN SGD (Opsional)", lat: null, lng: null },
+  ...UIN_CAMPUS_PRESETS,
 ];
 
-export function CreateGroupModal({ isOpen, onClose, onCreated }) {
+function PresetIcon({ type }) {
+  switch (type) {
+    case "flask":
+      return <FlaskConical className="w-3 h-3 text-emerald-700 shrink-0" aria-hidden="true" />;
+    case "book":
+      return <BookOpen className="w-3 h-3 text-emerald-700 shrink-0" aria-hidden="true" />;
+    case "compass":
+      return <Compass className="w-3 h-3 text-emerald-700 shrink-0" aria-hidden="true" />;
+    case "mappin":
+      return <MapPin className="w-3 h-3 text-emerald-700 shrink-0" aria-hidden="true" />;
+    default:
+      return <Building2 className="w-3 h-3 text-emerald-700 shrink-0" aria-hidden="true" />;
+  }
+}
+
+function toLocalDateAndTime(isoString) {
+  if (!isoString) return { date: "", time: "" };
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return { date: "", time: "" };
+  const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
+export function CreateGroupModal({
+  isOpen,
+  onClose,
+  onCreated,
+  editingGroup = null,
+}) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Teknologi");
@@ -98,11 +88,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
   const [mapResolveSuccess, setMapResolveSuccess] = useState(null);
   const [mapResolveError, setMapResolveError] = useState(null);
 
-  const [agenda, setAgenda] = useState([
-    "Pengenalan konsep dan materi pokok",
-    "Latihan studi kasus atau live coding",
-    "Tanya jawab dan diskusi kendala praktis",
-  ]);
+  const [agenda, setAgenda] = useState(DEFAULT_AGENDA);
   const [newAgendaItem, setNewAgendaItem] = useState("");
   const [prerequisites, setPrerequisites] = useState("");
 
@@ -117,9 +103,58 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
 
   useEffect(() => {
     clearErrors();
+    setError(null);
     setMapResolveSuccess(null);
     setMapResolveError(null);
-  }, [isOpen, clearErrors]);
+    setLocatingError(null);
+    setNewAgendaItem("");
+
+    if (!isOpen) return;
+
+    if (editingGroup) {
+      const startParts = toLocalDateAndTime(editingGroup.start_time);
+      const endParts = toLocalDateAndTime(editingGroup.end_time);
+      setTitle(editingGroup.title || "");
+      setDescription(editingGroup.description || "");
+      setCategory(editingGroup.category || "Teknologi");
+      setFormat(editingGroup.format || "online");
+      setLocationOrLink(editingGroup.location_or_link || "");
+      setBuildingDetails(editingGroup.building_details || "");
+      setLatitude(
+        editingGroup.latitude != null ? String(editingGroup.latitude) : ""
+      );
+      setLongitude(
+        editingGroup.longitude != null ? String(editingGroup.longitude) : ""
+      );
+      setMapInputLink("");
+      setAgenda(
+        Array.isArray(editingGroup.agenda) && editingGroup.agenda.length > 0
+          ? editingGroup.agenda
+          : DEFAULT_AGENDA
+      );
+      setPrerequisites(editingGroup.prerequisites || "");
+      setDate(startParts.date);
+      setStartTime(startParts.time || "14:00");
+      setEndTime(endParts.time || "16:00");
+      setMaxCapacity(editingGroup.max_capacity || 5);
+    } else {
+      setTitle("");
+      setDescription("");
+      setCategory("Teknologi");
+      setFormat("online");
+      setLocationOrLink("");
+      setBuildingDetails("");
+      setLatitude("");
+      setLongitude("");
+      setMapInputLink("");
+      setAgenda(DEFAULT_AGENDA);
+      setPrerequisites("");
+      setDate("");
+      setStartTime("14:00");
+      setEndTime("16:00");
+      setMaxCapacity(5);
+    }
+  }, [isOpen, editingGroup, clearErrors]);
 
   const handlePresetChange = (e) => {
     const selected = CAMPUS_PRESETS.find((p) => p.name === e.target.value);
@@ -134,7 +169,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
     setLongitude(preset.lng.toString());
     setMapResolveSuccess(`Preset diterapkan: ${preset.name}`);
     setMapResolveError(null);
-    if (!locationOrLink || locationOrLink.includes("UI Depok") || locationOrLink.includes("UIN SGD")) {
+    if (!locationOrLink || locationOrLink.includes("UIN SGD")) {
       setLocationOrLink(preset.name);
     }
     if (preset.building && !buildingDetails) {
@@ -223,6 +258,18 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
     const startDateTime = new Date(`${date}T${startTime}:00`);
     const endDateTime = new Date(`${date}T${endTime}:00`);
     const customErrors = {};
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    if (
+      !editingGroup &&
+      date &&
+      !Number.isNaN(startDateTime.getTime()) &&
+      startDateTime < startOfToday
+    ) {
+      customErrors.group_date = "Tanggal sesi tidak boleh di masa lalu";
+    }
+
     if (
       date &&
       startTime &&
@@ -264,12 +311,14 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
         }
       }
 
-      const res = await groupApi.create(payload);
+      const res = editingGroup
+        ? await groupApi.update(editingGroup.id, payload)
+        : await groupApi.create(payload);
       if (res.success) {
-        onCreated(res.data);
+        onCreated(res.data || (editingGroup ? { ...editingGroup, ...payload } : null));
         onClose();
       } else {
-        throw new Error(res.message || "Gagal membuat sesi");
+        throw new Error(res.message || "Gagal menyimpan sesi belajar");
       }
     } catch (err) {
       setError(err.message || "Terjadi kesalahan saat mempublikasikan sesi");
@@ -281,6 +330,19 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
 
   if (!isOpen) return null;
 
+  const isEditMode = Boolean(editingGroup);
+  const modalTitle = isEditMode
+    ? editingGroup.status === "rejected"
+      ? "Perbaiki & Ajukan Ulang Sesi"
+      : "Edit Detail Sesi Belajar"
+    : "Buka Sesi Belajar Baru";
+
+  const submitLabel = isEditMode
+    ? editingGroup.status === "rejected"
+      ? "Simpan & Ajukan Ulang"
+      : "Simpan Perubahan"
+    : "Ajukan & Publikasikan Sesi";
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} labelledBy="create-group-title">
       <div className="relative w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl bg-white border border-slate-200 shadow-2xl">
@@ -290,10 +352,10 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
               id="create-group-title"
               className="text-lg font-extrabold text-slate-900 tracking-tight"
             >
-              Buka Sesi Belajar Baru
+              {modalTitle}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Bagikan keahlian Anda dan bimbing rekan sebaya tanpa pungutan biaya
+              Bagikan keahlian Anda dan bimbing rekan mahasiswa UIN SGD tanpa pungutan biaya
             </p>
           </div>
           <button
@@ -322,6 +384,13 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
             </div>
           )}
 
+          {isEditMode && editingGroup?.review_note && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs space-y-1">
+              <p className="font-bold">Catatan Revisi Admin:</p>
+              <p className="leading-relaxed">{editingGroup.review_note}</p>
+            </div>
+          )}
+
           <Input
             label="Topik / Judul Sesi Belajar"
             id="group_title"
@@ -338,7 +407,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                 htmlFor="group_category"
                 className="block text-xs font-semibold text-slate-700"
               >
-                Kategori Materi
+                Kategori Materi & Rumpun Ilmu
               </label>
               <select
                 id="group_category"
@@ -346,7 +415,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full min-h-[42px] px-3.5 py-2 text-sm rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 shadow-2xs"
               >
-                {CATEGORIES.map((c) => (
+                {SESSION_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -362,9 +431,9 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                 <button
                   type="button"
                   onClick={() => setFormat("online")}
-                  className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  className={`min-h-[42px] py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                     format === "online"
-                      ? "bg-emerald-50 border-emerald-400 text-emerald-800 shadow-2xs"
+                      ? "bg-emerald-50 border-emerald-400 text-emerald-900 shadow-2xs"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -374,9 +443,9 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                 <button
                   type="button"
                   onClick={() => setFormat("offline")}
-                  className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                  className={`min-h-[42px] py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                     format === "offline"
-                      ? "bg-emerald-50 border-emerald-400 text-emerald-800 shadow-2xs"
+                      ? "bg-emerald-50 border-emerald-400 text-emerald-900 shadow-2xs"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -398,21 +467,21 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
             placeholder={
               format === "online"
                 ? "cth. https://meet.google.com/abc-defg-hij"
-                : "cth. Perpustakaan Pusat UI Depok"
+                : "cth. Perpustakaan Rachmat Djatnika UIN SGD (Kampus 1)"
             }
             required
             value={locationOrLink}
             onChange={(e) => setLocationOrLink(e.target.value)}
-            helperText="Hanya peserta terkonfirmasi yang dapat mengakses detail ini"
+            helperText="Tautan pertemuan dan ruang detail hanya dibuka bagi peserta terkonfirmasi"
           />
 
           {/* Offline Location Extra Settings */}
           {format === "offline" && (
             <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/90 border border-slate-200 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
-                  <MapPin className="w-4 h-4 text-emerald-600" />
-                  <span>Detail Lokasi Luring & Peta Navigasi</span>
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-900">
+                  <MapPin className="w-4 h-4 text-emerald-700" />
+                  <span>Detail Lokasi Luring & Peta Kampus UIN SGD</span>
                 </div>
                 <a
                   href="https://maps.google.com"
@@ -431,19 +500,19 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     <LinkIcon className="w-3.5 h-3.5 text-emerald-700" />
                     Tempel Link Google Maps / Shareloc / Titik Koordinat
                   </span>
-                  <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                     Deteksi Otomatis
                   </span>
                 </label>
 
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Buka Google Maps, klik <em>Bagikan</em>, lalu salin dan tempelkan tautannya di sini (contoh: <code>maps.app.goo.gl/...</code> atau koordinat <code>-6.3653, 106.8315</code>):
+                  Buka Google Maps, klik <em>Bagikan</em>, lalu salin tautannya di sini (contoh: <code>maps.app.goo.gl/...</code> atau koordinat <code>{DEFAULT_UIN_COORDS.lat}, {DEFAULT_UIN_COORDS.lng}</code>):
                 </p>
 
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder="https://maps.app.goo.gl/... atau -6.365300, 106.831500"
+                    placeholder={`https://maps.app.goo.gl/... atau ${DEFAULT_UIN_COORDS.lat}, ${DEFAULT_UIN_COORDS.lng}`}
                     value={mapInputLink}
                     onChange={(e) => {
                       setMapInputLink(e.target.value);
@@ -455,7 +524,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                         handleResolveMapLink(pasted.trim());
                       }
                     }}
-                    className="flex-1 min-h-[38px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
+                    className="flex-1 min-h-[40px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                   />
                   <Button
                     type="button"
@@ -464,15 +533,15 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     onClick={() => handleResolveMapLink()}
                     isLoading={resolvingLink}
                     disabled={!mapInputLink.trim()}
-                    className="shrink-0 text-xs border-slate-300 hover:bg-slate-50 text-slate-700"
+                    className="shrink-0 min-h-[40px] text-xs border-slate-300 hover:bg-slate-50 text-slate-700"
                   >
                     Terapkan
                   </Button>
                 </div>
 
                 {mapResolveSuccess && (
-                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
                     <span>{mapResolveSuccess}</span>
                   </div>
                 )}
@@ -485,10 +554,10 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
               <Input
                 label="Detail Gedung / Lantai / Ruangan"
                 id="building_details"
-                placeholder="cth. Gedung Baru Fasilkom Lt. 2 Ruang 2204 atau Gazebo samping Labkom"
+                placeholder="cth. Gedung FST Lt. 3 Lab Komputer atau GKB Lt. 2"
                 value={buildingDetails}
                 onChange={(e) => setBuildingDetails(e.target.value)}
-                helperText="Petunjuk spesifik agar rekan belajar tidak tersesat di lokasi"
+                helperText="Petunjuk spesifik agar peserta tidak tersesat di area Kampus 1 Cibiru atau Kampus 2 Cimencrang"
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -497,12 +566,12 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     htmlFor="campus_preset"
                     className="block text-xs font-semibold text-slate-700"
                   >
-                    Preset Titik Kampus Populer
+                    Preset Titik Kampus UIN SGD
                   </label>
                   <select
                     id="campus_preset"
                     onChange={handlePresetChange}
-                    className="w-full min-h-[38px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
+                    className="w-full min-h-[40px] px-3 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                   >
                     {CAMPUS_PRESETS.map((p, idx) => (
                       <option key={idx} value={p.name}>
@@ -510,53 +579,6 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                       </option>
                     ))}
                   </select>
-
-                  {/* 1-Click Quick Chips UIN SGD Bandung */}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    <span className="text-[10px] text-slate-400 self-center">
-                      Cepat:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => applyQuickPreset(CAMPUS_PRESETS[1])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
-                      title="UIN SGD Gedung FST & Lab"
-                    >
-                      🏛️ FST UIN SGD
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyQuickPreset(CAMPUS_PRESETS[2])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
-                      title="UIN SGD Laboratorium Terpadu MIPA FST"
-                    >
-                      🔬 Lab MIPA FST
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyQuickPreset(CAMPUS_PRESETS[3])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
-                      title="UIN SGD Perpustakaan Pusat Kampus 1"
-                    >
-                      📚 Perpus UIN SGD
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyQuickPreset(CAMPUS_PRESETS[4])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
-                      title="UIN SGD Gedung Kuliah Bersama (GKB)"
-                    >
-                      🏢 GKB UIN SGD
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyQuickPreset(CAMPUS_PRESETS[5])}
-                      className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-800 text-[10px] font-semibold text-slate-700 transition-colors"
-                      title="UIN SGD Kampus 2 Soekarno-Hatta"
-                    >
-                      📍 Kampus 2 Soetta
-                    </button>
-                  </div>
                 </div>
 
                 <div className="flex flex-col justify-end">
@@ -564,15 +586,32 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     type="button"
                     onClick={handleGetCurrentLocation}
                     disabled={locating}
-                    className="min-h-[38px] px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs text-emerald-700 font-bold inline-flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                    className="min-h-[40px] px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs text-emerald-800 font-bold inline-flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                   >
-                    <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                    <Navigation className="w-3.5 h-3.5 text-emerald-700" />
                     {locating
                       ? "Mendeteksi posisi GPS..."
                       : "Gunakan Lokasi GPS Saya Saat Ini"}
                   </button>
                 </div>
               </div>
+
+              {/* 1-Click Quick Chips UIN SGD Bandung (Kampus 1 & Kampus 2) */}
+              <div className="flex flex-wrap gap-1.5">
+                {UIN_CAMPUS_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => applyQuickPreset(preset)}
+                    className="min-h-[40px] sm:min-h-[36px] px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-emerald-500 hover:bg-slate-50 text-[11px] font-semibold text-slate-700 hover:text-emerald-900 inline-flex items-center gap-1.5 transition-colors"
+                    title={preset.name}
+                  >
+                    <PresetIcon type={preset.icon} />
+                    <span>{preset.shortLabel}</span>
+                  </button>
+                ))}
+              </div>
+
               {locatingError && (
                 <p className="text-xs text-rose-600 font-medium">{locatingError}</p>
               )}
@@ -581,7 +620,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                 <Input
                   label="Latitude"
                   id="geo_lat"
-                  placeholder="-6.365300"
+                  placeholder={DEFAULT_UIN_COORDS.lat}
                   value={latitude}
                   onChange={(e) => {
                     setLatitude(e.target.value);
@@ -591,7 +630,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                 <Input
                   label="Longitude"
                   id="geo_lng"
-                  placeholder="106.831500"
+                  placeholder={DEFAULT_UIN_COORDS.lng}
                   value={longitude}
                   onChange={(e) => {
                     setLongitude(e.target.value);
@@ -671,7 +710,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                   <button
                     type="button"
                     onClick={() => handleRemoveAgenda(idx)}
-                    className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    className="min-w-[32px] min-h-[32px] inline-flex items-center justify-center p-1 text-slate-500 hover:text-rose-700 transition-colors cursor-pointer"
                     aria-label={`Hapus butir agenda ${idx + 1}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -692,7 +731,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                     handleAddAgenda();
                   }
                 }}
-                className="flex-1 min-h-[38px] px-3.5 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 shadow-2xs"
+                className="flex-1 min-h-[40px] px-3.5 py-1.5 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 shadow-2xs"
               />
               <Button
                 type="button"
@@ -700,7 +739,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
                 size="sm"
                 onClick={handleAddAgenda}
                 disabled={!newAgendaItem.trim()}
-                className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                className="min-h-[40px] border-slate-300 text-slate-700 hover:bg-slate-50"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Tambah
@@ -720,7 +759,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
             <textarea
               id="prerequisites"
               rows={2}
-              placeholder="cth. Bawa laptop pribadi dengan baterai penuh, install Node.js v20+, baca modul bab 4..."
+              placeholder="cth. Bawa laptop pribadi atau buku referensi mata kuliah, baca modul bab 4..."
               className="w-full px-3.5 py-2 text-xs rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 placeholder:text-slate-400 shadow-2xs"
               value={prerequisites}
               onChange={(e) => setPrerequisites(e.target.value)}
@@ -788,8 +827,8 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
             />
           </div>
 
-          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 leading-relaxed">
-            Pengajuan sesi belajar akan diperiksa kelengkapannya oleh Admin FST
+          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-950 leading-relaxed">
+            Pengajuan sesi belajar akan diperiksa kelengkapannya oleh Tim Admin UIN SGD
             terlebih dahulu sebelum tampil di katalog mahasiswa.
           </div>
 
@@ -811,7 +850,7 @@ export function CreateGroupModal({ isOpen, onClose, onCreated }) {
               isLoading={loading}
             >
               <Check className="w-4 h-4" />
-              Ajukan & Publikasikan Sesi
+              {submitLabel}
             </Button>
           </div>
         </form>

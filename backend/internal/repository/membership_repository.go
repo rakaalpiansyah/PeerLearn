@@ -194,7 +194,7 @@ func (r *membershipRepository) UpdateStatus(ctx context.Context, id uuid.UUID, s
 
 func (r *membershipRepository) CountAccepted(ctx context.Context, groupID uuid.UUID) (int, error) {
 	var count int
-	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM memberships WHERE group_id = $1 AND status = 'accepted'", groupID).Scan(&count)
+	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM memberships WHERE group_id = $1 AND status IN ('accepted', 'attended')", groupID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("membershipRepository.CountAccepted: %w", err)
 	}

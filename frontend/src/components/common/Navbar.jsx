@@ -14,6 +14,7 @@ import {
 import { Button } from "../ui/Button";
 import { UserAvatar } from "../ui/UserAvatar";
 import { useAuth } from "../../context/AuthContext";
+import { NotificationBell } from "../notifications/NotificationBell";
 
 export function Navbar({
   isBackendOnline,
@@ -25,6 +26,9 @@ export function Navbar({
   onOpenTutorSummary,
   onOpenModeration,
   onOpenSupport,
+  onOpenGuide,
+  onOpenGroupById,
+  refreshTrigger,
 }) {
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -42,36 +46,40 @@ export function Navbar({
                 PeerLearn
               </span>
               <span className="text-[11px] font-medium text-slate-500 leading-tight block truncate mt-0.5">
-                FST UIN SGD Bandung
+                UIN Sunan Gunung Djati Bandung
               </span>
             </div>
           </div>
 
-          {/* Center Nav Links (Desktop) */}
-          <nav
-            aria-label="Navigasi utama"
-            className="hidden lg:flex items-center gap-6 text-xs font-semibold text-slate-600"
-          >
-            <a
-              href="#katalog-sesi"
-              className="hover:text-emerald-700 transition-colors"
+          {/* Center Nav Links (Desktop Guest Only to avoid cluttered authenticated header) */}
+          {!isAuthenticated && (
+            <nav
+              aria-label="Navigasi utama"
+              className="hidden lg:flex items-center gap-6 text-xs font-semibold text-slate-600"
             >
-              Jelajahi Sesi
-            </a>
-            <a
-              href="#komitmen-integritas"
-              className="hover:text-emerald-700 transition-colors"
-            >
-              Tentang Komunitas
-            </a>
-            <button
-              type="button"
-              onClick={onOpenTutorSummary}
-              className="hover:text-emerald-700 transition-colors cursor-pointer"
-            >
-              Panduan SKPI
-            </button>
-          </nav>
+              <a
+                href="#katalog-sesi"
+                className="hover:text-emerald-700 transition-colors"
+              >
+                Jelajahi Sesi
+              </a>
+              <a
+                href="#komitmen-integritas"
+                className="hover:text-emerald-700 transition-colors"
+              >
+                Tentang Komunitas
+              </a>
+              <button
+                type="button"
+                onClick={() =>
+                  onOpenGuide ? onOpenGuide("skpi") : onOpenTutorSummary?.()
+                }
+                className="hover:text-emerald-700 transition-colors cursor-pointer"
+              >
+                Panduan SKPI
+              </button>
+            </nav>
+          )}
 
           {/* Actions */}
           <nav
@@ -147,6 +155,13 @@ export function Navbar({
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-2 pl-1.5 sm:pl-2 md:border-l border-slate-200">
+                  {onOpenGroupById && (
+                    <NotificationBell
+                      onOpenGroupById={onOpenGroupById}
+                      onOpenSupport={onOpenSupport}
+                      refreshTrigger={refreshTrigger}
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={onOpenProfile}
@@ -172,7 +187,7 @@ export function Navbar({
                     type="button"
                     onClick={logout}
                     aria-label="Keluar"
-                    className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+                    className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center p-2 text-slate-600 hover:text-rose-700 hover:bg-slate-100 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                     title="Keluar"
                   >
                     <LogOut className="w-4 h-4" />

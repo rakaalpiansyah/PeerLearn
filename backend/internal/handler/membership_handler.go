@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -85,7 +86,14 @@ func (h *MembershipHandler) GetMembers(c *fiber.Ctx) error {
 		}
 	}
 
-	members, err := h.membershipService.GetGroupMembers(c.Context(), groupID, callerID)
+	var ctx context.Context = c.Context()
+	if roleVal := c.Locals("role"); roleVal != nil {
+		if role, ok := roleVal.(domain.UserRole); ok {
+			ctx = domain.WithViewerRole(ctx, role)
+		}
+	}
+
+	members, err := h.membershipService.GetGroupMembers(ctx, groupID, callerID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(domain.FailureResponse(
 			"FETCH_FAILED",

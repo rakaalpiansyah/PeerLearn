@@ -7,6 +7,7 @@ import { UserAvatar } from "../ui/UserAvatar";
 import { useAuth } from "../../context/AuthContext";
 import { useFormValidation } from "../../hooks/useFormValidation";
 import { compressImageFile } from "../../utils/imageCompressor";
+import { UIN_PROGRAM_OPTIONS } from "../../data/campusData";
 
 export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
   const { user, updateProfile } = useAuth();
@@ -243,25 +244,20 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
           {user?.role === "student" && (
             <>
               <Input
-                label="Institusi & Program Studi FST"
+                label="Institusi, Fakultas & Program Studi UIN SGD"
                 id="edit_campus_name"
                 name="campus_name"
                 error={errors.campus_name}
-                placeholder="cth. UIN SGD Bandung - S1 Teknik Informatika"
+                placeholder="cth. UIN SGD Bandung - FST S1 Teknik Informatika"
                 value={campusName}
                 onChange={(e) => setCampusName(e.target.value)}
-                helperText="Pilih prodi FST atau ketik nama institusi Anda"
-                list="edit-fst-majors-list"
+                helperText="Pilih fakultas/prodi UIN SGD atau ketik nama institusi Anda"
+                list="edit-uin-majors-list"
               />
-              <datalist id="edit-fst-majors-list">
-                <option value="UIN SGD Bandung - S1 Teknik Informatika" />
-                <option value="UIN SGD Bandung - S1 Teknik Elektro" />
-                <option value="UIN SGD Bandung - S1 Teknik Lingkungan" />
-                <option value="UIN SGD Bandung - S1 Matematika" />
-                <option value="UIN SGD Bandung - S1 Fisika" />
-                <option value="UIN SGD Bandung - S1 Kimia" />
-                <option value="UIN SGD Bandung - S1 Biologi" />
-                <option value="UIN SGD Bandung - S1 Agroteknologi" />
+              <datalist id="edit-uin-majors-list">
+                {UIN_PROGRAM_OPTIONS.map((program) => (
+                  <option key={program} value={program} />
+                ))}
               </datalist>
             </>
           )}

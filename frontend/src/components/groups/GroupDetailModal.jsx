@@ -20,10 +20,11 @@ import {
   Lock,
   Compass,
   FileText,
-  Sparkles,
   Pin,
   Reply,
   Smile,
+  Share2,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
@@ -32,6 +33,7 @@ import { UserAvatar } from "../ui/UserAvatar";
 import LinkifiedText from "../common/LinkifiedText";
 import { groupApi, membershipApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import { buildSessionUrl } from "../../utils/sessionRoute";
 
 function formatGoogleCalendarDates(startIso, endIso) {
   const format = (iso) => {
@@ -50,6 +52,7 @@ export function GroupDetailModal({
   onOpenReport,
   onOpenAuth,
   onOpenPublicProfile,
+  onEditGroup,
 }) {
   const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("info"); // 'info' | 'chat'
@@ -57,7 +60,6 @@ export function GroupDetailModal({
   const [feedbacks, setFeedbacks] = useState([]);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loadingMembers, setLoadingMembers] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -72,8 +74,10 @@ export function GroupDetailModal({
   const [rescheduleNextTopic, setRescheduleNextTopic] = useState("");
   const [savingReschedule, setSavingReschedule] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(null);
+  const [pendingGroupStatus, setPendingGroupStatus] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
   const [activeEmojiPicker, setActiveEmojiPicker] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
   const chatBottomRef = useRef(null);
 
   const isHost = isAuthenticated && user?.id === group?.host_id;
@@ -82,11 +86,29 @@ export function GroupDetailModal({
   const userMembership =
     members.find((m) => m.user_id === user?.id)?.status ||
     group?.user_membership;
-  const hasAccessToPrivate = isHost || userMembership === "accepted";
+  const hasAccessToPrivate =
+    isHost ||
+    user?.role === "admin" ||
+    userMembership === "accepted" ||
+    userMembership === "attended";
+
+  const handleCopySessionLink = async () => {
+    if (!group?.id) return;
+    const shareUrl = buildSessionUrl(group.id);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      }
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
+  };
 
   const loadDetails = async () => {
     if (!group?.id) return;
-    setLoadingMembers(true);
     try {
       const [membersRes, feedbacksRes] = await Promise.all([
         groupApi.getMembers(group.id),
@@ -96,8 +118,6 @@ export function GroupDetailModal({
       if (feedbacksRes.success) setFeedbacks(feedbacksRes.data || []);
     } catch {
       // Fail gracefully
-    } finally {
-      setLoadingMembers(false);
     }
   };
 
@@ -181,6 +201,7 @@ export function GroupDetailModal({
     if (isOpen && group) {
       loadDetails();
       setActionError(null);
+      setPendingGroupStatus(null);
       setActiveTab("info");
     }
   }, [isOpen, group]);
@@ -202,7 +223,10 @@ export function GroupDetailModal({
   }, [isOpen, group?.id, hasAccessToPrivate, activeTab]);
 
   useEffect(() => {
-    if (activeTab === "chat" && chatBottomRef.current) {
+    if (
+      activeTab === "chat" &&
+      typeof chatBottomRef.current?.scrollIntoView === "function"
+    ) {
       chatBottomRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, activeTab]);
@@ -338,9 +362,13 @@ export function GroupDetailModal({
 
   const handleMemberStatus = async (membershipId, status) => {
     setUpdatingStatus(membershipId);
+    setActionError(null);
     try {
       const res = await membershipApi.updateStatus(membershipId, status);
       if (res.success) {
+        if (status === "attended") {
+          setActionSuccess("Kehadiran peserta terverifikasi untuk rekap SKPI.");
+        }
         onActionComplete();
         loadDetails();
       }
@@ -355,12 +383,21 @@ export function GroupDetailModal({
     try {
       const res = await groupApi.updateStatus(group.id, status);
       if (res.success) {
+        setPendingGroupStatus(null);
         onActionComplete();
         onClose();
       }
     } catch (err) {
       setActionError(err.message || "Gagal memperbarui status kegiatan");
     }
+  };
+
+  const requestGroupStatusChange = (nextStatus) => {
+    if (nextStatus === "cancelled" || nextStatus === "completed") {
+      setPendingGroupStatus(nextStatus);
+      return;
+    }
+    handleGroupStatus(nextStatus);
   };
 
   const handleSendMessage = async (e) => {
@@ -400,7 +437,10 @@ export function GroupDetailModal({
   const timeStr = `${startDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} - ${endDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB`;
 
   const pendingMembers = members.filter((m) => m.status === "pending");
-  const acceptedMembers = members.filter((m) => m.status === "accepted");
+  const acceptedMembers = members.filter(
+    (m) => m.status === "accepted" || m.status === "attended"
+  );
+  const attendedMembers = members.filter((m) => m.status === "attended");
 
   const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
     group.title
@@ -451,14 +491,37 @@ export function GroupDetailModal({
             </h2>
           </div>
 
-          <button
-            type="button"
-            aria-label="Tutup dialog"
-            onClick={onClose}
-            className="min-w-10 min-h-10 shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleCopySessionLink}
+              aria-label="Salin tautan sesi"
+              className="min-h-[40px] px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-emerald-800 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+            >
+              {copiedLink ? (
+                <>
+                  <CheckCircle2
+                    className="w-3.5 h-3.5 text-emerald-700"
+                    aria-hidden="true"
+                  />
+                  <span>Tersalin</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Salin Tautan</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label="Tutup dialog"
+              onClick={onClose}
+              className="min-w-10 min-h-10 shrink-0 inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Tab Navigation */}
@@ -506,7 +569,7 @@ export function GroupDetailModal({
               <div className="space-y-0.5">
                 <p className="font-bold">Menunggu Verifikasi & Persetujuan Admin</p>
                 <p className="text-[11px] text-amber-800 leading-relaxed">
-                  Pengajuan kegiatan Anda sedang diperiksa oleh Tim Admin FST.
+                  Pengajuan kegiatan Anda sedang diperiksa oleh Tim Admin UIN SGD.
                   Sesi akan otomatis tayang ke mahasiswa lain setelah di-ACC.
                 </p>
               </div>
@@ -537,7 +600,9 @@ export function GroupDetailModal({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={handleOpenReschedule}
+                  onClick={() =>
+                    onEditGroup ? onEditGroup(group) : handleOpenReschedule()
+                  }
                   className="shrink-0 bg-white border-rose-300 text-rose-800 hover:bg-rose-100"
                 >
                   Perbaiki & Ajukan Ulang
@@ -655,7 +720,7 @@ export function GroupDetailModal({
                       </label>
                       <input
                         type="text"
-                        placeholder="cth. Lab Komputer FST Lt. 3 atau https://meet.google.com/..."
+                        placeholder="cth. Perpustakaan Rachmat Djatnika UIN SGD atau https://meet.google.com/..."
                         value={rescheduleLocation}
                         onChange={(e) => setRescheduleLocation(e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
@@ -787,7 +852,8 @@ export function GroupDetailModal({
               </div>
 
               {/* Offline Map Preview & Google Maps Navigation */}
-              {group.format === "offline" &&
+              {hasAccessToPrivate &&
+                group.format === "offline" &&
                 group.latitude !== null &&
                 group.longitude !== null &&
                 group.latitude !== undefined &&
@@ -952,7 +1018,7 @@ export function GroupDetailModal({
                             type="button"
                             size="sm"
                             variant="outline"
-                            onClick={() => handleGroupStatus("cancelled")}
+                            onClick={() => requestGroupStatusChange("cancelled")}
                             className="text-xs text-rose-700 border-rose-200 hover:bg-rose-50"
                           >
                             Batalkan
@@ -962,7 +1028,7 @@ export function GroupDetailModal({
                         <select
                           aria-label="Ubah status sesi belajar"
                           value={group.status}
-                          onChange={(e) => handleGroupStatus(e.target.value)}
+                          onChange={(e) => requestGroupStatusChange(e.target.value)}
                           className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-medium shadow-2xs flex-1 sm:flex-initial focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-700"
                         >
                           <option value="open">Buka (Pendaftaran Aktif)</option>
@@ -973,6 +1039,43 @@ export function GroupDetailModal({
                       )}
                     </div>
                   </div>
+
+                  {pendingGroupStatus && (
+                    <div
+                      role="alert"
+                      className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                    >
+                      <span className="font-medium leading-relaxed">
+                        {pendingGroupStatus === "cancelled"
+                          ? "Konfirmasi pembatalan sesi? Peserta yang sudah terdaftar tidak akan dapat mengikuti pertemuan ini."
+                          : "Tandai sesi ini telah selesai? Setelah selesai, peserta terkonfirmasi dapat memberikan ulasan tutor."}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPendingGroupStatus(null)}
+                        >
+                          Batal
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={
+                            pendingGroupStatus === "cancelled"
+                              ? "danger"
+                              : "primary"
+                          }
+                          onClick={() => handleGroupStatus(pendingGroupStatus)}
+                        >
+                          {pendingGroupStatus === "cancelled"
+                            ? "Ya, Batalkan Sesi"
+                            : "Ya, Tandai Selesai"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {pendingMembers.length === 0 ? (
                     <p className="text-xs text-slate-500 italic">
@@ -1032,6 +1135,11 @@ export function GroupDetailModal({
                   <span>
                     Peserta Terkonfirmasi ({acceptedMembers.length} /{" "}
                     {group.max_capacity})
+                    {attendedMembers.length > 0 && (
+                      <span className="ml-2 text-emerald-700 font-semibold normal-case tracking-normal">
+                        ({attendedMembers.length} hadir)
+                      </span>
+                    )}
                   </span>
                   {isFull && (
                     <span className="text-amber-600 font-semibold">
@@ -1049,25 +1157,55 @@ export function GroupDetailModal({
                     {acceptedMembers.map((m) => (
                       <div
                         key={m.id}
-                        className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2.5"
+                        className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2.5"
                       >
-                        <UserAvatar user={m.user} size="sm" />
-                        <div className="truncate flex-1 min-w-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onOpenPublicProfile &&
-                              m.user?.id &&
-                              onOpenPublicProfile(m.user.id, m.user)
-                            }
-                            className="text-xs font-medium text-slate-800 truncate hover:text-emerald-800 transition-colors text-left block w-full"
-                          >
-                            {m.user?.full_name}
-                          </button>
-                          <p className="text-[10px] text-slate-500 truncate">
-                            {m.user?.campus_name || "Anggota"}
-                          </p>
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <UserAvatar user={m.user} size="sm" />
+                          <div className="truncate flex-1 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onOpenPublicProfile &&
+                                m.user?.id &&
+                                onOpenPublicProfile(m.user.id, m.user)
+                              }
+                              className="text-xs font-medium text-slate-800 truncate hover:text-emerald-800 transition-colors text-left block w-full"
+                            >
+                              {m.user?.full_name}
+                            </button>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {m.user?.campus_name || "Anggota"}
+                            </p>
+                          </div>
                         </div>
+
+                        {m.status === "attended" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-900 border border-emerald-200 shrink-0">
+                            <CheckCircle2
+                              className="w-3 h-3 text-emerald-700"
+                              aria-hidden="true"
+                            />
+                            Hadir (SKPI)
+                          </span>
+                        ) : (
+                          isHost &&
+                          ["open", "ongoing", "completed"].includes(
+                            group.status
+                          ) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              isLoading={updatingStatus === m.id}
+                              onClick={() =>
+                                handleMemberStatus(m.id, "attended")
+                              }
+                              className="text-[11px] px-2.5 py-1 min-h-[36px] shrink-0"
+                            >
+                              Tandai Hadir
+                            </Button>
+                          )
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1157,7 +1295,7 @@ export function GroupDetailModal({
                             <button
                               type="button"
                               onClick={() => handleTogglePin(pinnedMsg.id)}
-                              className="text-[10px] text-slate-500 hover:text-rose-600 px-1.5 py-0.5 rounded hover:bg-rose-50 transition-colors"
+                              className="text-[10px] font-semibold text-amber-900 hover:text-rose-700 px-1.5 py-0.5 rounded hover:bg-amber-100/80 transition-colors"
                               title="Lepas Sematan"
                             >
                               Lepas
@@ -1292,10 +1430,10 @@ export function GroupDetailModal({
                               {msg.reply_to && (
                                 <div
                                   onClick={() => scrollToMessage(msg.reply_to.id)}
-                                  className={`mb-2 p-1.5 rounded-lg border-l-2 text-[10px] cursor-pointer transition-opacity hover:opacity-85 ${
+                                  className={`mb-2 p-2 rounded-lg border text-[10px] cursor-pointer transition-opacity hover:opacity-85 ${
                                     isMe
-                                      ? "bg-emerald-800/80 border-emerald-300 text-emerald-50"
-                                      : "bg-slate-100 border-emerald-600 text-slate-700"
+                                      ? "bg-emerald-800/80 border-emerald-400/50 text-emerald-50"
+                                      : "bg-slate-100 border-emerald-200 text-slate-700"
                                   }`}
                                 >
                                   <div className="font-semibold truncate">

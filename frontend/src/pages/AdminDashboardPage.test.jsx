@@ -209,4 +209,47 @@ describe("Admin dedicated workspace", () => {
     );
     expect(await screen.findByText("Sudah saya ACC sekarang.")).toBeTruthy();
   });
+
+  it("navigates from overview Periksa Detail directly to approvals with that pending session selected", async () => {
+    const secondPending = {
+      ...pendingSession,
+      id: "grp-pending-2",
+      title: "Klinik Riset Hadis & Takhrij Digital",
+      category: "Ushuluddin & Studi Islam",
+    };
+    groupApi.adminList.mockResolvedValue({
+      success: true,
+      data: [pendingSession, secondPending],
+    });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    const sidebar = await screen.findByRole("complementary", {
+      name: "Navigasi ruang admin",
+    });
+    await user.click(
+      within(sidebar).getByRole("button", { name: /Ringkasan/ })
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Ringkasan Operasional Komunitas UIN SGD",
+      })
+    ).toBeTruthy();
+
+    const detailButtons = await screen.findAllByRole("button", {
+      name: "Periksa Detail",
+    });
+    await user.click(detailButtons[1]);
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Antrean Verifikasi & Kurasi Sesi Belajar",
+      })
+    ).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: secondPending.title })
+    ).toBeTruthy();
+  });
 });

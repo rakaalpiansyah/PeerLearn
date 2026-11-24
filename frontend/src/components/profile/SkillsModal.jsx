@@ -16,22 +16,9 @@ import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
 import { userApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import { SESSION_CATEGORIES } from "../../data/campusData";
 
-const CATEGORY_TABS = [
-  "Semua",
-  "Teknologi",
-  "Teknik Elektro",
-  "Teknik Lingkungan",
-  "Matematika",
-  "Fisika",
-  "Kimia",
-  "Biologi",
-  "Agroteknologi",
-  "Sains Data",
-  "Desain",
-  "Bahasa",
-  "Soft Skills",
-];
+const CATEGORY_TABS = ["Semua", ...SESSION_CATEGORIES];
 
 export function SkillsModal({ isOpen, onClose }) {
   const { user, refreshProfile } = useAuth();
@@ -223,7 +210,7 @@ export function SkillsModal({ isOpen, onClose }) {
                 </h2>
                 <div className="flex items-center gap-2 text-[11px] text-slate-500">
                   <span className="font-medium text-emerald-800">
-                    Fakultas Sains & Teknologi • UIN SGD Bandung
+                    UIN Sunan Gunung Djati Bandung
                   </span>
                   <span>•</span>
                   <span>Tutor Sebaya & Kolaborasi Belajar</span>
@@ -292,7 +279,7 @@ export function SkillsModal({ isOpen, onClose }) {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Cari mata kuliah FST UIN SGD atau ketik mata kuliah/keahlian baru..."
+              placeholder="Cari mata kuliah UIN SGD atau ketik topik/keahlian baru..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-9 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700 transition-all"
@@ -453,18 +440,11 @@ export function SkillsModal({ isOpen, onClose }) {
                     onChange={(e) => setCustomCategory(e.target.value)}
                     className="px-2.5 py-2 text-xs rounded-lg bg-white border border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-700"
                   >
-                    <option value="Teknologi">Teknologi (Informatika)</option>
-                    <option value="Teknik Elektro">Teknik Elektro</option>
-                    <option value="Teknik Lingkungan">Teknik Lingkungan</option>
-                    <option value="Matematika">Matematika</option>
-                    <option value="Fisika">Fisika</option>
-                    <option value="Kimia">Kimia</option>
-                    <option value="Biologi">Biologi</option>
-                    <option value="Agroteknologi">Agroteknologi</option>
-                    <option value="Sains Data">Sains Data</option>
-                    <option value="Desain">Desain</option>
-                    <option value="Bahasa">Bahasa</option>
-                    <option value="Soft Skills">Soft Skills</option>
+                    {SESSION_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex items-center justify-end gap-2 pt-1">
@@ -557,7 +537,7 @@ export function SkillsModal({ isOpen, onClose }) {
                             className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
                               status === "mastered"
                                 ? "bg-emerald-700 text-white shadow-xs"
-                                : "bg-slate-100 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
                             }`}
                             title="Tandai sebagai Dikuasai"
                           >
@@ -569,7 +549,7 @@ export function SkillsModal({ isOpen, onClose }) {
                             className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
                               status === "learning"
                                 ? "bg-teal-700 text-white shadow-xs"
-                                : "bg-slate-100 text-slate-600 hover:text-teal-800 hover:bg-teal-50"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
                             }`}
                             title="Tandai sebagai Ingin Dipelajari"
                           >

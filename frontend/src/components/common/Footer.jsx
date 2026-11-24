@@ -15,7 +15,7 @@ export function Footer({ onOpenGuide }) {
                 PeerLearn
               </span>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Kolaborasi Belajar Sebaya Mahasiswa FST UIN SGD Bandung
+                Kolaborasi Belajar Sebaya Mahasiswa UIN SGD Bandung
               </p>
             </div>
           </div>
@@ -57,10 +57,10 @@ export function Footer({ onOpenGuide }) {
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 text-[11px] text-slate-500 text-center sm:text-left">
           <p className="font-medium text-slate-600">
-            © 2026 PeerLearn — Fakultas Sains & Teknologi
+            © 2026 PeerLearn. Platform Kolaborasi Belajar Komunitas Mahasiswa.
           </p>
           <p className="text-slate-600 font-medium">
-            UIN Sunan Gunung Djati Bandung
+            UIN Sunan Gunung Djati Bandung (Kampus 1 Cibiru & Kampus 2 Cimencrang)
           </p>
         </div>
       </div>

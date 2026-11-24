@@ -51,6 +51,28 @@ type PublicProfileResponse struct {
 	CreatedAt          time.Time     `json:"created_at"`
 }
 
+type SKPISessionRecord struct {
+	GroupID       uuid.UUID `json:"group_id"`
+	Title         string    `json:"title"`
+	Category      string    `json:"category"`
+	Role          string    `json:"role"` // "tutor" | "participant"
+	StartTime     time.Time `json:"start_time"`
+	AttendedCount int       `json:"attended_count"`
+}
+
+type SKPIVerificationResponse struct {
+	UserID                uuid.UUID           `json:"user_id"`
+	FullName              string              `json:"full_name"`
+	CampusName            string              `json:"campus_name"`
+	ContributionPoints    int                 `json:"contribution_points"`
+	MasteredSkills        []string            `json:"mastered_skills"`
+	VerifiedHostedCount   int                 `json:"verified_hosted_count"`
+	VerifiedAttendedCount int                 `json:"verified_attended_count"`
+	CompletedSessions     []SKPISessionRecord `json:"completed_sessions"`
+	VerificationCode      string              `json:"verification_code"`
+	Verified              bool                `json:"verified"`
+}
+
 type AuthResponse struct {
 	Token string       `json:"token"`
 	User  UserResponse `json:"user"`

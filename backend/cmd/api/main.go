@@ -62,16 +62,22 @@ func main() {
 	reportRepo := repository.NewReportRepository(db.Pool)
 	messageRepo := repository.NewMessageRepository(db.Pool)
 	supportRepo := repository.NewSupportRepository(db.Pool)
+	notificationRepo := repository.NewNotificationRepository(db.Pool)
 
 	// Services
 	healthService := service.NewHealthService(healthRepo)
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
-	userService := service.NewUserService(userRepo, skillRepo, groupRepo)
-	groupService := service.NewGroupService(groupRepo, userRepo)
+	userService := service.NewUserService(userRepo, skillRepo, groupRepo, membershipRepo)
+	groupService := service.NewGroupServiceWithDeps(groupRepo, userRepo, membershipRepo)
 	membershipService := service.NewMembershipService(membershipRepo, groupRepo, feedbackRepo, userRepo)
-	engagementService := service.NewEngagementService(feedbackRepo, reportRepo, groupRepo, userRepo)
+	engagementService := service.NewEngagementService(feedbackRepo, reportRepo, groupRepo, userRepo, membershipRepo)
 	messageService := service.NewMessageService(messageRepo, groupRepo, membershipRepo)
 	supportService := service.NewSupportService(supportRepo, userRepo)
+	notificationService := service.NewNotificationService(notificationRepo)
+
+	groupService.SetNotifier(notificationService)
+	membershipService.SetNotifier(notificationService)
+	supportService.SetNotifier(notificationService)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(healthService)
@@ -82,8 +88,10 @@ func main() {
 	engagementHandler := handler.NewEngagementHandler(engagementService)
 	messageHandler := handler.NewMessageHandler(messageService)
 	supportHandler := handler.NewSupportHandler(supportService)
+	notificationHandler := handler.NewNotificationHandler(notificationService)
 
 	jwtAuth := middleware.JWTMiddleware(cfg.JWTSecret)
+	optionalJWT := middleware.OptionalJWTMiddleware(cfg.JWTSecret)
 
 	// Routing
 	api := app.Group("/api/v1", middleware.APIRateLimiter())
@@ -91,6 +99,7 @@ func main() {
 	api.Get("/skills", userHandler.GetSkills)
 	api.Get("/users/:id/profile", userHandler.GetPublicProfile)
 	api.Get("/users/:id/public", userHandler.GetPublicProfile)
+	api.Get("/skpi/:id/verify", userHandler.VerifySKPI)
 
 	// Auth Endpoints
 	auth := api.Group("/auth", middleware.AuthRateLimiter())
@@ -107,9 +116,9 @@ func main() {
 	// Public Group Exploration & Smart Recommendations
 	api.Get("/groups/recommendations", jwtAuth, groupHandler.GetRecommendations)
 	api.Post("/groups/resolve-map-link", jwtAuth, groupHandler.ResolveMapLink)
-	api.Get("/groups", groupHandler.List)
-	api.Get("/groups/:id", groupHandler.GetByID)
-	api.Get("/groups/:id/members", membershipHandler.GetMembers)
+	api.Get("/groups", optionalJWT, groupHandler.List)
+	api.Get("/groups/:id", optionalJWT, groupHandler.GetByID)
+	api.Get("/groups/:id/members", optionalJWT, membershipHandler.GetMembers)
 	api.Get("/groups/:id/feedbacks", engagementHandler.GetFeedbacks)
 
 	// Protected Group Actions
@@ -132,6 +141,12 @@ func main() {
 	support := api.Group("/support", jwtAuth)
 	support.Get("/my-thread", supportHandler.GetMyThread)
 	support.Post("/messages", supportHandler.SendStudentMessage)
+
+	// In-App Notifications
+	notifications := api.Group("/notifications", jwtAuth)
+	notifications.Get("/", notificationHandler.List)
+	notifications.Patch("/read-all", notificationHandler.MarkAllRead)
+	notifications.Patch("/:id/read", notificationHandler.MarkRead)
 
 	// Community Safety, Approvals & Shared Admin Inbox
 	api.Post("/reports", jwtAuth, engagementHandler.CreateReport)

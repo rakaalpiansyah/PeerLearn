@@ -81,7 +81,7 @@ export function AdminLayout({
                     }`}
                     aria-hidden="true"
                   />
-                  Ruang Kendali FST
+                  Ruang Kendali UIN SGD
                 </span>
               </div>
               <p className="text-[11px] font-medium text-slate-500 truncate">
@@ -111,7 +111,7 @@ export function AdminLayout({
                   {user?.full_name || "Administrator"}
                 </p>
                 <p className="text-[11px] text-slate-500 truncate">
-                  {user?.email || "Tim Admin FST"}
+                  {user?.email || "Tim Admin UIN SGD"}
                 </p>
               </div>
             </div>
@@ -120,7 +120,7 @@ export function AdminLayout({
               type="button"
               onClick={logout}
               aria-label="Keluar dari akun admin"
-              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-slate-600 hover:text-rose-700 hover:bg-slate-100 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
               title="Keluar"
             >
               <LogOut className="w-4 h-4 shrink-0" />
@@ -201,7 +201,7 @@ export function AdminLayout({
 
           <div className="pt-4 border-t border-slate-200 text-xs text-slate-500 space-y-0.5 px-2">
             <p className="font-semibold text-slate-700">
-              FST UIN Sunan Gunung Djati
+              UIN Sunan Gunung Djati Bandung
             </p>
             <p>Portal Kurasi & Moderasi Akademik</p>
           </div>

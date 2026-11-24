@@ -150,7 +150,7 @@ export function StudentSupportModal({ isOpen, onClose }) {
             <div className="py-10 px-4 text-center rounded-2xl bg-white border border-slate-200 space-y-2">
               <ShieldCheck className="w-8 h-8 text-emerald-700 mx-auto" />
               <h3 className="text-sm font-bold text-slate-900">
-                Mulai Percakapan dengan Tim Admin FST
+                Mulai Percakapan dengan Tim Admin PeerLearn UIN SGD
               </h3>
               <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
                 Kirim pertanyaan Anda terkait pengajuan sesi belajar, revisi
@@ -176,7 +176,7 @@ export function StudentSupportModal({ isOpen, onClose }) {
                       </span>
                     )}
                     <span className="text-[11px] font-semibold text-slate-700">
-                      {isMe ? "Anda" : msg.sender?.full_name || "Admin FST"}
+                      {isMe ? "Anda" : msg.sender?.full_name || "Admin UIN SGD"}
                     </span>
                     <span className="text-[10px] text-slate-500 tabular-nums">
                       {new Date(msg.created_at).toLocaleString("id-ID", {

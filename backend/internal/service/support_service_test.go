@@ -183,3 +183,38 @@ func TestSupportService_StudentAndMultiAdminFlow(t *testing.T) {
 		t.Fatalf("expected reopened thread with 4 messages, got status=%s len=%d", reopened.Status, len(reopened.Messages))
 	}
 }
+
+func TestSupportService_NotifiesStudentOnAdminReply(t *testing.T) {
+	ctx := context.Background()
+	repo := newMockSupportRepo()
+	notifRepo := newMockNotificationRepo()
+	notifSvc := service.NewNotificationService(notifRepo)
+	svc := service.NewSupportService(repo, nil)
+	svc.SetNotifier(notifSvc)
+
+	studentID := uuid.New()
+	adminID := uuid.New()
+
+	msg, err := svc.SendStudentMessage(ctx, studentID, domain.CreateSupportMessageRequest{
+		Subject: "Kendala Cetak SKPI",
+		Message: "Mohon info cetak sertifikat SKPI",
+	})
+	if err != nil {
+		t.Fatalf("SendStudentMessage failed: %v", err)
+	}
+
+	if _, err := svc.AdminReplyMessage(ctx, adminID, msg.ThreadID, "Poin Anda sedang kami verifikasi."); err != nil {
+		t.Fatalf("AdminReplyMessage failed: %v", err)
+	}
+
+	notifs, err := notifSvc.ListForUser(ctx, studentID, 10)
+	if err != nil {
+		t.Fatalf("ListForUser failed: %v", err)
+	}
+	if len(notifs.Notifications) != 1 || notifs.Notifications[0].Type != domain.NotificationSupportReply {
+		t.Fatalf("expected 1 support_reply notification for student, got %+v", notifs.Notifications)
+	}
+	if notifs.Notifications[0].RelatedGroupID != nil {
+		t.Errorf("expected nil RelatedGroupID on support_reply notification")
+	}
+}

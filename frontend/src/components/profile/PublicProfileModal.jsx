@@ -157,7 +157,7 @@ export function PublicProfileModal({
                   {profile.role === "student" ? (
                     <Badge variant="primary" className="text-[10px] py-0.5">
                       <GraduationCap className="w-3 h-3" />
-                      Mahasiswa FST
+                      Mahasiswa UIN SGD
                     </Badge>
                   ) : (
                     <Badge variant="neutral" className="text-[10px] py-0.5">
@@ -178,7 +178,7 @@ export function PublicProfileModal({
                 </div>
 
                 <p className="text-xs text-slate-600 leading-relaxed mb-2">
-                  {profile.campus_name || "Fakultas Sains & Teknologi • UIN SGD Bandung"}
+                  {profile.campus_name || "UIN Sunan Gunung Djati Bandung"}
                 </p>
 
                 <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold">

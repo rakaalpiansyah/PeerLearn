@@ -95,7 +95,8 @@ func (r *groupRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.G
 			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
 			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
-			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
+			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status IN ('accepted', 'attended')) as member_count,
+			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'attended') as attended_count
 		FROM learning_groups g
 		JOIN users u ON g.host_id = u.id
 		WHERE g.id = $1
@@ -135,6 +136,7 @@ func (r *groupRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.G
 		&host.ContributionPoints,
 		&host.CreatedAt,
 		&resp.CurrentMembers,
+		&resp.AttendedCount,
 	)
 
 	if err != nil {
@@ -166,7 +168,7 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
 			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
-			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
+			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status IN ('accepted', 'attended')) as member_count
 	`)
 
 	if currentUserID != nil {
@@ -187,6 +189,9 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 
 	if !filter.IncludeUnapproved {
 		sb.WriteString(" AND g.status NOT IN ('pending_approval', 'rejected')")
+		if filter.Status == "" {
+			sb.WriteString(" AND g.status IN ('open', 'ongoing') AND g.end_time > NOW()")
+		}
 	}
 
 	if filter.Category != "" && filter.Category != "Semua" {
@@ -375,7 +380,8 @@ func (r *groupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) ([]d
 			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
 			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
-			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
+			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status IN ('accepted', 'attended')) as member_count,
+			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'attended') as attended_count
 		FROM learning_groups g
 		JOIN users u ON g.host_id = u.id
 		WHERE g.host_id = $1
@@ -423,6 +429,7 @@ func (r *groupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) ([]d
 			&host.ContributionPoints,
 			&host.CreatedAt,
 			&g.CurrentMembers,
+			&g.AttendedCount,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("groupRepository.ListByHost.Scan: %w", err)
@@ -447,7 +454,7 @@ func (r *groupRepository) FindRecommendations(ctx context.Context, userID uuid.U
 			g.location_or_link, g.latitude, g.longitude, g.building_details, g.agenda, g.prerequisites,
 			g.start_time, g.end_time, g.max_capacity, g.status, g.created_at,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
-			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count,
+			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status IN ('accepted', 'attended')) as member_count,
 			COALESCE(
 				(SELECT s.name 
 				 FROM user_skills us_host 
@@ -486,9 +493,9 @@ func (r *groupRepository) FindRecommendations(ctx context.Context, userID uuid.U
 		      SELECT 1 FROM memberships m 
 		      WHERE m.group_id = g.id 
 		        AND m.user_id = $1 
-		        AND m.status IN ('accepted', 'pending')
+		        AND m.status IN ('accepted', 'pending', 'attended')
 		  )
-		  AND (SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') < g.max_capacity
+		  AND (SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status IN ('accepted', 'attended')) < g.max_capacity
 		ORDER BY 
 		    CASE 
 		        WHEN EXISTS (

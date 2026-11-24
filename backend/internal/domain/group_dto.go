@@ -63,6 +63,7 @@ type GroupResponse struct {
 	EndTime         time.Time         `json:"end_time"`
 	MaxCapacity     int               `json:"max_capacity"`
 	CurrentMembers  int               `json:"current_members"`
+	AttendedCount   int               `json:"attended_count,omitempty"`
 	Status          GroupStatus       `json:"status"`
 	ReviewNote      string            `json:"review_note,omitempty"`
 	ReviewedBy      *uuid.UUID        `json:"reviewed_by,omitempty"`

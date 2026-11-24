@@ -32,21 +32,30 @@ func (m *mockGroupRepository) FindByID(ctx context.Context, id uuid.UUID) (*doma
 	if !ok {
 		return nil, repository.ErrGroupNotFound
 	}
+	var hostResp *domain.UserResponse
+	if g.Host != nil {
+		u := domain.ToUserResponse(g.Host, nil)
+		hostResp = &u
+	}
 	return &domain.GroupResponse{
-		ID:             g.ID,
-		HostID:         g.HostID,
-		Title:          g.Title,
-		Description:    g.Description,
-		Category:       g.Category,
-		Format:         g.Format,
-		LocationOrLink: g.LocationOrLink,
-		StartTime:      g.StartTime,
-		EndTime:        g.EndTime,
-		MaxCapacity:    g.MaxCapacity,
-		Status:         g.Status,
-		ReviewNote:     g.ReviewNote,
-		ReviewedBy:     g.ReviewedBy,
-		ReviewedAt:     g.ReviewedAt,
+		ID:              g.ID,
+		HostID:          g.HostID,
+		Title:           g.Title,
+		Description:     g.Description,
+		Category:        g.Category,
+		Format:          g.Format,
+		LocationOrLink:  g.LocationOrLink,
+		Latitude:        g.Latitude,
+		Longitude:       g.Longitude,
+		BuildingDetails: g.BuildingDetails,
+		StartTime:       g.StartTime,
+		EndTime:         g.EndTime,
+		MaxCapacity:     g.MaxCapacity,
+		Status:          g.Status,
+		ReviewNote:      g.ReviewNote,
+		ReviewedBy:      g.ReviewedBy,
+		ReviewedAt:      g.ReviewedAt,
+		Host:            hostResp,
 	}, nil
 }
 
@@ -56,13 +65,24 @@ func (m *mockGroupRepository) List(ctx context.Context, filter domain.GroupFilte
 		if !filter.IncludeUnapproved && (g.Status == domain.StatusPendingApproval || g.Status == domain.StatusRejected) {
 			continue
 		}
+		var hostResp *domain.UserResponse
+		if g.Host != nil {
+			u := domain.ToUserResponse(g.Host, nil)
+			hostResp = &u
+		}
 		list = append(list, domain.GroupResponse{
-			ID:          g.ID,
-			HostID:      g.HostID,
-			Title:       g.Title,
-			MaxCapacity: g.MaxCapacity,
-			Status:      g.Status,
-			ReviewNote:  g.ReviewNote,
+			ID:              g.ID,
+			HostID:          g.HostID,
+			Title:           g.Title,
+			Format:          g.Format,
+			LocationOrLink:  g.LocationOrLink,
+			Latitude:        g.Latitude,
+			Longitude:       g.Longitude,
+			BuildingDetails: g.BuildingDetails,
+			MaxCapacity:     g.MaxCapacity,
+			Status:          g.Status,
+			ReviewNote:      g.ReviewNote,
+			Host:            hostResp,
 		})
 	}
 	return list, nil
@@ -271,52 +291,52 @@ func TestGroupService_ResolveMapLink(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Direct coordinates with space", func(t *testing.T) {
-		res, err := svc.ResolveMapLink(ctx, "-6.365300, 106.831500")
+		res, err := svc.ResolveMapLink(ctx, "-6.931754, 107.717145")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if res.Latitude != -6.3653 || res.Longitude != 106.8315 {
-			t.Errorf("expected lat -6.3653, lng 106.8315, got %f, %f", res.Latitude, res.Longitude)
+		if res.Latitude != -6.931754 || res.Longitude != 107.717145 {
+			t.Errorf("expected lat -6.931754, lng 107.717145, got %f, %f", res.Latitude, res.Longitude)
 		}
 	})
 
 	t.Run("Direct coordinates without space", func(t *testing.T) {
-		res, err := svc.ResolveMapLink(ctx, "-6.892900,107.610600")
+		res, err := svc.ResolveMapLink(ctx, "-6.938800,107.698000")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if res.Latitude != -6.8929 || res.Longitude != 107.6106 {
-			t.Errorf("expected lat -6.8929, lng 107.6106, got %f, %f", res.Latitude, res.Longitude)
+		if res.Latitude != -6.9388 || res.Longitude != 107.698 {
+			t.Errorf("expected lat -6.9388, lng 107.698, got %f, %f", res.Latitude, res.Longitude)
 		}
 	})
 
 	t.Run("Google Maps Place URL with coordinates and place name", func(t *testing.T) {
-		url := "https://www.google.com/maps/place/Perpustakaan+Pusat+UI/@-6.365300,106.831500,17z/data=!3m1!4b1"
+		url := "https://www.google.com/maps/place/Perpustakaan+Rachmat+Djatnika+UIN+SGD/@-6.932200,107.717500,17z/data=!3m1!4b1"
 		res, err := svc.ResolveMapLink(ctx, url)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if res.Latitude != -6.3653 || res.Longitude != 106.8315 {
-			t.Errorf("expected lat -6.3653, lng 106.8315, got %f, %f", res.Latitude, res.Longitude)
+		if res.Latitude != -6.9322 || res.Longitude != 107.7175 {
+			t.Errorf("expected lat -6.9322, lng 107.7175, got %f, %f", res.Latitude, res.Longitude)
 		}
-		if res.PlaceName != "Perpustakaan Pusat UI" {
-			t.Errorf("expected place 'Perpustakaan Pusat UI', got '%s'", res.PlaceName)
+		if res.PlaceName != "Perpustakaan Rachmat Djatnika UIN SGD" {
+			t.Errorf("expected place 'Perpustakaan Rachmat Djatnika UIN SGD', got '%s'", res.PlaceName)
 		}
 	})
 
 	t.Run("Google Maps Query URL with q parameter", func(t *testing.T) {
-		url := "https://maps.google.com/?q=-6.364400,106.828600"
+		url := "https://maps.google.com/?q=-6.931754,107.717145"
 		res, err := svc.ResolveMapLink(ctx, url)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if res.Latitude != -6.3644 || res.Longitude != 106.8286 {
-			t.Errorf("expected lat -6.3644, lng 106.8286, got %f, %f", res.Latitude, res.Longitude)
+		if res.Latitude != -6.931754 || res.Longitude != 107.717145 {
+			t.Errorf("expected lat -6.931754, lng 107.717145, got %f, %f", res.Latitude, res.Longitude)
 		}
 	})
 
 	t.Run("SSRF protection: rejects non-google domains", func(t *testing.T) {
-		url := "https://evil-hacker.com/steal?q=-6.364400,106.828600"
+		url := "https://evil-hacker.com/steal?q=-6.931754,107.717145"
 		_, err := svc.ResolveMapLink(ctx, url)
 		if err == nil {
 			t.Fatal("expected error for non-google domain, got nil")
@@ -329,4 +349,171 @@ func TestGroupService_ResolveMapLink(t *testing.T) {
 			t.Fatal("expected error for empty string, got nil")
 		}
 	})
+}
+
+func TestGroupService_PrivacyMasking(t *testing.T) {
+	ctx := context.Background()
+	groupRepo := newMockGroupRepository()
+	userRepo := newMockUserRepository()
+	memRepo := newFullMockMembershipRepo()
+
+	hostID := uuid.New()
+	acceptedID := uuid.New()
+	pendingID := uuid.New()
+	adminID := uuid.New()
+	lat := -6.931754
+	lng := 107.717145
+
+	hostUser := &domain.User{
+		ID: hostID, Email: "host@student.uinsgd.ac.id", FullName: "Tutor FST", Role: domain.RoleStudent,
+	}
+	_ = userRepo.Create(ctx, hostUser)
+
+	onlineID := uuid.New()
+	offlineID := uuid.New()
+
+	_ = groupRepo.Create(ctx, &domain.LearningGroup{
+		ID: onlineID, HostID: hostID, Title: "Kelas Online Rahasia", Format: domain.FormatOnline,
+		LocationOrLink: "https://meet.google.com/secret-room", Status: domain.StatusOpen, Host: hostUser,
+	})
+	_ = groupRepo.Create(ctx, &domain.LearningGroup{
+		ID: offlineID, HostID: hostID, Title: "Kelas Offline Cibiru", Format: domain.FormatOffline,
+		LocationOrLink: "Gedung FST Kampus 1 Cibiru", BuildingDetails: "Lab 302",
+		Latitude: &lat, Longitude: &lng, Status: domain.StatusOpen, Host: hostUser,
+	})
+
+	_ = memRepo.Create(ctx, &domain.Membership{
+		ID: uuid.New(), GroupID: onlineID, UserID: acceptedID, Status: domain.MembershipAccepted,
+	})
+	_ = memRepo.Create(ctx, &domain.Membership{
+		ID: uuid.New(), GroupID: onlineID, UserID: pendingID, Status: domain.MembershipPending,
+	})
+
+	svc := service.NewGroupServiceWithDeps(groupRepo, userRepo, memRepo)
+
+	// Guest cannot see online link, offline room/coords, or host email
+	guestOnline, err := svc.GetByID(ctx, onlineID, nil)
+	if err != nil {
+		t.Fatalf("GetByID guest online failed: %v", err)
+	}
+	if guestOnline.LocationOrLink != "" {
+		t.Errorf("expected online LocationOrLink hidden from guest, got %q", guestOnline.LocationOrLink)
+	}
+	if guestOnline.Host == nil || guestOnline.Host.Email != "" {
+		t.Errorf("expected host email hidden from guest")
+	}
+
+	guestOffline, err := svc.GetByID(ctx, offlineID, nil)
+	if err != nil {
+		t.Fatalf("GetByID guest offline failed: %v", err)
+	}
+	if guestOffline.LocationOrLink == "" {
+		t.Errorf("expected general campus location visible to guest")
+	}
+	if guestOffline.BuildingDetails != "" || guestOffline.Latitude != nil || guestOffline.Longitude != nil {
+		t.Errorf("expected exact room details and GPS coordinates hidden from guest")
+	}
+
+	// Pending member still cannot see private meeting link
+	pendingView, err := svc.GetByID(ctx, onlineID, &pendingID)
+	if err != nil {
+		t.Fatalf("GetByID pending member failed: %v", err)
+	}
+	if pendingView.LocationOrLink != "" {
+		t.Errorf("expected online LocationOrLink hidden from pending applicant, got %q", pendingView.LocationOrLink)
+	}
+
+	// Accepted member can see meeting link, but not host personal email
+	acceptedView, err := svc.GetByID(ctx, onlineID, &acceptedID)
+	if err != nil {
+		t.Fatalf("GetByID accepted member failed: %v", err)
+	}
+	if acceptedView.LocationOrLink != "https://meet.google.com/secret-room" {
+		t.Errorf("expected accepted member to see meeting link, got %q", acceptedView.LocationOrLink)
+	}
+	if acceptedView.Host != nil && acceptedView.Host.Email != "" {
+		t.Errorf("expected host email hidden from non-host member")
+	}
+
+	// Admin via context role can inspect everything
+	adminCtx := domain.WithViewerRole(ctx, domain.RoleAdmin)
+	adminView, err := svc.GetByID(adminCtx, offlineID, &adminID)
+	if err != nil {
+		t.Fatalf("GetByID admin failed: %v", err)
+	}
+	if adminView.BuildingDetails != "Lab 302" || adminView.Latitude == nil || adminView.Host.Email != "host@student.uinsgd.ac.id" {
+		t.Errorf("expected admin to see full session details and host email")
+	}
+}
+
+func TestGroupService_NotificationsOnReviewAndStatusUpdate(t *testing.T) {
+	ctx := context.Background()
+	groupRepo := newMockGroupRepository()
+	userRepo := newMockUserRepository()
+	memRepo := newFullMockMembershipRepo()
+	notifRepo := newMockNotificationRepo()
+
+	notifSvc := service.NewNotificationService(notifRepo)
+	svc := service.NewGroupServiceWithDeps(groupRepo, userRepo, memRepo)
+	svc.SetNotifier(notifSvc)
+
+	hostID := uuid.New()
+	memberID := uuid.New()
+	pendingMemberID := uuid.New()
+	adminID := uuid.New()
+
+	created, err := svc.Create(ctx, hostID, domain.CreateGroupRequest{
+		Title:          "Metodologi Penelitian Hukum",
+		Description:    "Bimbingan penyusunan bab metodologi",
+		Category:       "Hukum & Syariah",
+		Format:         domain.FormatOnline,
+		LocationOrLink: "https://meet.google.com/hukum-uin",
+		StartTime:      time.Now().Add(24 * time.Hour),
+		EndTime:        time.Now().Add(26 * time.Hour),
+		MaxCapacity:    10,
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	if _, err := svc.ReviewGroup(ctx, adminID, created.ID, domain.ReviewGroupRequest{
+		Action: "reject",
+		Note:   "Perjelas agenda diskusi",
+	}); err != nil {
+		t.Fatalf("ReviewGroup reject failed: %v", err)
+	}
+	if _, err := svc.ReviewGroup(ctx, adminID, created.ID, domain.ReviewGroupRequest{
+		Action: "approve",
+		Note:   "Sudah sesuai",
+	}); err != nil {
+		t.Fatalf("ReviewGroup approve failed: %v", err)
+	}
+
+	hostNotifs, _ := notifSvc.ListForUser(ctx, hostID, 10)
+	if len(hostNotifs.Notifications) != 2 {
+		t.Fatalf("expected 2 review notifications for host, got %d", len(hostNotifs.Notifications))
+	}
+	if hostNotifs.Notifications[0].Type != domain.NotificationSessionApproved || hostNotifs.Notifications[1].Type != domain.NotificationSessionRejected {
+		t.Errorf("unexpected host review notification types: %+v", hostNotifs.Notifications)
+	}
+
+	_ = memRepo.Create(ctx, &domain.Membership{
+		ID: uuid.New(), GroupID: created.ID, UserID: memberID, Status: domain.MembershipAccepted,
+	})
+	_ = memRepo.Create(ctx, &domain.Membership{
+		ID: uuid.New(), GroupID: created.ID, UserID: pendingMemberID, Status: domain.MembershipPending,
+	})
+
+	if err := svc.UpdateStatus(ctx, hostID, created.ID, domain.StatusCompleted); err != nil {
+		t.Fatalf("UpdateStatus failed: %v", err)
+	}
+
+	memberNotifs, _ := notifSvc.ListForUser(ctx, memberID, 10)
+	if len(memberNotifs.Notifications) != 1 || memberNotifs.Notifications[0].Type != domain.NotificationSessionStatus {
+		t.Fatalf("expected 1 status notification for accepted member, got %+v", memberNotifs.Notifications)
+	}
+	pendingNotifs, _ := notifSvc.ListForUser(ctx, pendingMemberID, 10)
+	if len(pendingNotifs.Notifications) != 0 {
+		t.Errorf("expected pending applicant not to receive session status notification, got %d", len(pendingNotifs.Notifications))
+	}
 }

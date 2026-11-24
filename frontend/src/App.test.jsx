@@ -15,6 +15,7 @@ import {
   authApi,
   groupApi,
   membershipApi,
+  notificationApi,
   systemApi,
   userApi,
 } from "./api/client";
@@ -99,6 +100,7 @@ async function openSessions(user) {
 }
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
   localStorage.clear();
   localStorage.setItem("peerlearn_token", "token-a");
   vi.spyOn(authApi, "getMe").mockImplementation(async () => ({
@@ -114,6 +116,10 @@ beforeEach(() => {
   });
   vi.spyOn(systemApi, "getHealth").mockResolvedValue({ success: false });
   vi.spyOn(groupApi, "list").mockResolvedValue({ success: true, data: [] });
+  vi.spyOn(groupApi, "getByID").mockResolvedValue({
+    success: true,
+    data: groupA,
+  });
   vi.spyOn(groupApi, "getMembers").mockResolvedValue({
     success: true,
     data: [],
@@ -121,6 +127,10 @@ beforeEach(() => {
   vi.spyOn(groupApi, "getFeedbacks").mockResolvedValue({
     success: true,
     data: [],
+  });
+  vi.spyOn(notificationApi, "list").mockResolvedValue({
+    success: true,
+    data: { notifications: [], unread_count: 0 },
   });
   vi.spyOn(groupApi, "getRecommendations").mockImplementation(async () => {
     if (localStorage.getItem("peerlearn_token") !== "token-a")
@@ -136,6 +146,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.history.replaceState(null, "", "/");
   localStorage.clear();
   vi.restoreAllMocks();
 });
@@ -381,6 +392,96 @@ describe("account-scoped retained data", () => {
     expect(screen.queryByRole("heading", { name: groupA.title })).toBeNull();
     expect(
       await screen.findByText("Sesi Anda belum dapat dimuat."),
+    ).toBeTruthy();
+  });
+});
+
+describe("shareable session routing (/sesi/:id)", () => {
+  it("opens GroupDetailModal directly when visiting /sesi/:id", async () => {
+    window.history.replaceState(null, "", "/sesi/session-a");
+    render(<App />);
+
+    expect(await screen.findByRole("dialog", { name: groupA.title })).toBeTruthy();
+    expect(groupApi.getByID).toHaveBeenCalledWith("session-a");
+  });
+
+  it("updates browser URL when opening and closing a session detail dialog", async () => {
+    groupApi.list.mockResolvedValue({
+      success: true,
+      data: [{ ...groupA, user_membership: null }],
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    const launcher = await screen.findByRole("button", {
+      name: `Lihat sesi ${groupA.title}`,
+    });
+    await user.click(launcher);
+    await screen.findByRole("dialog", { name: groupA.title });
+    expect(window.location.pathname).toBe("/sesi/session-a");
+
+    fireEvent(
+      screen.getByRole("dialog", { name: groupA.title }),
+      new Event("cancel", { cancelable: true })
+    );
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("shows a recoverable error banner with Kembali ke Katalog for unknown /sesi/:id links", async () => {
+    groupApi.getByID.mockRejectedValueOnce({
+      message: "Sesi tidak ditemukan.",
+    });
+    window.history.replaceState(null, "", "/sesi/missing-id");
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(await screen.findByText("Sesi tidak ditemukan.")).toBeTruthy();
+    await user.click(
+      screen.getByRole("button", { name: "Kembali ke Katalog" })
+    );
+    expect(screen.queryByText("Sesi tidak ditemukan.")).toBeNull();
+    expect(window.location.pathname).toBe("/");
+  });
+});
+
+describe("public SKPI verification routing (/verifikasi-skpi/:id)", () => {
+  it("renders SKPIVerifyPage for guests visiting /verifikasi-skpi/:id and returns to catalog", async () => {
+    localStorage.clear();
+    vi.spyOn(userApi, "verifySKPI").mockResolvedValue({
+      success: true,
+      data: {
+        user_id: "b0000000-0000-0000-0000-000000000001",
+        full_name: "Nabila Azzahra",
+        campus_name: "UIN SGD Bandung - S1 Teknik Informatika",
+        contribution_points: 42,
+        mastered_skills: ["Basis Data PostgreSQL"],
+        verified_hosted_count: 1,
+        verified_attended_count: 0,
+        completed_sessions: [],
+        verification_code: "PL-B0000000000000000000000000000001",
+        verified: true,
+      },
+    });
+    window.history.replaceState(
+      null,
+      "",
+      "/verifikasi-skpi/b0000000-0000-0000-0000-000000000001"
+    );
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(await screen.findByText("Terverifikasi Resmi")).toBeTruthy();
+    expect(screen.getByText("Nabila Azzahra")).toBeTruthy();
+
+    await user.click(
+      screen.getByRole("button", { name: "Kembali ke Katalog PeerLearn" })
+    );
+    expect(window.location.pathname).toBe("/");
+    expect(
+      await screen.findByRole("heading", {
+        name: /Belajar Bareng Rekan Mahasiswa UIN SGD/,
+      })
     ).toBeTruthy();
   });
 });

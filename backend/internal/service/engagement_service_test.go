@@ -294,3 +294,61 @@ func TestEngagementService_AdminModerateUser_RestoreAndSuspend(t *testing.T) {
 		t.Errorf("expected hosted groups to be cancelled when user is suspended, got '%s'", g.Status)
 	}
 }
+
+func TestEngagementService_CreateFeedbackValidation(t *testing.T) {
+	ctx := context.Background()
+	feedbackRepo := &mockFeedbackRepoForEngagement{}
+	reportRepo := &mockReportRepoForEngagement{}
+	userRepo := newMockUserRepository()
+	memRepo := newFullMockMembershipRepo()
+
+	hostID := uuid.New()
+	memberID := uuid.New()
+	pendingID := uuid.New()
+	strangerID := uuid.New()
+	openGroupID := uuid.New()
+	completedGroupID := uuid.New()
+
+	groupRepo := &mockGroupRepoForEngagement{
+		groups: map[uuid.UUID]*domain.GroupResponse{
+			openGroupID:      {ID: openGroupID, HostID: hostID, Title: "Sesi Aktif", Status: domain.StatusOpen},
+			completedGroupID: {ID: completedGroupID, HostID: hostID, Title: "Sesi Selesai", Status: domain.StatusCompleted},
+		},
+	}
+
+	_ = memRepo.Create(ctx, &domain.Membership{
+		ID: uuid.New(), GroupID: completedGroupID, UserID: memberID, Status: domain.MembershipAccepted,
+	})
+	_ = memRepo.Create(ctx, &domain.Membership{
+		ID: uuid.New(), GroupID: completedGroupID, UserID: pendingID, Status: domain.MembershipPending,
+	})
+
+	engSvc := service.NewEngagementService(feedbackRepo, reportRepo, groupRepo, userRepo, memRepo)
+
+	// Host cannot review own session
+	if _, err := engSvc.CreateFeedback(ctx, hostID, completedGroupID, domain.CreateFeedbackRequest{Rating: 5, Comment: "Mantap"}); err == nil {
+		t.Errorf("expected error when host tries to review own session")
+	}
+
+	// Cannot review non-completed session
+	if _, err := engSvc.CreateFeedback(ctx, memberID, openGroupID, domain.CreateFeedbackRequest{Rating: 5, Comment: "Belum selesai"}); err == nil {
+		t.Errorf("expected error when reviewing a session that is not completed")
+	}
+
+	// Stranger & pending member cannot review completed session
+	if _, err := engSvc.CreateFeedback(ctx, strangerID, completedGroupID, domain.CreateFeedbackRequest{Rating: 5, Comment: "Spam"}); err == nil {
+		t.Errorf("expected error when non-member tries to review session")
+	}
+	if _, err := engSvc.CreateFeedback(ctx, pendingID, completedGroupID, domain.CreateFeedbackRequest{Rating: 5, Comment: "Pending"}); err == nil {
+		t.Errorf("expected error when pending applicant tries to review session")
+	}
+
+	// Accepted member can review completed session
+	fb, err := engSvc.CreateFeedback(ctx, memberID, completedGroupID, domain.CreateFeedbackRequest{Rating: 5, Comment: "Penjelasan sangat jelas!"})
+	if err != nil {
+		t.Fatalf("expected accepted member review on completed session to succeed, got: %v", err)
+	}
+	if fb.Rating != 5 {
+		t.Errorf("expected rating 5, got %d", fb.Rating)
+	}
+}

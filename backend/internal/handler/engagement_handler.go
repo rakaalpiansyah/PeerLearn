@@ -49,6 +49,13 @@ func (h *EngagementHandler) CreateFeedback(c *fiber.Ctx) error {
 
 	fb, err := h.engagementService.CreateFeedback(c.Context(), reviewerID, groupID, req)
 	if err != nil {
+		if errors.Is(err, service.ErrUnauthorizedAction) {
+			return c.Status(fiber.StatusForbidden).JSON(domain.FailureResponse(
+				"FORBIDDEN",
+				err.Error(),
+				nil,
+			))
+		}
 		if errors.Is(err, service.ErrInvalidInput) {
 			return c.Status(fiber.StatusUnprocessableEntity).JSON(domain.FailureResponse(
 				"VALIDATION_FAILED",

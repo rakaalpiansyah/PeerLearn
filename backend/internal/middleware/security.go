@@ -20,7 +20,7 @@ func SecurityHeaders() fiber.Handler {
 		CrossOriginEmbedderPolicy: "unsafe-none",
 		CrossOriginOpenerPolicy:   "same-origin-allow-popups",
 		CrossOriginResourcePolicy: "cross-origin",
-		PermissionPolicy:          "camera=(), microphone=(), geolocation=()",
+		PermissionPolicy:          "camera=(), microphone=(), geolocation=(self)",
 	})
 }
 

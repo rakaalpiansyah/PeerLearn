@@ -21,8 +21,12 @@ import {
   systemApi,
 } from "../api/client";
 
-export function AdminDashboardPage({ onPreviewStudentCatalog }) {
-  const [activeTab, setActiveTab] = useState("approvals");
+export function AdminDashboardPage({
+  onPreviewStudentCatalog,
+  initialTab = "approvals",
+}) {
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [selectedApprovalId, setSelectedApprovalId] = useState(null);
   const [isBackendOnline, setIsBackendOnline] = useState(false);
 
   const [groups, setGroups] = useState([]);
@@ -96,6 +100,19 @@ export function AdminDashboardPage({ onPreviewStudentCatalog }) {
     fetchReports();
   }, [fetchGroups, fetchThreads, fetchReports]);
 
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  const handleTabChange = (tab) => {
+    if (tab !== "approvals") {
+      setSelectedApprovalId(null);
+    }
+    setActiveTab(tab);
+  };
+
   const counts = useMemo(() => {
     const pendingApprovals = groups.filter(
       (g) => g.status === "pending_approval"
@@ -133,7 +150,7 @@ export function AdminDashboardPage({ onPreviewStudentCatalog }) {
   return (
     <AdminLayout
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       counts={counts}
       isBackendOnline={isBackendOnline}
       onPreviewStudentCatalog={onPreviewStudentCatalog}
@@ -145,7 +162,7 @@ export function AdminDashboardPage({ onPreviewStudentCatalog }) {
               id="overview-heading"
               className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight"
             >
-              Ringkasan Operasional Komunitas FST
+              Ringkasan Operasional Komunitas UIN SGD
             </h1>
             <p className="text-sm text-slate-600 mt-1">
               Pantau pengajuan sesi belajar yang perlu diverifikasi, percakapan
@@ -322,7 +339,10 @@ export function AdminDashboardPage({ onPreviewStudentCatalog }) {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setActiveTab("approvals")}
+                          onClick={() => {
+                            setSelectedApprovalId(g.id);
+                            setActiveTab("approvals");
+                          }}
                           className="shrink-0 text-xs"
                         >
                           Periksa Detail
@@ -341,8 +361,12 @@ export function AdminDashboardPage({ onPreviewStudentCatalog }) {
           groups={groups}
           loading={loadingGroups}
           error={groupsError}
+          initialSelectedId={selectedApprovalId}
           onRefresh={fetchGroups}
-          onReviewed={fetchGroups}
+          onReviewed={async () => {
+            setSelectedApprovalId(null);
+            await fetchGroups();
+          }}
         />
       )}
 

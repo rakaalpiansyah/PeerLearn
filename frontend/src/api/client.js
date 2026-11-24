@@ -47,6 +47,7 @@ export const userApi = {
   updateSkills: (skills) => apiClient.post("/users/skills", { skills }),
   addCustomSkill: (payload) => apiClient.post("/users/skills/custom", payload),
   getPublicProfile: (userId) => apiClient.get(`/users/${userId}/public`),
+  verifySKPI: (userId) => apiClient.get(`/skpi/${userId}/verify`),
 };
 
 export const groupApi = {
@@ -105,4 +106,10 @@ export const supportApi = {
     apiClient.post(`/admin/support/threads/${threadId}/messages`, payload),
   adminUpdateStatus: (threadId, status) =>
     apiClient.patch(`/admin/support/threads/${threadId}/status`, { status }),
+};
+
+export const notificationApi = {
+  list: (params) => apiClient.get("/notifications", { params }),
+  markRead: (id) => apiClient.patch(`/notifications/${id}/read`),
+  markAllRead: () => apiClient.patch("/notifications/read-all"),
 };

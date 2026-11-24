@@ -316,8 +316,8 @@ export function AdminSupportInbox({
                     }}
                     className={`w-full text-left p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700 ${
                       isSelected
-                        ? "bg-emerald-50/70 border-l-4 border-l-emerald-700"
-                        : "hover:bg-slate-50 border-l-4 border-l-transparent"
+                        ? "bg-emerald-50/70 ring-1 ring-inset ring-emerald-200"
+                        : "hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -328,7 +328,7 @@ export function AdminSupportInbox({
                             {t.student?.full_name || "Mahasiswa"}
                           </p>
                           <p className="text-[11px] text-slate-500 truncate">
-                            {t.student?.campus_name || "FST UIN SGD"}
+                            {t.student?.campus_name || "UIN SGD Bandung"}
                           </p>
                         </div>
                       </div>
@@ -409,7 +409,7 @@ export function AdminSupportInbox({
                       <p className="text-xs text-slate-600 flex items-center gap-1 truncate">
                         <GraduationCap className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
                         <span className="truncate">
-                          {activeThread.student?.campus_name || "FST UIN SGD"} (
+                          {activeThread.student?.campus_name || "UIN SGD Bandung"} (
                           {activeThread.student?.email})
                         </span>
                       </p>
@@ -505,7 +505,7 @@ export function AdminSupportInbox({
                               isMe
                                 ? "bg-emerald-700 text-white border-emerald-700 rounded-tr-sm"
                                 : isAdminMsg
-                                  ? "bg-blue-50 text-slate-900 border-blue-200 rounded-tr-sm"
+                                  ? "bg-emerald-50 text-emerald-950 border-emerald-200 rounded-tr-sm"
                                   : "bg-white text-slate-900 border-slate-200 rounded-tl-sm"
                             }`}
                           >

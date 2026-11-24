@@ -13,6 +13,7 @@ import (
 )
 
 type SupportService interface {
+	SetNotifier(notifier NotificationDispatcher)
 	GetMyThread(ctx context.Context, studentID uuid.UUID) (*domain.SupportThreadResponse, error)
 	SendStudentMessage(ctx context.Context, studentID uuid.UUID, req domain.CreateSupportMessageRequest) (*domain.SupportMessageResponse, error)
 	AdminListThreads(ctx context.Context, statusFilter string) ([]domain.SupportThreadResponse, error)
@@ -24,6 +25,11 @@ type SupportService interface {
 type supportService struct {
 	supportRepo repository.SupportRepository
 	userRepo    repository.UserRepository
+	notifier    NotificationDispatcher
+}
+
+func (s *supportService) SetNotifier(notifier NotificationDispatcher) {
+	s.notifier = notifier
 }
 
 func NewSupportService(supportRepo repository.SupportRepository, userRepo repository.UserRepository) SupportService {
@@ -97,7 +103,8 @@ func (s *supportService) AdminReplyMessage(ctx context.Context, adminID, threadI
 		return nil, fmt.Errorf("%w: balasan pesan maksimal 2000 karakter", ErrInvalidInput)
 	}
 
-	if _, err := s.supportRepo.GetThreadByID(ctx, threadID); err != nil {
+	thread, err := s.supportRepo.GetThreadByID(ctx, threadID)
+	if err != nil {
 		return nil, fmt.Errorf("supportService.AdminReplyMessage lookup: %w", err)
 	}
 
@@ -110,6 +117,13 @@ func (s *supportService) AdminReplyMessage(ctx context.Context, adminID, threadI
 	createdMsg, err := s.supportRepo.CreateMessage(ctx, msg, false)
 	if err != nil {
 		return nil, fmt.Errorf("supportService.AdminReplyMessage create: %w", err)
+	}
+	if s.notifier != nil {
+		preview := msgText
+		if len(preview) > 120 {
+			preview = preview[:117] + "..."
+		}
+		_ = s.notifier.Notify(ctx, thread.StudentID, domain.NotificationSupportReply, "Balasan Baru dari Tim Admin", fmt.Sprintf("Admin membalas topik %q: %s", thread.Subject, preview), nil)
 	}
 	return createdMsg, nil
 }

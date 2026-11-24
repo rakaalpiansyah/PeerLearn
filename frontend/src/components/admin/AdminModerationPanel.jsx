@@ -43,7 +43,7 @@ export function AdminModerationPanel({
             item.target_group?.title ||
             "Target Laporan",
           userEmail: reportedUser?.email || "",
-          campusName: reportedUser?.campus_name || "FST UIN SGD Bandung",
+          campusName: reportedUser?.campus_name || "UIN SGD Bandung",
           status: reportedUser?.account_status || "active",
           restrictionNote: reportedUser?.restriction_note || "",
           weeklyReportsCount: item.weekly_reports_count || 0,

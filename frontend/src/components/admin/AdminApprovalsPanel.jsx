@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   CheckCircle2,
   XCircle,
@@ -24,6 +24,7 @@ import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { UserAvatar } from "../ui/UserAvatar";
 import { groupApi } from "../../api/client";
+import { SESSION_CATEGORIES } from "../../data/campusData";
 
 const STATUS_FILTERS = [
   { id: "pending_approval", label: "Menunggu ACC" },
@@ -32,18 +33,7 @@ const STATUS_FILTERS = [
   { id: "all", label: "Semua Sesi" },
 ];
 
-const CATEGORIES = [
-  "Semua Prodi",
-  "Teknologi",
-  "Teknik Elektro",
-  "Teknik Lingkungan",
-  "Matematika",
-  "Fisika",
-  "Kimia",
-  "Biologi",
-  "Agroteknologi",
-  "Sains Data",
-];
+const CATEGORIES = ["Semua Kategori", ...SESSION_CATEGORIES];
 
 function StatusBadge({ status }) {
   switch (status) {
@@ -98,25 +88,49 @@ export function AdminApprovalsPanel({
   groups = [],
   loading = false,
   error = null,
+  initialSelectedId = null,
   onRefresh,
   onReviewed,
 }) {
   const [statusFilter, setStatusFilter] = useState("pending_approval");
-  const [categoryFilter, setCategoryFilter] = useState("Semua Prodi");
+  const [categoryFilter, setCategoryFilter] = useState("Semua Kategori");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(null);
-  const [mobileShowDetail, setMobileShowDetail] = useState(false);
+  const [selectedId, setSelectedId] = useState(initialSelectedId);
+  const [mobileShowDetail, setMobileShowDetail] = useState(
+    Boolean(initialSelectedId)
+  );
+  const appliedInitialIdRef = useRef(null);
 
   const [reviewNote, setReviewNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
 
+  useEffect(() => {
+    if (!initialSelectedId) {
+      appliedInitialIdRef.current = null;
+      return;
+    }
+    if (initialSelectedId === appliedInitialIdRef.current || groups.length === 0) {
+      return;
+    }
+    const target = groups.find((g) => g.id === initialSelectedId);
+    if (target) {
+      setStatusFilter(
+        target.status === "pending_approval" ? "pending_approval" : "all"
+      );
+      setReviewNote(target.review_note || "");
+    }
+    setSelectedId(initialSelectedId);
+    setMobileShowDetail(true);
+    appliedInitialIdRef.current = initialSelectedId;
+  }, [initialSelectedId, groups]);
+
   const filteredGroups = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return groups.filter((g) => {
       if (statusFilter !== "all" && g.status !== statusFilter) return false;
-      if (categoryFilter !== "Semua Prodi" && g.category !== categoryFilter) {
+      if (categoryFilter !== "Semua Kategori" && g.category !== categoryFilter) {
         return false;
       }
       if (q) {
@@ -467,7 +481,7 @@ export function AdminApprovalsPanel({
                       <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5 truncate">
                         <GraduationCap className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
                         <span className="truncate">
-                          {selectedGroup.host?.campus_name || "FST UIN SGD Bandung"}
+                          {selectedGroup.host?.campus_name || "UIN SGD Bandung"}
                         </span>
                       </p>
                       <p className="text-[11px] text-slate-500 truncate">

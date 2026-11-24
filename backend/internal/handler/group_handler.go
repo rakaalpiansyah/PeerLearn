@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -68,6 +69,13 @@ func (h *GroupHandler) List(c *fiber.Ctx) error {
 		}
 	}
 
+	var ctx context.Context = c.Context()
+	if roleVal := c.Locals("role"); roleVal != nil {
+		if role, ok := roleVal.(domain.UserRole); ok {
+			ctx = domain.WithViewerRole(ctx, role)
+		}
+	}
+
 	filter := domain.GroupFilter{
 		Category: c.Query("category"),
 		Format:   domain.GroupFormat(c.Query("format")),
@@ -75,7 +83,7 @@ func (h *GroupHandler) List(c *fiber.Ctx) error {
 		Search:   c.Query("search"),
 	}
 
-	groups, err := h.groupService.List(c.Context(), filter, currentUserID)
+	groups, err := h.groupService.List(ctx, filter, currentUserID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(domain.FailureResponse(
 			"FETCH_FAILED",
@@ -108,7 +116,14 @@ func (h *GroupHandler) GetByID(c *fiber.Ctx) error {
 		}
 	}
 
-	group, err := h.groupService.GetByID(c.Context(), groupID, currentUserID)
+	var ctx context.Context = c.Context()
+	if roleVal := c.Locals("role"); roleVal != nil {
+		if role, ok := roleVal.(domain.UserRole); ok {
+			ctx = domain.WithViewerRole(ctx, role)
+		}
+	}
+
+	group, err := h.groupService.GetByID(ctx, groupID, currentUserID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(domain.FailureResponse(
 			"GROUP_NOT_FOUND",

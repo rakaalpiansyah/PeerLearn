@@ -22,10 +22,11 @@ type EngagementService interface {
 }
 
 type engagementService struct {
-	feedbackRepo repository.FeedbackRepository
-	reportRepo   repository.ReportRepository
-	groupRepo    repository.GroupRepository
-	userRepo     repository.UserRepository
+	feedbackRepo   repository.FeedbackRepository
+	reportRepo     repository.ReportRepository
+	groupRepo      repository.GroupRepository
+	userRepo       repository.UserRepository
+	membershipRepo repository.MembershipRepository
 }
 
 func NewEngagementService(
@@ -33,12 +34,18 @@ func NewEngagementService(
 	reportRepo repository.ReportRepository,
 	groupRepo repository.GroupRepository,
 	userRepo repository.UserRepository,
+	membershipRepo ...repository.MembershipRepository,
 ) EngagementService {
+	var mRepo repository.MembershipRepository
+	if len(membershipRepo) > 0 {
+		mRepo = membershipRepo[0]
+	}
 	return &engagementService{
-		feedbackRepo: feedbackRepo,
-		reportRepo:   reportRepo,
-		groupRepo:    groupRepo,
-		userRepo:     userRepo,
+		feedbackRepo:   feedbackRepo,
+		reportRepo:     reportRepo,
+		groupRepo:      groupRepo,
+		userRepo:       userRepo,
+		membershipRepo: mRepo,
 	}
 }
 
@@ -50,6 +57,19 @@ func (s *engagementService) CreateFeedback(ctx context.Context, reviewerID, grou
 	group, err := s.groupRepo.FindByID(ctx, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("engagementService.CreateFeedback group: %w", err)
+	}
+
+	if group.HostID == reviewerID {
+		return nil, fmt.Errorf("%w: penyelenggara tidak dapat memberi ulasan pada sesi sendiri", ErrInvalidInput)
+	}
+	if group.Status != domain.StatusCompleted {
+		return nil, fmt.Errorf("%w: ulasan hanya dapat diberikan setelah sesi selesai", ErrInvalidInput)
+	}
+	if s.membershipRepo != nil {
+		m, mErr := s.membershipRepo.Find(ctx, groupID, reviewerID)
+		if mErr != nil || m == nil || (m.Status != domain.MembershipAccepted && m.Status != domain.MembershipAttended) {
+			return nil, fmt.Errorf("%w: hanya peserta yang terkonfirmasi yang dapat memberi ulasan", ErrUnauthorizedAction)
+		}
 	}
 
 	fb := &domain.Feedback{

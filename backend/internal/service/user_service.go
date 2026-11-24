@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -17,23 +18,31 @@ type UserService interface {
 	SyncSkills(ctx context.Context, userID uuid.UUID, req domain.UpdateSkillsRequest) error
 	AddCustomSkill(ctx context.Context, userID uuid.UUID, req domain.AddCustomSkillRequest) (*domain.Skill, error)
 	GetPublicProfile(ctx context.Context, targetUserID uuid.UUID) (*domain.PublicProfileResponse, error)
+	GetSKPIVerification(ctx context.Context, targetUserID uuid.UUID) (*domain.SKPIVerificationResponse, error)
 }
 
 type userService struct {
-	userRepo  repository.UserRepository
-	skillRepo repository.SkillRepository
-	groupRepo repository.GroupRepository
+	userRepo       repository.UserRepository
+	skillRepo      repository.SkillRepository
+	groupRepo      repository.GroupRepository
+	membershipRepo repository.MembershipRepository
 }
 
 func NewUserService(
 	userRepo repository.UserRepository,
 	skillRepo repository.SkillRepository,
 	groupRepo repository.GroupRepository,
+	membershipRepo ...repository.MembershipRepository,
 ) UserService {
+	var mRepo repository.MembershipRepository
+	if len(membershipRepo) > 0 {
+		mRepo = membershipRepo[0]
+	}
 	return &userService{
-		userRepo:  userRepo,
-		skillRepo: skillRepo,
-		groupRepo: groupRepo,
+		userRepo:       userRepo,
+		skillRepo:      skillRepo,
+		groupRepo:      groupRepo,
+		membershipRepo: mRepo,
 	}
 }
 
@@ -95,6 +104,89 @@ func (s *userService) GetPublicProfile(ctx context.Context, targetUserID uuid.UU
 		HostedGroupsCount:  hostedCount,
 		Skills:             skills,
 		CreatedAt:          user.CreatedAt,
+	}, nil
+}
+
+func (s *userService) GetSKPIVerification(ctx context.Context, targetUserID uuid.UUID) (*domain.SKPIVerificationResponse, error) {
+	user, err := s.userRepo.FindByID(ctx, targetUserID)
+	if err != nil {
+		return nil, fmt.Errorf("userService.GetSKPIVerification: %w", err)
+	}
+
+	userSkills, _ := s.userRepo.GetUserSkills(ctx, targetUserID)
+	masteredSkills := make([]string, 0)
+	for _, us := range userSkills {
+		if us.SkillType == domain.SkillMastered && us.Skill != nil && us.Skill.Name != "" {
+			masteredSkills = append(masteredSkills, us.Skill.Name)
+		}
+	}
+
+	completedSessions := make([]domain.SKPISessionRecord, 0)
+	verifiedHostedCount := 0
+	verifiedAttendedCount := 0
+
+	if s.groupRepo != nil {
+		hostedGroups, err := s.groupRepo.ListByHost(ctx, targetUserID)
+		if err == nil {
+			for _, g := range hostedGroups {
+				if g.Status != domain.StatusCompleted {
+					continue
+				}
+				verifiedHostedCount++
+				completedSessions = append(completedSessions, domain.SKPISessionRecord{
+					GroupID:       g.ID,
+					Title:         g.Title,
+					Category:      g.Category,
+					Role:          "tutor",
+					StartTime:     g.StartTime,
+					AttendedCount: g.AttendedCount,
+				})
+			}
+		}
+	}
+
+	if s.membershipRepo != nil && s.groupRepo != nil {
+		memberships, err := s.membershipRepo.ListByUser(ctx, targetUserID)
+		if err == nil {
+			for _, m := range memberships {
+				if m.Status != domain.MembershipAttended {
+					continue
+				}
+				g, gErr := s.groupRepo.FindByID(ctx, m.GroupID)
+				if gErr != nil || g == nil {
+					continue
+				}
+				verifiedAttendedCount++
+				completedSessions = append(completedSessions, domain.SKPISessionRecord{
+					GroupID:       g.ID,
+					Title:         g.Title,
+					Category:      g.Category,
+					Role:          "participant",
+					StartTime:     g.StartTime,
+					AttendedCount: g.AttendedCount,
+				})
+			}
+		}
+	}
+
+	sort.Slice(completedSessions, func(i, j int) bool {
+		return completedSessions[i].StartTime.After(completedSessions[j].StartTime)
+	})
+
+	verificationCode := fmt.Sprintf("PL-%s", strings.ToUpper(strings.ReplaceAll(user.ID.String(), "-", "")))
+	verified := user.ContributionPoints > 0 || len(completedSessions) > 0
+
+	return &domain.SKPIVerificationResponse{
+		UserID:                user.ID,
+		FullName:              user.FullName,
+		CampusName:            user.CampusName,
+		ContributionPoints:    user.ContributionPoints,
+		MasteredSkills:        masteredSkills,
+		VerifiedHostedCount:   verifiedHostedCount,
+		VerifiedAttendedCount: verifiedAttendedCount,
+		CompletedSessions:     completedSessions,
+		VerificationCode:      verificationCode,
+		Verified:              verified,
 	}, nil
 }
 

@@ -1,7 +1,9 @@
 package config
 
 import (
+	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -32,6 +34,9 @@ func LoadConfig() *Config {
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
+		if strings.EqualFold(appEnv, "production") {
+			log.Fatal("[Config] JWT_SECRET environment variable is required when APP_ENV=production")
+		}
 		jwtSecret = "peerlearn-secure-jwt-secret-dev-2026"
 	}
 

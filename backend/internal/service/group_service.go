@@ -31,6 +31,7 @@ var (
 )
 
 type GroupService interface {
+	SetNotifier(notifier NotificationDispatcher)
 	Create(ctx context.Context, hostID uuid.UUID, req domain.CreateGroupRequest) (*domain.GroupResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, currentUserID *uuid.UUID) (*domain.GroupResponse, error)
 	List(ctx context.Context, filter domain.GroupFilter, currentUserID *uuid.UUID) ([]domain.GroupResponse, error)
@@ -44,8 +45,14 @@ type GroupService interface {
 }
 
 type groupService struct {
-	groupRepo repository.GroupRepository
-	userRepo  repository.UserRepository
+	groupRepo      repository.GroupRepository
+	userRepo       repository.UserRepository
+	membershipRepo repository.MembershipRepository
+	notifier       NotificationDispatcher
+}
+
+func (s *groupService) SetNotifier(notifier NotificationDispatcher) {
+	s.notifier = notifier
 }
 
 func NewGroupService(groupRepo repository.GroupRepository, userRepo ...repository.UserRepository) GroupService {
@@ -54,6 +61,18 @@ func NewGroupService(groupRepo repository.GroupRepository, userRepo ...repositor
 		uRepo = userRepo[0]
 	}
 	return &groupService{groupRepo: groupRepo, userRepo: uRepo}
+}
+
+func NewGroupServiceWithDeps(
+	groupRepo repository.GroupRepository,
+	userRepo repository.UserRepository,
+	membershipRepo repository.MembershipRepository,
+) GroupService {
+	return &groupService{
+		groupRepo:      groupRepo,
+		userRepo:       userRepo,
+		membershipRepo: membershipRepo,
+	}
 }
 
 func (s *groupService) Create(ctx context.Context, hostID uuid.UUID, req domain.CreateGroupRequest) (*domain.GroupResponse, error) {
@@ -126,17 +145,44 @@ func (s *groupService) Create(ctx context.Context, hostID uuid.UUID, req domain.
 	return s.groupRepo.FindByID(ctx, group.ID)
 }
 
+func (s *groupService) resolveViewerRole(ctx context.Context, currentUserID *uuid.UUID) domain.UserRole {
+	if role, ok := domain.ViewerRoleFromContext(ctx); ok && role != "" {
+		return role
+	}
+	if currentUserID != nil && s.userRepo != nil {
+		if u, err := s.userRepo.FindByID(ctx, *currentUserID); err == nil && u != nil {
+			return u.Role
+		}
+	}
+	return ""
+}
+
 func (s *groupService) GetByID(ctx context.Context, id uuid.UUID, currentUserID *uuid.UUID) (*domain.GroupResponse, error) {
 	resp, err := s.groupRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("groupService.GetByID: %w", err)
 	}
+	if currentUserID != nil && s.membershipRepo != nil && resp.UserMembership == nil {
+		if m, mErr := s.membershipRepo.Find(ctx, id, *currentUserID); mErr == nil && m != nil {
+			st := m.Status
+			resp.UserMembership = &st
+		}
+	}
+	domain.SanitizeGroupForViewer(resp, currentUserID, s.resolveViewerRole(ctx, currentUserID))
 	return resp, nil
 }
 
 func (s *groupService) List(ctx context.Context, filter domain.GroupFilter, currentUserID *uuid.UUID) ([]domain.GroupResponse, error) {
 	filter.IncludeUnapproved = false
-	return s.groupRepo.List(ctx, filter, currentUserID)
+	groups, err := s.groupRepo.List(ctx, filter, currentUserID)
+	if err != nil {
+		return nil, err
+	}
+	viewerRole := s.resolveViewerRole(ctx, currentUserID)
+	for i := range groups {
+		domain.SanitizeGroupForViewer(&groups[i], currentUserID, viewerRole)
+	}
+	return groups, nil
 }
 
 func (s *groupService) ListForAdmin(ctx context.Context, filter domain.GroupFilter) ([]domain.GroupResponse, error) {
@@ -145,7 +191,8 @@ func (s *groupService) ListForAdmin(ctx context.Context, filter domain.GroupFilt
 }
 
 func (s *groupService) ReviewGroup(ctx context.Context, adminID, groupID uuid.UUID, req domain.ReviewGroupRequest) (*domain.GroupResponse, error) {
-	if _, err := s.groupRepo.FindByID(ctx, groupID); err != nil {
+	existing, err := s.groupRepo.FindByID(ctx, groupID)
+	if err != nil {
 		return nil, fmt.Errorf("groupService.ReviewGroup: %w", err)
 	}
 
@@ -155,12 +202,20 @@ func (s *groupService) ReviewGroup(ctx context.Context, adminID, groupID uuid.UU
 		if err := s.groupRepo.ReviewGroup(ctx, groupID, adminID, domain.StatusOpen, note); err != nil {
 			return nil, fmt.Errorf("groupService.ReviewGroup approve: %w", err)
 		}
+		if s.notifier != nil {
+			gid := existing.ID
+			_ = s.notifier.Notify(ctx, existing.HostID, domain.NotificationSessionApproved, "Sesi Belajar Disetujui Admin", fmt.Sprintf("Sesi %q telah disetujui admin dan tayang di katalog mahasiswa.", existing.Title), &gid)
+		}
 	case "reject":
 		if note == "" {
 			return nil, fmt.Errorf("%w: alasan penolakan wajib diisi agar mahasiswa dapat memperbaiki pengajuan", ErrInvalidInput)
 		}
 		if err := s.groupRepo.ReviewGroup(ctx, groupID, adminID, domain.StatusRejected, note); err != nil {
 			return nil, fmt.Errorf("groupService.ReviewGroup reject: %w", err)
+		}
+		if s.notifier != nil {
+			gid := existing.ID
+			_ = s.notifier.Notify(ctx, existing.HostID, domain.NotificationSessionRejected, "Sesi Belajar Perlu Revisi", fmt.Sprintf("Sesi %q ditolak admin dengan catatan: %s", existing.Title, note), &gid)
 		}
 	default:
 		return nil, fmt.Errorf("%w: aksi peninjauan tidak valid (harus 'approve' atau 'reject')", ErrInvalidInput)
@@ -176,6 +231,15 @@ func (s *groupService) Update(ctx context.Context, hostID, groupID uuid.UUID, re
 	}
 	if existing.HostID != hostID {
 		return ErrUnauthorizedAction
+	}
+
+	req.Title = strings.TrimSpace(req.Title)
+	req.LocationOrLink = strings.TrimSpace(req.LocationOrLink)
+	if req.Title == "" {
+		return fmt.Errorf("%w: judul sesi belajar wajib diisi", ErrInvalidInput)
+	}
+	if !req.EndTime.IsZero() && !req.StartTime.IsZero() && (req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime)) {
+		return ErrInvalidSchedule
 	}
 
 	var cleanAgenda []string
@@ -225,7 +289,35 @@ func (s *groupService) UpdateStatus(ctx context.Context, hostID, groupID uuid.UU
 
 	switch status {
 	case domain.StatusOpen, domain.StatusOngoing, domain.StatusCompleted, domain.StatusCancelled:
-		return s.groupRepo.UpdateStatus(ctx, groupID, status)
+		if err := s.groupRepo.UpdateStatus(ctx, groupID, status); err != nil {
+			return err
+		}
+		if s.notifier != nil && s.membershipRepo != nil && (status == domain.StatusOngoing || status == domain.StatusCompleted || status == domain.StatusCancelled) {
+			var title, msg string
+			switch status {
+			case domain.StatusOngoing:
+				title = "Sesi Belajar Dimulai"
+				msg = fmt.Sprintf("Sesi %q sedang berlangsung sekarang.", existing.Title)
+			case domain.StatusCompleted:
+				title = "Sesi Belajar Selesai"
+				msg = fmt.Sprintf("Sesi %q telah selesai. Berikan ulasan atau cek catatan kehadiran Anda.", existing.Title)
+			case domain.StatusCancelled:
+				title = "Sesi Belajar Dibatalkan"
+				msg = fmt.Sprintf("Tutor membatalkan sesi %q.", existing.Title)
+			}
+			if members, mErr := s.membershipRepo.ListByGroup(ctx, groupID); mErr == nil {
+				gid := groupID
+				for _, m := range members {
+					if m.UserID == existing.HostID {
+						continue
+					}
+					if m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended {
+						_ = s.notifier.Notify(ctx, m.UserID, domain.NotificationSessionStatus, title, msg, &gid)
+					}
+				}
+			}
+		}
+		return nil
 	default:
 		return fmt.Errorf("%w: status sesi tidak valid", ErrInvalidInput)
 	}
@@ -248,7 +340,7 @@ func (s *groupService) ResolveMapLink(ctx context.Context, rawInput string) (*do
 		return nil, fmt.Errorf("%w: input tautan atau koordinat tidak boleh kosong", ErrInvalidInput)
 	}
 
-	// 1. Direct coordinate format (e.g. "-6.365300, 106.831500")
+	// 1. Direct coordinate format (e.g. "-6.931754, 107.717145")
 	if matches := coordsRegex.FindStringSubmatch(rawInput); len(matches) == 3 {
 		lat, err1 := strconv.ParseFloat(matches[1], 64)
 		lng, err2 := strconv.ParseFloat(matches[2], 64)

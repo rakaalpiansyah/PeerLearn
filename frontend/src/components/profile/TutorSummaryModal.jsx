@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   X,
   Award,
@@ -8,20 +8,70 @@ import {
   CheckCircle2,
   Calendar,
   BookOpen,
-  Sparkles,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
+import { membershipApi } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import { buildSKPIVerifyUrl } from "../../utils/sessionRoute";
 
 export function TutorSummaryModal({ isOpen, onClose }) {
   const { user } = useAuth();
   const printAreaRef = useRef(null);
+  const [sessions, setSessions] = useState({ hosted: [], joined: [] });
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [sessionsError, setSessionsError] = useState(null);
+  const [copiedVerifyUrl, setCopiedVerifyUrl] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !user?.id) return;
+    let cancelled = false;
+    setLoadingSessions(true);
+    setSessionsError(null);
+
+    membershipApi
+      .getMySessions()
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.success && res?.data) {
+          setSessions({
+            hosted: res.data.hosted || [],
+            joined: res.data.joined || [],
+          });
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setSessionsError(
+          err?.message || "Riwayat sesi terverifikasi belum dapat dimuat."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingSessions(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, user?.id]);
 
   if (!isOpen || !user) return null;
 
   const masteredSkills =
     user.skills?.filter((s) => s.skill_type === "mastered") || [];
+  const verifiedHosted = (sessions.hosted || []).filter(
+    (g) => g.status === "completed"
+  );
+  const verifiedAttended = (sessions.joined || []).filter(
+    (g) => g.user_membership === "attended"
+  );
+  const totalVerifiedSessions = verifiedHosted.length + verifiedAttended.length;
+  const canPrint =
+    (user.contribution_points || 0) > 0 || totalVerifiedSessions > 0;
   const currentDate = new Date().toLocaleDateString("id-ID", {
     day: "numeric",
     month: "long",
@@ -37,6 +87,21 @@ export function TutorSummaryModal({ isOpen, onClose }) {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const verifyUrl = buildSKPIVerifyUrl(user.id);
+  const handleCopyVerifyUrl = async () => {
+    if (!verifyUrl) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(verifyUrl);
+      }
+      setCopiedVerifyUrl(true);
+      setTimeout(() => setCopiedVerifyUrl(false), 2500);
+    } catch {
+      setCopiedVerifyUrl(true);
+      setTimeout(() => setCopiedVerifyUrl(false), 2500);
+    }
   };
 
   return (
@@ -104,7 +169,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
               <div className="flex items-center justify-center gap-2">
                 <GraduationCap className="w-6 h-6 text-amber-600 print:text-slate-800" />
                 <span className="text-xs font-extrabold tracking-widest uppercase text-amber-700 print:text-slate-800">
-                  Fakultas Sains & Teknologi • UIN Sunan Gunung Djati Bandung
+                  PeerLearn • UIN Sunan Gunung Djati Bandung
                 </span>
               </div>
               <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 print:text-slate-950 uppercase">
@@ -179,7 +244,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                   {masteredSkills.map((s) => (
                     <span
                       key={s.skill_id}
-                      className="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-800 print:bg-slate-100 print:text-slate-800 print:border-slate-300"
+                      className="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-900 print:bg-white print:text-black print:border-slate-400"
                     >
                       ✓ {s.skill?.name || "Keahlian"}
                     </span>
@@ -192,6 +257,116 @@ export function TutorSummaryModal({ isOpen, onClose }) {
               )}
             </div>
 
+            {/* Verified Activity Metrics */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 print:bg-white print:border-slate-300">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium">
+                  Poin Kontribusi
+                </span>
+                <p className="text-base font-extrabold text-slate-900 tabular-nums mt-0.5">
+                  {user.contribution_points || 0}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 print:bg-white print:border-slate-300">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium">
+                  Sesi Tutor Selesai
+                </span>
+                <p className="text-base font-extrabold text-slate-900 tabular-nums mt-0.5">
+                  {verifiedHosted.length}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 print:bg-white print:border-slate-300">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-medium">
+                  Kehadiran Terverifikasi
+                </span>
+                <p className="text-base font-extrabold text-slate-900 tabular-nums mt-0.5">
+                  {verifiedAttended.length}
+                </p>
+              </div>
+            </div>
+
+            {/* Verified Session Transcript Table */}
+            <div className="space-y-2.5">
+              <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-emerald-700 print:text-black" />
+                Riwayat Sesi Terverifikasi (SKPI)
+              </span>
+
+              {loadingSessions ? (
+                <div className="space-y-2 no-print" aria-label="Memuat riwayat sesi">
+                  <div className="h-8 rounded-lg bg-slate-100 animate-pulse" />
+                  <div className="h-8 rounded-lg bg-slate-100 animate-pulse" />
+                </div>
+              ) : sessionsError ? (
+                <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5 print:text-black print:bg-white print:border-slate-300">
+                  {sessionsError} Ringkasan poin dan keahlian tetap dapat dilihat.
+                </p>
+              ) : totalVerifiedSessions === 0 ? (
+                <p className="text-xs text-slate-600 italic">
+                  Belum ada sesi selesai atau kehadiran terverifikasi yang tercatat pada sistem.
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 print:border-slate-300">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-600 print:bg-white print:text-black">
+                      <tr>
+                        <th scope="col" className="py-2 px-3 font-semibold">Tanggal</th>
+                        <th scope="col" className="py-2 px-3 font-semibold">Judul Sesi</th>
+                        <th scope="col" className="py-2 px-3 font-semibold">Kategori</th>
+                        <th scope="col" className="py-2 px-3 font-semibold">Peran</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 print:divide-slate-300">
+                      {verifiedHosted.map((g) => (
+                        <tr key={`host-${g.id}`}>
+                          <td className="py-2 px-3 font-mono text-[11px] text-slate-600 whitespace-nowrap print:text-black">
+                            {new Date(g.start_time).toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-slate-900 print:text-black">
+                            {g.title}
+                          </td>
+                          <td className="py-2 px-3 text-slate-600 print:text-black">
+                            {g.category}
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 print:bg-white print:text-black print:border-slate-400">
+                              Tutor ({g.attended_count || 0} hadir)
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {verifiedAttended.map((g) => (
+                        <tr key={`join-${g.id}`}>
+                          <td className="py-2 px-3 font-mono text-[11px] text-slate-600 whitespace-nowrap print:text-black">
+                            {new Date(g.start_time).toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-slate-900 print:text-black">
+                            {g.title}
+                          </td>
+                          <td className="py-2 px-3 text-slate-600 print:text-black">
+                            {g.category}
+                          </td>
+                          <td className="py-2 px-3 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200 print:bg-white print:text-black print:border-slate-400">
+                              Peserta Hadir
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             {/* Formal Description */}
             <p className="text-xs text-slate-700 print:text-slate-700 leading-relaxed">
               Telah mendedikasikan waktu dan keahlian akademik untuk mendampingi rekan sejawat secara sukarela tanpa memungut biaya apapun. Dokumen ini dapat digunakan sebagai portofolio akademik, bukti pengabdian sebaya, serta lampiran Surat Keterangan Pendamping Ijazah (SKPI).
@@ -199,16 +374,40 @@ export function TutorSummaryModal({ isOpen, onClose }) {
 
             {/* Signature & Validation Footer */}
             <div className="pt-4 border-t border-slate-200 print:border-slate-300 flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-xs">
-              <div className="space-y-1 min-w-0">
+              <div className="space-y-1.5 min-w-0">
                 <span className="text-[10px] text-slate-500 uppercase block font-medium">
-                  Kode Validasi Sistem
+                  Kode Validasi & Verifikasi Online
                 </span>
                 <div className="font-mono text-[10px] text-slate-700 bg-slate-100 print:bg-transparent p-1.5 rounded border border-slate-200 print:border-none break-all">
                   SEC-HASH: PL-{(user.id || "").replace(/-/g, "").toUpperCase()}
                 </div>
+                {verifyUrl && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[10px] text-slate-600 break-all">
+                      {verifyUrl}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyVerifyUrl}
+                      className="no-print min-h-[36px] inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:text-emerald-800 text-[11px] font-semibold transition-colors"
+                    >
+                      {copiedVerifyUrl ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-700" aria-hidden="true" />
+                          <span>Link Tersalin</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" aria-hidden="true" />
+                          <span>Salin Link Verifikasi</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
                 <p className="text-[10px] text-emerald-700 print:text-emerald-700 flex items-center gap-1 font-semibold">
                   <CheckCircle2 className="w-3 h-3 shrink-0" />
-                  <span>Terverifikasi Otomatis oleh PeerLearn FST UIN SGD Bandung</span>
+                  <span>Terverifikasi Otomatis oleh PeerLearn UIN SGD Bandung</span>
                 </p>
               </div>
 
@@ -218,7 +417,7 @@ export function TutorSummaryModal({ isOpen, onClose }) {
                 </p>
                 <div className="h-6 sm:h-10"></div>
                 <p className="text-xs font-bold text-slate-900 print:text-slate-900 border-t border-slate-300 print:border-slate-400 pt-1">
-                  Koordinator Peer Tutoring FST
+                  Koordinator Peer Tutoring UIN SGD Bandung
                 </p>
               </div>
             </div>
@@ -226,18 +425,32 @@ export function TutorSummaryModal({ isOpen, onClose }) {
         </div>
 
         {/* Modal Actions (Hidden in Print) */}
-        <div className="no-print p-4 sm:p-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
-          <p className="text-xs text-slate-500">
-            Dapat dicetak langsung atau disimpan sebagai dokumen PDF.
-          </p>
-          <div className="flex items-center justify-end gap-2 shrink-0">
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              Tutup
-            </Button>
-            <Button variant="primary" size="sm" onClick={handlePrint}>
-              <Printer className="w-4 h-4" />
-              Cetak / Simpan PDF
-            </Button>
+        <div className="no-print p-4 sm:p-5 border-t border-slate-100 flex flex-col gap-3 bg-slate-50/70">
+          {!canPrint && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+              Pencetakan surat SKPI memerlukan minimal 1 poin kontribusi atau 1 sesi terverifikasi setelah Anda menyelesaikan sesi sebagai tutor atau peserta hadir.
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-xs text-slate-600">
+              {!canPrint
+                ? "Selesaikan minimal satu sesi tutor atau kehadiran terverifikasi untuk mengaktifkan cetak SKPI."
+                : "Dapat dicetak langsung atau disimpan sebagai dokumen PDF."}
+            </p>
+            <div className="flex items-center justify-end gap-2 shrink-0">
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                Tutup
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handlePrint}
+                disabled={!canPrint}
+              >
+                <Printer className="w-4 h-4" />
+                Cetak / Simpan PDF
+              </Button>
+            </div>
           </div>
         </div>
       </div>

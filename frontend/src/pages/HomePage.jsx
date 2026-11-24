@@ -28,30 +28,9 @@ import { GroupCard } from "../components/groups/GroupCard";
 import { LoadError } from "../components/ui/LoadError";
 import { groupApi, systemApi } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { SESSION_CATEGORIES, PRIMARY_CATEGORIES } from "../data/campusData";
 
-const CATEGORIES = [
-  "Semua",
-  "Teknologi",
-  "Teknik Elektro",
-  "Teknik Lingkungan",
-  "Matematika",
-  "Fisika",
-  "Kimia",
-  "Biologi",
-  "Agroteknologi",
-  "Sains Data",
-  "Desain",
-  "Bahasa",
-  "Soft Skills",
-];
-
-const PRIMARY_CATEGORIES = [
-  "Semua",
-  "Teknologi",
-  "Teknik Elektro",
-  "Teknik Lingkungan",
-  "Matematika",
-];
+const CATEGORIES = ["Semua", ...SESSION_CATEGORIES];
 
 const PAGE_SIZE = 6;
 
@@ -80,15 +59,20 @@ export function HomePage({
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState(false);
   const recommendationsRequest = useRef(0);
+  const searchMounted = useRef(false);
+  const skipSearchDebounce = useRef(false);
 
-  const fetchGroups = async () => {
+  const fetchGroups = async (overrides = {}) => {
+    const nextCategory = overrides.category ?? category;
+    const nextFormat = overrides.format ?? format;
+    const nextSearch = overrides.search ?? search;
     const requestId = ++groupsRequest.current;
     setLoadingGroups(true);
     try {
       const res = await groupApi.list({
-        category: category !== "Semua" ? category : undefined,
-        format: format !== "all" ? format : undefined,
-        search: search.trim() || undefined,
+        category: nextCategory !== "Semua" ? nextCategory : undefined,
+        format: nextFormat !== "all" ? nextFormat : undefined,
+        search: nextSearch.trim() || undefined,
       });
       if (requestId !== groupsRequest.current) return;
       if (!res.success) throw new Error("Catalog request failed");
@@ -151,10 +135,41 @@ export function HomePage({
     fetchHealth();
   }, []);
 
+  useEffect(() => {
+    if (!searchMounted.current) {
+      searchMounted.current = true;
+      return;
+    }
+    if (skipSearchDebounce.current) {
+      skipSearchDebounce.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+      fetchGroups({ search });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    skipSearchDebounce.current = true;
     setCurrentPage(1);
     fetchGroups();
+  };
+
+  const handleResetFilters = () => {
+    const needsCategoryOrFormatEffect = category !== "Semua" || format !== "all";
+    if (search !== "") {
+      skipSearchDebounce.current = true;
+    }
+    setCategory("Semua");
+    setFormat("all");
+    setSearch("");
+    setCurrentPage(1);
+    if (!needsCategoryOrFormatEffect) {
+      fetchGroups({ category: "Semua", format: "all", search: "" });
+    }
   };
 
   const masteredSkills =
@@ -212,7 +227,7 @@ export function HomePage({
               Akun Ditangguhkan oleh Administrator
             </p>
             <p className="text-rose-800">
-              Akses akun Anda telah dinonaktifkan karena pelanggaran kebijakan komunitas FST.
+              Akses akun Anda telah dinonaktifkan karena pelanggaran kebijakan komunitas UIN SGD Bandung.
             </p>
             {user.restriction_note && (
               <p className="italic bg-rose-100/70 p-2 rounded-lg border border-rose-200 mt-1">
@@ -255,8 +270,7 @@ export function HomePage({
                 </div>
 
                 <p className="text-xs font-medium text-slate-500 leading-relaxed">
-                  {user.campus_name ||
-                    "Fakultas Sains & Teknologi, UIN Sunan Gunung Djati Bandung"}
+                  {user.campus_name || "UIN Sunan Gunung Djati Bandung"}
                 </p>
 
                 {user.bio && (
@@ -360,21 +374,21 @@ export function HomePage({
       ) : (
         <section className="relative p-6 sm:p-10 lg:p-12 rounded-3xl bg-white border border-slate-200/90 shadow-xs">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-center">
-            {/* Left Column: Headline, Copy, Dual CTAs, Trust Bar */}
-            <div className="lg:col-span-7 space-y-6">
+            {/* Left Column: Headline, Copy, Dual CTAs */}
+            <div className="lg:col-span-7 space-y-5">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
-                <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
-                Fakultas Sains & Teknologi — UIN Sunan Gunung Djati Bandung
+                <GraduationCap className="w-3.5 h-3.5 text-emerald-700" />
+                UIN Sunan Gunung Djati Bandung (Kampus 1 & Kampus 2)
               </div>
 
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.15]">
                 Belajar Bareng Rekan <br className="hidden sm:inline" />
-                <span className="text-slate-900">Mahasiswa FST, </span>
-                <span className="text-emerald-600">Tanpa Biaya.</span>
+                <span className="text-slate-900">Mahasiswa UIN SGD, </span>
+                <span className="text-emerald-700">Tanpa Biaya.</span>
               </h1>
 
               <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-xl">
-                Wadah kolaborasi akademis untuk 8 Program Studi FST UIN Sunan Gunung Djati Bandung. Temukan rekan belajar responsi praktikum laboratorium, bedah tugas koding & riset sains, persiapan UTS/UAS, dan bangun portofolio SKPI.
+                Kolaborasi belajar sebaya lintas 9 fakultas di Kampus 1 Cibiru dan Kampus 2 Cimencrang, bebas biaya dan terdata untuk SKPI.
               </p>
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
@@ -399,88 +413,110 @@ export function HomePage({
                   Jelajahi Katalog
                 </Button>
               </div>
-
-              {/* Social Proof Trust Bar */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-xs">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-extrabold text-slate-900 tracking-tight">100%</p>
-                  <p className="text-[11px] text-slate-500 font-medium">Bebas Biaya</p>
-                </div>
-                <div className="space-y-0.5 sm:border-l sm:border-slate-200 sm:pl-3">
-                  <p className="text-sm font-extrabold text-slate-900 tracking-tight">Daring & Luring</p>
-                  <p className="text-[11px] text-slate-500 font-medium">Fleksibel</p>
-                </div>
-                <div className="space-y-0.5 border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-3">
-                  <p className="text-sm font-extrabold text-slate-900 tracking-tight">Verifikasi Email</p>
-                  <p className="text-[11px] text-slate-500 font-medium">Resmi Kampus</p>
-                </div>
-                <div className="space-y-0.5 border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-3">
-                  <p className="text-sm font-extrabold text-slate-900 tracking-tight">Portofolio</p>
-                  <p className="text-[11px] text-emerald-800 font-semibold">Bukti SKPI</p>
-                </div>
-              </div>
             </div>
 
-            {/* Right Column: Study Session Card Preview */}
+            {/* Right Column: Live Session Spotlight from Real Catalog or Honest Scope Card */}
             <div className="lg:col-span-5 flex justify-center lg:justify-end">
               <div className="relative w-full max-w-sm sm:max-w-md">
-                <div className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4 text-left">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                      Teknologi
-                    </span>
-                    <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50/70 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                      Pendaftaran Terbuka
-                    </span>
-                  </div>
+                {groups.length > 0 ? (
+                  <div className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4 text-left">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                        {groups[0].category}
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                        {groups[0].format === "online" ? "Daring" : "Luring Kampus"}
+                      </span>
+                    </div>
 
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                      Algoritma & Struktur Data
-                    </h2>
-                    <div className="flex items-center gap-2.5 mt-2.5">
-                      <div className="w-8 h-8 rounded-full bg-emerald-700 text-white font-bold text-xs flex items-center justify-center">
-                        DP
+                    <div>
+                      <p className="text-lg font-bold text-slate-900 tracking-tight leading-snug line-clamp-2">
+                        {groups[0].title}
+                      </p>
+                      <div className="flex items-center gap-2.5 mt-3">
+                        <UserAvatar user={groups[0].host} size="sm" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 truncate">
+                            {groups[0].host?.full_name || "Tutor Mahasiswa"}
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-medium truncate">
+                            {groups[0].host?.campus_name || "UIN Sunan Gunung Djati Bandung"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1.5">
+                      <div className="flex items-center gap-2 font-medium">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                        <span>
+                          {new Date(groups[0].start_time).toLocaleDateString("id-ID", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "short",
+                          })}
+                          {", "}
+                          {new Date(groups[0].start_time).toLocaleTimeString("id-ID", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}{" "}
+                          WIB
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                      <span className="text-xs font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg tabular-nums">
+                        {groups[0].current_members || 0} / {groups[0].max_capacity} Peserta
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onOpenGroupDetail(groups[0])}
+                        className="text-xs border-slate-300 text-slate-800 hover:bg-slate-50"
+                      >
+                        Lihat Detail
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-6 sm:p-7 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-4 text-left">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0">
+                        <MapPin className="w-4 h-4" />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-900">
-                          Dimas Pratama
+                        <p className="text-sm font-bold text-slate-900">
+                          Cakupan Kampus UIN SGD
                         </p>
-                        <p className="text-[10px] text-slate-500 font-medium">
-                          S1 Teknik Informatika — FST UIN SGD
+                        <p className="text-xs text-slate-600">
+                          9 Fakultas dan Pascasarjana
                         </p>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1.5">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>Sabtu, 14:00 - 16:00 WIB</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
-                    <p className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                      <ListOrdered className="w-3.5 h-3.5 text-emerald-600" />
-                      Agenda Pembahasan
-                    </p>
-                    <ul className="text-xs text-slate-600 space-y-1.5 pl-5 list-disc marker:text-emerald-600">
-                      <li>Pembahasan konsep rekursi & dynamic programming</li>
-                      <li>Latihan bedah soal & live code review</li>
-                      <li>Tanya jawab persiapan ujian kuliah</li>
+                    <ul className="space-y-2.5 text-xs text-slate-700 border-t border-slate-200 pt-3">
+                      <li className="flex items-start gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                        <span>
+                          Kampus 1 Cibiru (Jl. A.H. Nasution No. 105): Perpustakaan Rachmat Djatnika, GKB, FST, FTK, FSH, FDK, FAH, FU
+                        </span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                        <span>
+                          Kampus 2 Cimencrang (Gedebage): Gedung Perkuliahan & Student Center FISIP, FEBI, Psikologi
+                        </span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Award className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                        <span>
+                          100% bebas biaya, dengan rekam jejak poin kontribusi untuk SKPI
+                        </span>
+                      </li>
                     </ul>
                   </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-500">
-                      Kuota Peserta
-                    </span>
-                    <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                      4 / 5 Terisi
-                    </span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -564,7 +600,7 @@ export function HomePage({
             ) : (
               <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                 <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600" />
-                Filter Program Studi & Format Sesi
+                Filter Rumpun Ilmu & Format Sesi
               </span>
             )}
 
@@ -618,7 +654,7 @@ export function HomePage({
                   key={cat}
                   type="button"
                   onClick={() => setCategory(cat)}
-                  className={`min-h-[34px] px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  className={`min-h-[44px] sm:min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     category === cat
                       ? "bg-emerald-700 text-white shadow-2xs"
                       : "bg-slate-50 text-slate-700 border border-slate-200/90 hover:border-emerald-300 hover:bg-emerald-50/40"
@@ -632,7 +668,7 @@ export function HomePage({
                 type="button"
                 onClick={() => setIsCategoriesExpanded((prev) => !prev)}
                 aria-expanded={isCategoriesExpanded}
-                className="min-h-[34px] px-3 py-1 rounded-lg text-xs font-semibold text-emerald-800 bg-emerald-50/80 border border-emerald-200 hover:bg-emerald-100/80 inline-flex items-center gap-1 transition-colors cursor-pointer"
+                className="min-h-[44px] sm:min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-800 bg-emerald-50/80 border border-emerald-200 hover:bg-emerald-100/80 inline-flex items-center gap-1 transition-colors cursor-pointer"
               >
                 {isCategoriesExpanded ? (
                   <>
@@ -815,11 +851,7 @@ export function HomePage({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setCategory("Semua");
-                    setFormat("all");
-                    setSearch("");
-                  }}
+                  onClick={handleResetFilters}
                   className="border-slate-300 text-slate-700 hover:bg-slate-50"
                 >
                   Reset Semua Filter
@@ -860,13 +892,13 @@ export function HomePage({
                         onClick={() =>
                           setCurrentPage((p) => Math.max(1, p - 1))
                         }
-                        className="px-2.5 py-1 min-h-[34px] text-xs"
+                        className="px-3 py-1.5 min-h-[44px] sm:min-h-[36px] text-xs"
                       >
                         <ChevronLeft className="w-3.5 h-3.5" />
                         Sebelumnya
                       </Button>
 
-                      <span className="px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold">
+                      <span className="px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold tabular-nums">
                         {safeCurrentPage} / {totalPages}
                       </span>
 
@@ -877,7 +909,7 @@ export function HomePage({
                         onClick={() =>
                           setCurrentPage((p) => Math.min(totalPages, p + 1))
                         }
-                        className="px-2.5 py-1 min-h-[34px] text-xs"
+                        className="px-3 py-1.5 min-h-[44px] sm:min-h-[36px] text-xs"
                       >
                         Berikutnya
                         <ChevronRight className="w-3.5 h-3.5" />

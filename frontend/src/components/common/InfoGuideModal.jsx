@@ -16,7 +16,7 @@ import { Button } from "../ui/Button";
 const TABS = [
   { id: "ethics", label: "Etika Belajar", icon: BookOpen },
   { id: "skpi", label: "Panduan SKPI", icon: Award },
-  { id: "safety", label: "Keamanan Komunitas", icon: Shield },
+  { id: "safety", label: "Keamanan", icon: Shield },
   { id: "help", label: "Pusat Bantuan", icon: HelpCircle },
 ];
 
@@ -48,7 +48,7 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                 Pusat Informasi & Pedoman Komunitas
               </h2>
               <p className="text-xs text-slate-500">
-                Fakultas Sains & Teknologi • UIN Sunan Gunung Djati Bandung
+                Lintas 9 Fakultas • UIN Sunan Gunung Djati Bandung
               </p>
             </div>
           </div>
@@ -173,9 +173,9 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                     3
                   </span>
                   <div>
-                    <p className="font-bold text-slate-900">Verifikasi Kemahasiswaan FST</p>
+                    <p className="font-bold text-slate-900">Verifikasi Kemahasiswaan Fakultas / Universitas</p>
                     <p className="text-slate-600">
-                      Bawa cetakan portofolio ke bagian kemahasiswaan program studi atau dekanat FST sebagai bukti pengabdian kemahasiswaan dan tutor sebaya.
+                      Bawa cetakan portofolio ke bagian kemahasiswaan program studi atau dekanat fakultas Anda di UIN SGD Bandung sebagai bukti pengabdian kemahasiswaan dan tutor sebaya.
                     </p>
                   </div>
                 </div>
@@ -257,12 +257,12 @@ export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-emerald-700 shrink-0" />
                     <div>
-                      <p className="font-semibold text-emerald-950 text-xs">Sekretariat Laboratorium FST</p>
-                      <p className="text-emerald-800 text-[11px]">Gedung Fakultas Sains & Teknologi Lt. 2</p>
+                      <p className="font-semibold text-emerald-950 text-xs">Sekretariat PeerLearn UIN SGD Bandung</p>
+                      <p className="text-emerald-800 text-[11px]">Kampus 1 Cibiru & Kampus 2 Cimencrang (9 Fakultas)</p>
                     </div>
                   </div>
                   <span className="text-[11px] font-semibold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                    fst@uinsgd.ac.id
+                    peerlearn@uinsgd.ac.id
                   </span>
                 </div>
               </div>

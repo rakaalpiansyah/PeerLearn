@@ -196,3 +196,32 @@ type SupportMessage struct {
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type NotificationType string
+
+const (
+	NotificationJoinRequest        NotificationType = "join_request"
+	NotificationMembershipAccepted NotificationType = "membership_accepted"
+	NotificationMembershipRejected NotificationType = "membership_rejected"
+	NotificationAttendanceMarked   NotificationType = "attendance_marked"
+	NotificationSessionApproved    NotificationType = "session_approved"
+	NotificationSessionRejected    NotificationType = "session_rejected"
+	NotificationSessionStatus      NotificationType = "session_status"
+	NotificationSupportReply       NotificationType = "support_reply"
+)
+
+type Notification struct {
+	ID             uuid.UUID        `json:"id"`
+	UserID         uuid.UUID        `json:"user_id"`
+	Type           NotificationType `json:"type"`
+	Title          string           `json:"title"`
+	Message        string           `json:"message"`
+	RelatedGroupID *uuid.UUID       `json:"related_group_id,omitempty"`
+	IsRead         bool             `json:"is_read"`
+	CreatedAt      time.Time        `json:"created_at"`
+}
+
+type NotificationListResponse struct {
+	Notifications []Notification `json:"notifications"`
+	UnreadCount   int            `json:"unread_count"`
+}

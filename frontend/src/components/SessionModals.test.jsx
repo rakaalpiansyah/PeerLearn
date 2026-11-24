@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthProvider } from '../context/AuthContext'
-import { groupApi, membershipApi } from '../api/client'
+import { authApi, groupApi, membershipApi } from '../api/client'
 import { GroupDetailModal } from './groups/GroupDetailModal'
 import { MySessionsModal } from './sessions/MySessionsModal'
 import { FeedbackModal } from './feedback/FeedbackModal'
@@ -58,6 +58,7 @@ beforeEach(() => {
   localStorage.clear()
   vi.spyOn(groupApi, 'getMembers').mockResolvedValue({ success: true, data: [] })
   vi.spyOn(groupApi, 'getFeedbacks').mockResolvedValue({ success: true, data: [] })
+  vi.spyOn(groupApi, 'getMessages').mockResolvedValue({ success: true, data: [] })
   vi.spyOn(membershipApi, 'getMySessions').mockResolvedValue({
     success: true,
     data: { joined: [session], hosted: [session] },
@@ -137,4 +138,68 @@ it('names all five rating choices and announces the current selection after keyb
   expect(screen.getByRole('button', { name: '3 dari 5 bintang' }).getAttribute('aria-pressed')).toBe('true')
   expect(screen.getByRole('button', { name: '5 dari 5 bintang' }).getAttribute('aria-pressed')).toBe('false')
   expect(screen.getByText('Cukup Memadai ⭐⭐⭐')).toBeTruthy()
+})
+
+describe('attendance check-in and share link', () => {
+  it('lets host mark accepted participant as attended, preserves private access, and copies shareable /sesi/:id URL', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+
+    localStorage.setItem('peerlearn_token', 'host-token')
+    vi.spyOn(authApi, 'getMe').mockResolvedValue({
+      success: true,
+      data: { id: 'host-1', full_name: 'Rani', role: 'student' },
+    })
+    const acceptedMember = {
+      id: 'mem-1',
+      group_id: 'session-1',
+      user_id: 'student-2',
+      status: 'accepted',
+      user: { id: 'student-2', full_name: 'Dika Pratama', campus_name: 'UIN SGD - Ilmu Komunikasi' },
+    }
+    groupApi.getMembers
+      .mockResolvedValueOnce({ success: true, data: [acceptedMember] })
+      .mockResolvedValueOnce({
+        success: true,
+        data: [{ ...acceptedMember, status: 'attended' }],
+      })
+    vi.spyOn(membershipApi, 'updateStatus').mockResolvedValue({ success: true })
+
+    await renderDialog(GroupDetailModal, {
+      group: session,
+      onActionComplete: vi.fn(),
+    })
+
+    const attendBtn = await screen.findByRole('button', { name: 'Tandai Hadir' })
+    await user.click(attendBtn)
+
+    expect(membershipApi.updateStatus).toHaveBeenCalledWith('mem-1', 'attended')
+    expect(await screen.findByText('Hadir (SKPI)')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Salin tautan sesi' }))
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/sesi/session-1`)
+    expect(await screen.findByText('Tersalin')).toBeTruthy()
+  })
+
+  it('keeps Ruang Diskusi unlocked for attended participants', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('peerlearn_token', 'attended-token')
+    vi.spyOn(authApi, 'getMe').mockResolvedValue({
+      success: true,
+      data: { id: 'student-2', full_name: 'Dika Pratama', role: 'student' },
+    })
+
+    await renderDialog(GroupDetailModal, {
+      group: { ...session, user_membership: 'attended', status: 'completed' },
+      onActionComplete: vi.fn(),
+    })
+
+    await user.click(screen.getByRole('button', { name: /Ruang Diskusi/ }))
+    expect(screen.queryByText('Ruang Diskusi Tertutup')).toBeNull()
+    expect(await screen.findByText(/Belum ada pesan di ruang diskusi sesi ini/)).toBeTruthy()
+  })
 })

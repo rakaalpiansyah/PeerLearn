@@ -46,7 +46,9 @@ func (m *mockSkillRepository) FindOrCreate(ctx context.Context, name, category s
 }
 
 type mockGroupRepoForUser struct {
-	hostedCount int
+	hostedCount  int
+	hostedGroups []domain.GroupResponse
+	byID         map[uuid.UUID]*domain.GroupResponse
 }
 
 func (m *mockGroupRepoForUser) Create(ctx context.Context, group *domain.LearningGroup) error {
@@ -54,6 +56,12 @@ func (m *mockGroupRepoForUser) Create(ctx context.Context, group *domain.Learnin
 }
 
 func (m *mockGroupRepoForUser) FindByID(ctx context.Context, id uuid.UUID) (*domain.GroupResponse, error) {
+	if m.byID != nil {
+		if g, ok := m.byID[id]; ok {
+			cp := *g
+			return &cp, nil
+		}
+	}
 	return nil, nil
 }
 
@@ -74,6 +82,9 @@ func (m *mockGroupRepoForUser) ReviewGroup(ctx context.Context, id uuid.UUID, ad
 }
 
 func (m *mockGroupRepoForUser) ListByHost(ctx context.Context, hostID uuid.UUID) ([]domain.GroupResponse, error) {
+	if m.hostedGroups != nil {
+		return m.hostedGroups, nil
+	}
 	var list []domain.GroupResponse
 	for i := 0; i < m.hostedCount; i++ {
 		list = append(list, domain.GroupResponse{ID: uuid.New(), HostID: hostID})
@@ -214,5 +225,101 @@ func TestUserService_GetPublicProfile(t *testing.T) {
 	}
 	if len(pub.Skills) != 1 || pub.Skills[0].Skill.Name != "Rangkaian Listrik" {
 		t.Errorf("expected 1 mastered skill 'Rangkaian Listrik'")
+	}
+}
+
+func TestUserService_GetSKPIVerification(t *testing.T) {
+	ctx := context.Background()
+	userRepo := newMockUserRepository()
+	skillRepo := &mockSkillRepository{}
+	memRepo := newFullMockMembershipRepo()
+
+	userID := uuid.New()
+	hostedCompletedID := uuid.New()
+	hostedOpenID := uuid.New()
+	joinedAttendedID := uuid.New()
+
+	_ = userRepo.Create(ctx, &domain.User{
+		ID:                 userID,
+		Email:              "rahasia@student.uinsgd.ac.id",
+		FullName:           "Nabila Azzahra",
+		Role:               domain.RoleStudent,
+		CampusName:         "UIN SGD Bandung - S1 Teknik Informatika",
+		ContributionPoints: 42,
+		AccountStatus:      domain.AccountActive,
+	})
+	skillID := uuid.New()
+	_ = userRepo.SyncUserSkills(ctx, userID, []domain.UserSkill{
+		{
+			UserID:    userID,
+			SkillID:   skillID,
+			SkillType: domain.SkillMastered,
+			Skill:     &domain.Skill{ID: skillID, Name: "Basis Data PostgreSQL", Category: "Teknologi"},
+		},
+	})
+
+	groupRepo := &mockGroupRepoForUser{
+		hostedGroups: []domain.GroupResponse{
+			{
+				ID:            hostedCompletedID,
+				HostID:        userID,
+				Title:         "Responsi Struktur Data",
+				Category:      "Teknologi",
+				Status:        domain.StatusCompleted,
+				StartTime:     time.Now().Add(-48 * time.Hour),
+				AttendedCount: 4,
+			},
+			{
+				ID:        hostedOpenID,
+				HostID:    userID,
+				Title:     "Sesi Belum Selesai",
+				Category:  "Teknologi",
+				Status:    domain.StatusOpen,
+				StartTime: time.Now().Add(24 * time.Hour),
+			},
+		},
+		byID: map[uuid.UUID]*domain.GroupResponse{
+			joinedAttendedID: {
+				ID:        joinedAttendedID,
+				HostID:    uuid.New(),
+				Title:     "Kajian Fiqh Muamalah",
+				Category:  "Hukum & Syariah",
+				Status:    domain.StatusCompleted,
+				StartTime: time.Now().Add(-72 * time.Hour),
+			},
+		},
+	}
+
+	_ = memRepo.Create(ctx, &domain.Membership{
+		ID:      uuid.New(),
+		GroupID: joinedAttendedID,
+		UserID:  userID,
+		Status:  domain.MembershipAttended,
+	})
+
+	svc := service.NewUserService(userRepo, skillRepo, groupRepo, memRepo)
+
+	res, err := svc.GetSKPIVerification(ctx, userID)
+	if err != nil {
+		t.Fatalf("expected GetSKPIVerification success, got: %v", err)
+	}
+	if res.FullName != "Nabila Azzahra" || !res.Verified {
+		t.Errorf("unexpected verification header: %+v", res)
+	}
+	if res.VerifiedHostedCount != 1 || res.VerifiedAttendedCount != 1 {
+		t.Errorf("expected 1 hosted completed and 1 attended joined, got hosted=%d attended=%d", res.VerifiedHostedCount, res.VerifiedAttendedCount)
+	}
+	if len(res.CompletedSessions) != 2 {
+		t.Fatalf("expected 2 completed sessions in transcript, got %d", len(res.CompletedSessions))
+	}
+	if len(res.MasteredSkills) != 1 || res.MasteredSkills[0] != "Basis Data PostgreSQL" {
+		t.Errorf("expected mastered skill Basis Data PostgreSQL, got %+v", res.MasteredSkills)
+	}
+	if !strings.HasPrefix(res.VerificationCode, "PL-") {
+		t.Errorf("expected PL- prefix on verification code, got %s", res.VerificationCode)
+	}
+
+	if _, err := svc.GetSKPIVerification(ctx, uuid.New()); err == nil {
+		t.Fatalf("expected error for unknown user ID, got nil")
 	}
 }

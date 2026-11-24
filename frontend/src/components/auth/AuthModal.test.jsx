@@ -155,4 +155,15 @@ describe('AuthModal validation', () => {
     expect(authApi.register).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('alert')).toBeNull()
   })
+
+  it('populates student campus datalist with all 48 UIN SGD study program options', () => {
+    mount()
+    const datalist = document.getElementById('uin-majors-list')
+    expect(datalist).toBeTruthy()
+    const options = Array.from(datalist.querySelectorAll('option'))
+    expect(options).toHaveLength(48)
+    expect(options.every((opt) => opt.value.startsWith('UIN SGD Bandung - '))).toBe(true)
+    expect(options.some((opt) => opt.value.includes('Akuntansi Syariah'))).toBe(true)
+    expect(options.some((opt) => opt.value.includes('Pascasarjana'))).toBe(true)
+  })
 })

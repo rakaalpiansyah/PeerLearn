@@ -180,11 +180,11 @@ func TestAuthService_RegisterAndLogin(t *testing.T) {
 
 	// 1. Test Register Success
 	regReq := domain.RegisterRequest{
-		Email:      "budi@kampus.ac.id",
+		Email:      "budi@student.uinsgd.ac.id",
 		Password:   "password123",
 		FullName:   "Budi Mahasiswa",
 		Role:       domain.RoleStudent,
-		CampusName: "Universitas Indonesia",
+		CampusName: "UIN SGD Bandung - S1 Teknik Informatika",
 	}
 
 	authResp, err := svc.Register(ctx, regReq)
@@ -194,8 +194,11 @@ func TestAuthService_RegisterAndLogin(t *testing.T) {
 	if authResp.Token == "" {
 		t.Errorf("Expected token to be non-empty")
 	}
-	if authResp.User.Email != "budi@kampus.ac.id" {
-		t.Errorf("Expected email budi@kampus.ac.id, got %s", authResp.User.Email)
+	if authResp.User.Email != "budi@student.uinsgd.ac.id" {
+		t.Errorf("Expected email budi@student.uinsgd.ac.id, got %s", authResp.User.Email)
+	}
+	if authResp.User.ContributionPoints != 0 {
+		t.Errorf("Expected new account contribution points to start at 0, got %d", authResp.User.ContributionPoints)
 	}
 
 	// 2. Test Register Duplicate Email
@@ -206,7 +209,7 @@ func TestAuthService_RegisterAndLogin(t *testing.T) {
 
 	// 3. Test Login Success
 	loginReq := domain.LoginRequest{
-		Email:    "budi@kampus.ac.id",
+		Email:    "budi@student.uinsgd.ac.id",
 		Password: "password123",
 	}
 	loginResp, err := svc.Login(ctx, loginReq)
@@ -222,17 +225,44 @@ func TestAuthService_RegisterAndLogin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateToken failed: %v", err)
 	}
-	if claims.Email != "budi@kampus.ac.id" {
-		t.Errorf("Expected token claim email budi@kampus.ac.id, got %s", claims.Email)
+	if claims.Email != "budi@student.uinsgd.ac.id" {
+		t.Errorf("Expected token claim email budi@student.uinsgd.ac.id, got %s", claims.Email)
 	}
 
 	// 4. Test Login Wrong Password
 	badReq := domain.LoginRequest{
-		Email:    "budi@kampus.ac.id",
+		Email:    "budi@student.uinsgd.ac.id",
 		Password: "wrongpassword",
 	}
 	_, err = svc.Login(ctx, badReq)
 	if err != service.ErrInvalidCredentials {
 		t.Fatalf("Expected ErrInvalidCredentials, got %v", err)
+	}
+}
+
+func TestAuthService_LoginRejectsRemovedAdminBackdoor(t *testing.T) {
+	repo := newMockUserRepository()
+	svc := service.NewAuthService(repo, "test-jwt-secret-12345")
+	ctx := context.Background()
+
+	hash, err := security.HashPassword("RealStrongPassword99!")
+	if err != nil {
+		t.Fatalf("HashPassword failed: %v", err)
+	}
+	_ = repo.Create(ctx, &domain.User{
+		ID:            uuid.New(),
+		Email:         "admin.fst@uinsgd.ac.id",
+		PasswordHash:  hash,
+		FullName:      "Admin Akademik UIN SGD",
+		Role:          domain.RoleAdmin,
+		AccountStatus: domain.AccountActive,
+	})
+
+	_, err = svc.Login(ctx, domain.LoginRequest{
+		Email:    "admin.fst@uinsgd.ac.id",
+		Password: "AdminFST2026!",
+	})
+	if !errors.Is(err, service.ErrInvalidCredentials) {
+		t.Fatalf("expected ErrInvalidCredentials for hardcoded backdoor password, got %v", err)
 	}
 }

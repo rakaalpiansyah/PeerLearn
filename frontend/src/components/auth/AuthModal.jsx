@@ -12,6 +12,7 @@ import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { useAuth } from "../../context/AuthContext";
 import { useFormValidation } from "../../hooks/useFormValidation";
+import { UIN_PROGRAM_OPTIONS } from "../../data/campusData";
 
 export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
@@ -227,25 +228,20 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
               {role === "student" && (
                 <>
                   <Input
-                    label="Nama Kampus & Program Studi FST"
+                    label="Nama Kampus, Fakultas & Program Studi UIN SGD"
                     id="campus_name"
                     name="campus_name"
                     error={errors.campus_name}
-                    placeholder="cth. UIN SGD Bandung - S1 Teknik Informatika"
+                    placeholder="cth. UIN SGD Bandung - FST S1 Teknik Informatika"
                     value={campusName}
                     onChange={(e) => setCampusName(e.target.value)}
-                    helperText="Pilih prodi FST atau ketik nama institusi Anda"
-                    list="fst-majors-list"
+                    helperText="Pilih fakultas/prodi UIN SGD atau ketik nama institusi Anda"
+                    list="uin-majors-list"
                   />
-                  <datalist id="fst-majors-list">
-                    <option value="UIN SGD Bandung - S1 Teknik Informatika" />
-                    <option value="UIN SGD Bandung - S1 Teknik Elektro" />
-                    <option value="UIN SGD Bandung - S1 Teknik Lingkungan" />
-                    <option value="UIN SGD Bandung - S1 Matematika" />
-                    <option value="UIN SGD Bandung - S1 Fisika" />
-                    <option value="UIN SGD Bandung - S1 Kimia" />
-                    <option value="UIN SGD Bandung - S1 Biologi" />
-                    <option value="UIN SGD Bandung - S1 Agroteknologi" />
+                  <datalist id="uin-majors-list">
+                    {UIN_PROGRAM_OPTIONS.map((program) => (
+                      <option key={program} value={program} />
+                    ))}
                   </datalist>
                 </>
               )}
@@ -259,7 +255,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
             error={errors.email}
             type="email"
             autoComplete="email"
-            placeholder="nama@email.com atau @kampus.ac.id"
+            placeholder="nama@student.uinsgd.ac.id atau @uinsgd.ac.id"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}

@@ -5,6 +5,19 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { groupApi } from '../../api/client'
 import { CreateGroupModal } from './CreateGroupModal'
 
+function getFutureDateParts(daysAhead = 10) {
+  const future = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000)
+  const pad = (n) => (n < 10 ? `0${n}` : `${n}`)
+  return {
+    dateStr: `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}`,
+    year: future.getFullYear(),
+    month: future.getMonth(),
+    day: future.getDate(),
+  }
+}
+
+const futureDate = getFutureDateParts(10)
+
 const labels = {
   title: /Topik \/ Judul Sesi Belajar/,
   location: /Tautan Pertemuan Daring/,
@@ -23,17 +36,17 @@ function change(name, value) {
   fireEvent.change(field(name), { target: { value } })
 }
 
-function setup() {
+function setup(props = {}) {
   const onClose = vi.fn()
   const onCreated = vi.fn()
-  render(<CreateGroupModal isOpen onClose={onClose} onCreated={onCreated} />)
+  render(<CreateGroupModal isOpen onClose={onClose} onCreated={onCreated} {...props} />)
   return { onClose, onCreated }
 }
 
 function fillValid() {
   change('title', 'Diskusi Graph')
   change('location', 'Ruang diskusi daring')
-  change('date', '2026-11-02')
+  change('date', futureDate.dateStr)
   change('start', '14:00')
   change('end', '16:00')
   change('capacity', '5')
@@ -51,6 +64,7 @@ function expectInlineError(control) {
 
 beforeEach(() => {
   vi.spyOn(groupApi, 'create').mockResolvedValue({ success: true, data: { id: 'group-1' } })
+  vi.spyOn(groupApi, 'update').mockResolvedValue({ success: true, data: null })
 })
 
 afterEach(() => {
@@ -76,6 +90,7 @@ describe('CreateGroupModal validation', () => {
     ['location', ''],
     ['location', '   '],
     ['date', ''],
+    ['date', '2020-01-02'],
     ['start', ''],
     ['end', ''],
     ['end', '14:00'],
@@ -131,31 +146,75 @@ describe('CreateGroupModal validation', () => {
     for (const [key, hour] of [['start_time', 14], ['end_time', 16]]) {
       expect(payload[key]).toMatch(/Z$/)
       const timestamp = new Date(payload[key])
-      expect([timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), timestamp.getHours(), timestamp.getMinutes()])
-        .toEqual([2026, 10, 2, hour, 0])
-    }
-    if (process.env.TZ === 'UTC') {
-      expect(payload.start_time).toBe('2026-11-02T14:00:00.000Z')
-      expect(payload.end_time).toBe('2026-11-02T16:00:00.000Z')
-    } else if (process.env.TZ === 'Asia/Jakarta') {
-      expect(payload.start_time).toBe('2026-11-02T07:00:00.000Z')
-      expect(payload.end_time).toBe('2026-11-02T09:00:00.000Z')
+      expect([
+        timestamp.getFullYear(),
+        timestamp.getMonth(),
+        timestamp.getDate(),
+        timestamp.getHours(),
+        timestamp.getMinutes(),
+      ]).toEqual([futureDate.year, futureDate.month, futureDate.day, hour, 0])
     }
   })
 
-  it('accepts past dates and offline location text without adding new restrictions', async () => {
+  it('accepts valid future offline date and UIN SGD campus location', async () => {
     const { onCreated } = setup()
     fillValid()
     fireEvent.click(screen.getByRole('button', { name: 'Luring' }))
-    fireEvent.change(screen.getByLabelText(/Lokasi Fisik/), { target: { value: 'Perpustakaan Lt. 2' } })
-    change('date', '2020-01-02')
+    fireEvent.change(screen.getByLabelText(/Lokasi Fisik/), {
+      target: { value: 'Perpustakaan Rachmat Djatnika UIN SGD' },
+    })
     change('description', 'Bawa catatan kuliah')
     submit()
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1))
     expect(groupApi.create).toHaveBeenCalledWith(expect.objectContaining({
-      format: 'offline', location_or_link: 'Perpustakaan Lt. 2', description: 'Bawa catatan kuliah',
+      format: 'offline',
+      location_or_link: 'Perpustakaan Rachmat Djatnika UIN SGD',
+      description: 'Bawa catatan kuliah',
     }))
+  })
+
+  it('hydrates and updates a rejected session in full edit mode', async () => {
+    const rejectedGroup = {
+      id: 'grp-rej-1',
+      title: 'Judul Awal Kurang Jelas',
+      description: 'Deskripsi lama',
+      category: 'Ekonomi & Bisnis Islam',
+      format: 'offline',
+      location_or_link: 'Kampus 2 Cimencrang',
+      building_details: 'Ruang 204',
+      latitude: -6.9388,
+      longitude: 107.698,
+      agenda: ['Materi lama'],
+      prerequisites: 'Kalkulator',
+      start_time: new Date(futureDate.year, futureDate.month, futureDate.day, 9, 0).toISOString(),
+      end_time: new Date(futureDate.year, futureDate.month, futureDate.day, 11, 0).toISOString(),
+      max_capacity: 10,
+      status: 'rejected',
+      review_note: 'Perjelas judul sesi dan tambahkan agenda.',
+    }
+
+    const { onClose, onCreated } = setup({ editingGroup: rejectedGroup })
+    expect(screen.getByRole('heading', { name: 'Perbaiki & Ajukan Ulang Sesi' })).toBeTruthy()
+    expect(screen.getByText('Perjelas judul sesi dan tambahkan agenda.')).toBeTruthy()
+    expect(field('title').value).toBe('Judul Awal Kurang Jelas')
+
+    change('title', 'Bedah Akuntansi Syariah Lanjut')
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan & Ajukan Ulang' }))
+
+    await waitFor(() => expect(groupApi.update).toHaveBeenCalledTimes(1))
+    expect(groupApi.update).toHaveBeenCalledWith(
+      'grp-rej-1',
+      expect.objectContaining({
+        title: 'Bedah Akuntansi Syariah Lanjut',
+        category: 'Ekonomi & Bisnis Islam',
+        format: 'offline',
+        location_or_link: 'Kampus 2 Cimencrang',
+      })
+    )
+    expect(groupApi.create).not.toHaveBeenCalled()
+    expect(onCreated).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
   it.each(['reject', 'unsuccessful'])('announces a %s request, preserves the draft, and permits retry', async (failure) => {
@@ -170,7 +229,7 @@ describe('CreateGroupModal validation', () => {
     expect(onClose).not.toHaveBeenCalled()
     expect(onCreated).not.toHaveBeenCalled()
     for (const [name, value] of Object.entries({
-      title: 'Diskusi Graph', location: 'Ruang diskusi daring', date: '2026-11-02',
+      title: 'Diskusi Graph', location: 'Ruang diskusi daring', date: futureDate.dateStr,
       start: '14:00', end: '16:00', capacity: '5', description: 'Bawa catatan kuliah',
     })) expect(field(name).value).toBe(value)
     expect(screen.getByRole('button', { name: /Publikasikan/ }).disabled).toBe(false)

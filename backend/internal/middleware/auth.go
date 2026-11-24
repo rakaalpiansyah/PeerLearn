@@ -46,6 +46,32 @@ func JWTMiddleware(jwtSecret string) fiber.Handler {
 	}
 }
 
+// OptionalJWTMiddleware attaches user claims when a valid Bearer token is provided,
+// allowing public endpoints to distinguish guests from authenticated members.
+func OptionalJWTMiddleware(jwtSecret string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return c.Next()
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			return c.Next()
+		}
+
+		claims, err := security.ValidateToken(parts[1], jwtSecret)
+		if err != nil {
+			return c.Next()
+		}
+
+		c.Locals("userID", claims.UserID)
+		c.Locals("email", claims.Email)
+		c.Locals("role", claims.Role)
+		return c.Next()
+	}
+}
+
 func RequireRole(allowedRoles ...domain.UserRole) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		roleVal := c.Locals("role")

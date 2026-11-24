@@ -4,7 +4,6 @@ import {
   Clock,
   MapPin,
   Video,
-  Users,
   Award,
   ChevronRight,
   AlertTriangle,

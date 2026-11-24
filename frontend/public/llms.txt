@@ -1,14 +1,14 @@
-# PeerLearn — Platform Kolaborasi Belajar Komunitas Mahasiswa
+# PeerLearn: Platform Kolaborasi Belajar Mahasiswa UIN SGD Bandung
 
-> Platform kolaborasi belajar mahasiswa lintas kampus untuk diskusi akademik, bimbingan sebaya bebas biaya, dan portofolio resmi SKPI.
+> Platform kolaborasi belajar sebaya bebas biaya untuk mahasiswa 9 fakultas Universitas Islam Negeri Sunan Gunung Djati Bandung di Kampus 1 Cibiru dan Kampus 2 Cimencrang.
 
 ## Fitur Utama
 
-- [Katalog Sesi Belajar](http://localhost:5173/#katalog-sesi): Temukan kelompok belajar sesuai mata kuliah dan topik.
-- [Pendaftaran Akun Komunitas](http://localhost:5173/): Bergabung dengan komunitas mahasiswa FST UIN SGD Bandung.
-- [Rekomendasi Sesi Pintar](http://localhost:5173/api/v1/groups/recommendations): Rekomendasi kelompok belajar berbasis minat dan keahlian mahasiswa.
+- Katalog Sesi Belajar (`/#katalog-sesi`): Temukan kelompok belajar sesuai mata kuliah, rumpun fakultas, dan jadwal.
+- Akun Komunitas UIN SGD Bandung (`/`): Bergabung bersama mahasiswa dari 9 fakultas dan warga sekitar kampus.
+- Rekomendasi Sesi Terarah (`/api/v1/groups/recommendations`): Pencocokan kelompok belajar berdasarkan minat materi dan keahlian tutor.
 
-## Dokumentasi & Kebijakan
+## Dokumentasi dan Kebijakan
 
-- [Panduan SKPI](http://localhost:5173/#skpi): Pedoman akumulasi poin bimbingan untuk Surat Keterangan Pendamping Ijazah.
-- [Etika Komunitas](http://localhost:5173/#ethics): Pedoman integritas akademik dan norma belajar kelompok.
+- Panduan SKPI (`/#skpi`): Pedoman akumulasi poin bimbingan untuk Surat Keterangan Pendamping Ijazah.
+- Etika Komunitas (`/#ethics`): Pedoman integritas akademik dan norma belajar kelompok sebaya.

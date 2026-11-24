@@ -273,3 +273,282 @@ func TestMembershipService_GetMySessions_HTTPRepositoryFailures(t *testing.T) {
 		})
 	}
 }
+
+type fullMockMembershipRepo struct {
+	items map[uuid.UUID]*domain.Membership
+}
+
+func newFullMockMembershipRepo() *fullMockMembershipRepo {
+	return &fullMockMembershipRepo{items: make(map[uuid.UUID]*domain.Membership)}
+}
+
+func (r *fullMockMembershipRepo) Create(_ context.Context, m *domain.Membership) error {
+	cp := *m
+	r.items[m.ID] = &cp
+	return nil
+}
+
+func (r *fullMockMembershipRepo) Find(_ context.Context, groupID, userID uuid.UUID) (*domain.Membership, error) {
+	for _, m := range r.items {
+		if m.GroupID == groupID && m.UserID == userID {
+			cp := *m
+			return &cp, nil
+		}
+	}
+	return nil, repository.ErrMembershipNotFound
+}
+
+func (r *fullMockMembershipRepo) FindByID(_ context.Context, id uuid.UUID) (*domain.Membership, error) {
+	m, ok := r.items[id]
+	if !ok {
+		return nil, repository.ErrMembershipNotFound
+	}
+	cp := *m
+	return &cp, nil
+}
+
+func (r *fullMockMembershipRepo) ListByGroup(_ context.Context, groupID uuid.UUID) ([]domain.Membership, error) {
+	var out []domain.Membership
+	for _, m := range r.items {
+		if m.GroupID == groupID {
+			cp := *m
+			if m.User != nil {
+				u := *m.User
+				cp.User = &u
+			}
+			out = append(out, cp)
+		}
+	}
+	return out, nil
+}
+
+func (r *fullMockMembershipRepo) ListByUser(_ context.Context, userID uuid.UUID) ([]domain.Membership, error) {
+	var out []domain.Membership
+	for _, m := range r.items {
+		if m.UserID == userID {
+			out = append(out, *m)
+		}
+	}
+	return out, nil
+}
+
+func (r *fullMockMembershipRepo) UpdateStatus(_ context.Context, id uuid.UUID, status domain.MembershipStatus) error {
+	m, ok := r.items[id]
+	if !ok {
+		return repository.ErrMembershipNotFound
+	}
+	m.Status = status
+	return nil
+}
+
+func (r *fullMockMembershipRepo) CountAccepted(_ context.Context, groupID uuid.UUID) (int, error) {
+	count := 0
+	for _, m := range r.items {
+		if m.GroupID == groupID && (m.Status == domain.MembershipAccepted || m.Status == domain.MembershipAttended) {
+			count++
+		}
+	}
+	return count, nil
+}
+
+type pointTrackingFeedbackRepo struct {
+	mockFeedbackRepoForEngagement
+	points map[uuid.UUID]int
+}
+
+func (p *pointTrackingFeedbackRepo) AddContributionPoints(_ context.Context, userID uuid.UUID, pts int) error {
+	if p.points == nil {
+		p.points = make(map[uuid.UUID]int)
+	}
+	p.points[userID] += pts
+	return nil
+}
+
+func TestMembershipService_RejoinAfterCancel(t *testing.T) {
+	ctx := context.Background()
+	groupRepo := newMockGroupRepository()
+	memRepo := newFullMockMembershipRepo()
+	hostID := uuid.New()
+	studentID := uuid.New()
+	groupID := uuid.New()
+	_ = groupRepo.Create(ctx, &domain.LearningGroup{
+		ID: groupID, HostID: hostID, Title: "Kalkulus I", Status: domain.StatusOpen, MaxCapacity: 5,
+	})
+
+	svc := service.NewMembershipService(memRepo, groupRepo, nil)
+	joined, err := svc.JoinGroup(ctx, studentID, groupID)
+	if err != nil {
+		t.Fatalf("initial join failed: %v", err)
+	}
+	if err := svc.UpdateStatus(ctx, studentID, joined.ID, domain.MembershipCancelled); err != nil {
+		t.Fatalf("cancel membership failed: %v", err)
+	}
+
+	rejoined, err := svc.JoinGroup(ctx, studentID, groupID)
+	if err != nil {
+		t.Fatalf("rejoin after cancel failed: %v", err)
+	}
+	if rejoined.Status != domain.MembershipPending {
+		t.Errorf("expected rejoined status pending, got %s", rejoined.Status)
+	}
+}
+
+func TestMembershipService_UpdateStatusIdempotentNoDoublePoints(t *testing.T) {
+	ctx := context.Background()
+	groupRepo := newMockGroupRepository()
+	memRepo := newFullMockMembershipRepo()
+	fbRepo := &pointTrackingFeedbackRepo{}
+	hostID := uuid.New()
+	studentID := uuid.New()
+	groupID := uuid.New()
+	_ = groupRepo.Create(ctx, &domain.LearningGroup{
+		ID: groupID, HostID: hostID, Title: "Fiqh Muamalah", Status: domain.StatusOpen, MaxCapacity: 2,
+	})
+
+	svc := service.NewMembershipService(memRepo, groupRepo, fbRepo)
+	joined, err := svc.JoinGroup(ctx, studentID, groupID)
+	if err != nil {
+		t.Fatalf("join failed: %v", err)
+	}
+
+	if err := svc.UpdateStatus(ctx, hostID, joined.ID, domain.MembershipAccepted); err != nil {
+		t.Fatalf("first accept failed: %v", err)
+	}
+	if err := svc.UpdateStatus(ctx, hostID, joined.ID, domain.MembershipAccepted); err != nil {
+		t.Fatalf("idempotent accept failed: %v", err)
+	}
+	if fbRepo.points[hostID] != 2 {
+		t.Errorf("expected host contribution points to be 2 once, got %d", fbRepo.points[hostID])
+	}
+}
+
+func TestMembershipService_GetGroupMembersPrivacy(t *testing.T) {
+	ctx := context.Background()
+	groupRepo := newMockGroupRepository()
+	memRepo := newFullMockMembershipRepo()
+	hostID := uuid.New()
+	acceptedID := uuid.New()
+	pendingID := uuid.New()
+	strangerID := uuid.New()
+	groupID := uuid.New()
+	_ = groupRepo.Create(ctx, &domain.LearningGroup{
+		ID: groupID, HostID: hostID, Title: "Ekonomi Syariah", Status: domain.StatusOpen, MaxCapacity: 5,
+	})
+	memRepo.items[uuid.New()] = &domain.Membership{
+		ID: uuid.New(), GroupID: groupID, UserID: acceptedID, Status: domain.MembershipAccepted,
+		User: &domain.User{ID: acceptedID, FullName: "Alya", Email: "alya@student.uinsgd.ac.id"},
+	}
+	memRepo.items[uuid.New()] = &domain.Membership{
+		ID: uuid.New(), GroupID: groupID, UserID: pendingID, Status: domain.MembershipPending,
+		User: &domain.User{ID: pendingID, FullName: "Bima", Email: "bima@student.uinsgd.ac.id"},
+	}
+
+	svc := service.NewMembershipService(memRepo, groupRepo, nil)
+
+	publicMembers, err := svc.GetGroupMembers(ctx, groupID, strangerID)
+	if err != nil {
+		t.Fatalf("GetGroupMembers public failed: %v", err)
+	}
+	if len(publicMembers) != 1 {
+		t.Fatalf("expected only 1 accepted member visible to stranger, got %d", len(publicMembers))
+	}
+	if publicMembers[0].User != nil && publicMembers[0].User.Email != "" {
+		t.Errorf("expected member email to be redacted for stranger, got %s", publicMembers[0].User.Email)
+	}
+
+	hostMembers, err := svc.GetGroupMembers(ctx, groupID, hostID)
+	if err != nil {
+		t.Fatalf("GetGroupMembers host failed: %v", err)
+	}
+	if len(hostMembers) != 2 {
+		t.Fatalf("expected 2 members (accepted + pending) visible to host, got %d", len(hostMembers))
+	}
+}
+
+func TestMembershipService_AttendanceTransitionsAndPoints(t *testing.T) {
+	ctx := context.Background()
+	groupRepo := newMockGroupRepository()
+	memRepo := newFullMockMembershipRepo()
+	fbRepo := &pointTrackingFeedbackRepo{}
+	userRepo := newMockUserRepository()
+	notifRepo := newMockNotificationRepo()
+	notifSvc := service.NewNotificationService(notifRepo)
+
+	hostID := uuid.New()
+	studentID := uuid.New()
+	otherStudentID := uuid.New()
+	groupID := uuid.New()
+	_ = userRepo.Create(ctx, &domain.User{ID: studentID, FullName: "Ahmad Fauzi", Email: "ahmad@student.uinsgd.ac.id", Role: domain.RoleStudent})
+	_ = userRepo.Create(ctx, &domain.User{ID: otherStudentID, FullName: "Citra", Email: "citra@student.uinsgd.ac.id", Role: domain.RoleStudent})
+	_ = groupRepo.Create(ctx, &domain.LearningGroup{
+		ID: groupID, HostID: hostID, Title: "Klinik Riset Psikologi", Status: domain.StatusOpen, MaxCapacity: 1,
+	})
+
+	svc := service.NewMembershipService(memRepo, groupRepo, fbRepo, userRepo)
+	svc.SetNotifier(notifSvc)
+
+	joined, err := svc.JoinGroup(ctx, studentID, groupID)
+	if err != nil {
+		t.Fatalf("JoinGroup failed: %v", err)
+	}
+
+	// Cannot mark pending membership attended directly
+	err = svc.UpdateStatus(ctx, hostID, joined.ID, domain.MembershipAttended)
+	if !errors.Is(err, service.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput marking pending member attended, got %v", err)
+	}
+
+	// Accept (+2 host points) -> attend (+3 host, +1 participant)
+	if err := svc.UpdateStatus(ctx, hostID, joined.ID, domain.MembershipAccepted); err != nil {
+		t.Fatalf("UpdateStatus accept failed: %v", err)
+	}
+	if err := svc.UpdateStatus(ctx, hostID, joined.ID, domain.MembershipAttended); err != nil {
+		t.Fatalf("UpdateStatus attend failed: %v", err)
+	}
+	// Repeating attend or accept stays idempotent without extra points or downgrades
+	if err := svc.UpdateStatus(ctx, hostID, joined.ID, domain.MembershipAttended); err != nil {
+		t.Fatalf("repeat attend failed: %v", err)
+	}
+	if err := svc.UpdateStatus(ctx, hostID, joined.ID, domain.MembershipAccepted); err != nil {
+		t.Fatalf("accept after attend failed: %v", err)
+	}
+
+	updated, _ := memRepo.FindByID(ctx, joined.ID)
+	if updated.Status != domain.MembershipAttended {
+		t.Errorf("expected membership status to stay attended, got %s", updated.Status)
+	}
+	if fbRepo.points[hostID] != 5 {
+		t.Errorf("expected host points 5 (+2 accept +3 attend), got %d", fbRepo.points[hostID])
+	}
+	if fbRepo.points[studentID] != 1 {
+		t.Errorf("expected student points 1, got %d", fbRepo.points[studentID])
+	}
+
+	// Attended member still counts toward group capacity
+	otherJoined, err := svc.JoinGroup(ctx, otherStudentID, groupID)
+	if err != nil {
+		t.Fatalf("other JoinGroup failed: %v", err)
+	}
+	err = svc.UpdateStatus(ctx, hostID, otherJoined.ID, domain.MembershipAccepted)
+	if !errors.Is(err, service.ErrGroupFull) {
+		t.Fatalf("expected ErrGroupFull when attended member fills capacity, got %v", err)
+	}
+
+	// Rejecting emits notification too
+	if err := svc.UpdateStatus(ctx, hostID, otherJoined.ID, domain.MembershipRejected); err != nil {
+		t.Fatalf("UpdateStatus reject failed: %v", err)
+	}
+
+	hostNotifs, _ := notifSvc.ListForUser(ctx, hostID, 10)
+	if len(hostNotifs.Notifications) != 2 {
+		t.Errorf("expected 2 join request notifications for host, got %d", len(hostNotifs.Notifications))
+	}
+	studentNotifs, _ := notifSvc.ListForUser(ctx, studentID, 10)
+	if len(studentNotifs.Notifications) != 2 {
+		t.Errorf("expected 2 notifications (accepted + attended) for student, got %d", len(studentNotifs.Notifications))
+	}
+	otherNotifs, _ := notifSvc.ListForUser(ctx, otherStudentID, 10)
+	if len(otherNotifs.Notifications) != 1 || otherNotifs.Notifications[0].Type != domain.NotificationMembershipRejected {
+		t.Errorf("expected 1 rejection notification for other student, got %+v", otherNotifs.Notifications)
+	}
+}
