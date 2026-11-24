@@ -5,9 +5,9 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StudyRequestBoard } from "./StudyRequestBoard";
 import { studyRequestApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
-vi.mock("../../context/AuthContext", () => ({
+vi.mock("../../context/useAuth", () => ({
   useAuth: vi.fn(),
 }));
 

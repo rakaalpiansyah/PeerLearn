@@ -14,13 +14,14 @@ import {
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
 import { membershipApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { buildSKPIVerifyUrl } from "../../utils/sessionRoute";
 import { SKPIQrCode } from "./SKPIQrCode";
 
 export function TutorSummaryModal({ isOpen, onClose }) {
   const { user } = useAuth();
   const printAreaRef = useRef(null);
+  const [issuedAt] = useState(() => new Date());
   const [sessions, setSessions] = useState({ hosted: [], joined: [] });
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [sessionsError, setSessionsError] = useState(null);
@@ -29,12 +30,12 @@ export function TutorSummaryModal({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen || !user?.id) return;
     let cancelled = false;
-    setLoadingSessions(true);
-    setSessionsError(null);
 
-    membershipApi
-      .getMySessions()
-      .then((res) => {
+    const loadSessions = async () => {
+      setLoadingSessions(true);
+      setSessionsError(null);
+      try {
+        const res = await membershipApi.getMySessions();
         if (cancelled) return;
         if (res?.success && res?.data) {
           setSessions({
@@ -42,18 +43,19 @@ export function TutorSummaryModal({ isOpen, onClose }) {
             joined: res.data.joined || [],
           });
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
         setSessionsError(
           err?.message || "Riwayat sesi terverifikasi belum dapat dimuat."
         );
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setLoadingSessions(false);
         }
-      });
+      }
+    };
+
+    loadSessions();
 
     return () => {
       cancelled = true;
@@ -73,13 +75,13 @@ export function TutorSummaryModal({ isOpen, onClose }) {
   const totalVerifiedSessions = verifiedHosted.length + verifiedAttended.length;
   const canPrint =
     (user.contribution_points || 0) > 0 || totalVerifiedSessions > 0;
-  const currentDate = new Date().toLocaleDateString("id-ID", {
+  const currentDate = issuedAt.toLocaleDateString("id-ID", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 
-  const certNumber = `SKPI/PL/${new Date().getFullYear()}/${(
+  const certNumber = `SKPI/PL/${issuedAt.getFullYear()}/${(
     user.id || "USR"
   )
     .replace(/-/g, "")

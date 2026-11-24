@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./context/useAuth";
 import { groupApi } from "./api/client";
 import {
   clearSessionPath,
@@ -66,13 +67,23 @@ const InfoGuideModal = lazy(() =>
   }))
 );
 
+function readInitialResetToken() {
+  return new URLSearchParams(window.location.search).get("reset_token") || "";
+}
+
 function AppContent() {
   const { user, profileError, loading, retryProfile } = useAuth();
   const [isBackendOnline, setIsBackendOnline] = useState(false);
   const [previewStudentCatalog, setPreviewStudentCatalog] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState("login");
-  const [authResetToken, setAuthResetToken] = useState("");
+  const [authModalOpen, setAuthModalOpen] = useState(() =>
+    Boolean(readInitialResetToken())
+  );
+  const [authMode, setAuthMode] = useState(() =>
+    readInitialResetToken() ? "reset" : "login"
+  );
+  const [authResetToken, setAuthResetToken] = useState(() =>
+    readInitialResetToken()
+  );
   const [skillsModalOpen, setSkillsModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
@@ -143,18 +154,18 @@ function AppContent() {
   };
 
   useEffect(() => {
-    const queryResetToken = new URLSearchParams(window.location.search).get("reset_token");
+    const queryResetToken = readInitialResetToken();
     if (queryResetToken) {
-      setAuthResetToken(queryResetToken);
-      setAuthMode("reset");
-      setAuthModalOpen(true);
       const nextUrl = `${window.location.pathname}${window.location.hash || ""}`;
       window.history.replaceState({}, "", nextUrl || "/");
     }
 
     const initialSessionId = getSessionIdFromPath(window.location.pathname);
     if (initialSessionId) {
-      openGroupById(initialSessionId, { syncUrl: false });
+      const loadInitialSession = async () => {
+        await openGroupById(initialSessionId, { syncUrl: false });
+      };
+      loadInitialSession();
     }
 
     const handlePopState = () => {

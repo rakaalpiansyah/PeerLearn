@@ -20,27 +20,28 @@ export function SKPIVerifyPage({ userId, onBackHome }) {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
-    userApi
-      .verifySKPI(userId)
-      .then((res) => {
+    const verifyRecord = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await userApi.verifySKPI(userId);
         if (cancelled) return;
         if (!res?.success || !res?.data) {
           throw new Error("Data verifikasi SKPI tidak ditemukan.");
         }
         setData(res.data);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
         setError(err?.message || "Data verifikasi SKPI tidak ditemukan.");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    verifyRecord();
 
     return () => {
       cancelled = true;

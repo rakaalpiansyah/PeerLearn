@@ -12,13 +12,13 @@ import {
 import userEvent from "@testing-library/user-event";
 import { HomePage } from "./HomePage";
 import { groupApi, systemApi } from "../api/client";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 vi.mock("../api/client", () => ({
   groupApi: { list: vi.fn(), getRecommendations: vi.fn() },
   systemApi: { getHealth: vi.fn() },
 }));
-vi.mock("../context/AuthContext", () => ({ useAuth: vi.fn() }));
+vi.mock("../context/useAuth", () => ({ useAuth: vi.fn() }));
 
 const group = {
   id: "group-1",

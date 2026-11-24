@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Search,
   BookOpen,
@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   Award,
   Calendar,
-  ListOrdered,
   AlertTriangle,
   UserX,
   ChevronDown,
@@ -28,7 +27,7 @@ import { GroupCard } from "../components/groups/GroupCard";
 import { StudyRequestBoard } from "../components/requests/StudyRequestBoard";
 import { LoadError } from "../components/ui/LoadError";
 import { groupApi, systemApi } from "../api/client";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { SESSION_CATEGORIES, PRIMARY_CATEGORIES } from "../data/campusData";
 
 const CATEGORIES = ["Semua", ...SESSION_CATEGORIES];
@@ -39,10 +38,8 @@ export function HomePage({
   onStatusUpdate,
   onOpenAuth,
   onOpenSkills,
-  onOpenProfile,
   onOpenCreateGroup,
   onOpenGroupDetail,
-  onOpenTutorSummary,
   onOpenPublicProfile,
   onOpenGroupById,
   onFulfillStudyRequest,
@@ -63,13 +60,14 @@ export function HomePage({
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState(false);
   const recommendationsRequest = useRef(0);
-  const searchMounted = useRef(false);
+  const searchRef = useRef(search);
+  const prevSearchRef = useRef(search);
   const skipSearchDebounce = useRef(false);
 
-  const fetchGroups = async (overrides = {}) => {
+  const fetchGroups = useCallback(async (overrides = {}) => {
     const nextCategory = overrides.category ?? category;
     const nextFormat = overrides.format ?? format;
-    const nextSearch = overrides.search ?? search;
+    const nextSearch = overrides.search ?? searchRef.current;
     const requestId = ++groupsRequest.current;
     setLoadingGroups(true);
     try {
@@ -87,9 +85,9 @@ export function HomePage({
     } finally {
       if (requestId === groupsRequest.current) setLoadingGroups(false);
     }
-  };
+  }, [category, format]);
 
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = useCallback(async () => {
     if (!isAuthenticated) return;
     const requestId = ++recommendationsRequest.current;
     setLoadingRecs(true);
@@ -105,9 +103,9 @@ export function HomePage({
     } finally {
       if (requestId === recommendationsRequest.current) setLoadingRecs(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  const fetchHealth = async () => {
+  const fetchHealth = useCallback(async () => {
     try {
       const res = await systemApi.getHealth();
       if (res.success) {
@@ -116,34 +114,44 @@ export function HomePage({
     } catch {
       onStatusUpdate(false);
     }
-  };
+  }, [onStatusUpdate]);
 
   useEffect(() => {
-    setCurrentPage(1);
-    fetchGroups();
+    const run = async () => {
+      setCurrentPage(1);
+      await fetchGroups();
+    };
+    run();
     return () => {
       groupsRequest.current += 1;
     };
-  }, [category, format]);
+  }, [fetchGroups]);
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchRecommendations();
+      const run = async () => {
+        await fetchRecommendations();
+      };
+      void user?.skills;
+      run();
     }
     return () => {
       recommendationsRequest.current += 1;
     };
-  }, [isAuthenticated, user?.skills]);
+  }, [isAuthenticated, user?.skills, fetchRecommendations]);
 
   useEffect(() => {
-    fetchHealth();
-  }, []);
+    const run = async () => {
+      await fetchHealth();
+    };
+    run();
+  }, [fetchHealth]);
 
   useEffect(() => {
-    if (!searchMounted.current) {
-      searchMounted.current = true;
+    if (search === prevSearchRef.current) {
       return;
     }
+    prevSearchRef.current = search;
     if (skipSearchDebounce.current) {
       skipSearchDebounce.current = false;
       return;
@@ -153,7 +161,7 @@ export function HomePage({
       fetchGroups({ search });
     }, 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, fetchGroups]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -167,6 +175,7 @@ export function HomePage({
     if (search !== "") {
       skipSearchDebounce.current = true;
     }
+    searchRef.current = "";
     setCategory("Semua");
     setFormat("all");
     setSearch("");
@@ -560,7 +569,11 @@ export function HomePage({
               type="text"
               placeholder="Cari topik atau materi kuliah..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                searchRef.current = val;
+                setSearch(val);
+              }}
               className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 placeholder:text-slate-400 shadow-2xs"
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />

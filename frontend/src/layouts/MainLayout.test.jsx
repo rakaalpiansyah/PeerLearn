@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MainLayout } from "./MainLayout";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
-vi.mock("../context/AuthContext", () => ({ useAuth: vi.fn() }));
+vi.mock("../context/useAuth", () => ({ useAuth: vi.fn() }));
 
 afterEach(cleanup);
 

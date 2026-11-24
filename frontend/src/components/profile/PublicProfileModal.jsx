@@ -16,7 +16,7 @@ import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { UserAvatar } from "../ui/UserAvatar";
 import { userApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 export function PublicProfileModal({
   isOpen,
@@ -34,26 +34,26 @@ export function PublicProfileModal({
     if (!isOpen || !userId) return;
 
     let isMounted = true;
-    setLoading(true);
-    setError(null);
-
-    userApi
-      .getPublicProfile(userId)
-      .then((res) => {
+    const loadProfile = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await userApi.getPublicProfile(userId);
         if (isMounted && res.data) {
           setProfile(res.data);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (isMounted) {
           setError(
             err.message || "Gagal memuat profil pengguna. Silakan coba lagi.",
           );
         }
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) setLoading(false);
-      });
+      }
+    };
+
+    loadProfile();
 
     return () => {
       isMounted = false;

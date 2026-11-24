@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   X,
   BookOpen,
@@ -22,12 +22,15 @@ const TABS = [
 
 export function InfoGuideModal({ isOpen, onClose, initialTab = "ethics" }) {
   const [activeTab, setActiveTab] = useState(initialTab);
+  const syncKey = `${isOpen}:${initialTab}`;
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey);
 
-  useEffect(() => {
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
     if (isOpen && initialTab) {
       setActiveTab(initialTab);
     }
-  }, [isOpen, initialTab]);
+  }
 
   if (!isOpen) return null;
 

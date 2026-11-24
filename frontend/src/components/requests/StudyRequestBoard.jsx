@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   ExternalLink,
@@ -13,7 +13,7 @@ import { Button } from "../ui/Button";
 import { LoadError } from "../ui/LoadError";
 import { UserAvatar } from "../ui/UserAvatar";
 import { studyRequestApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { SESSION_CATEGORIES } from "../../data/campusData";
 import { CreateStudyRequestModal } from "./CreateStudyRequestModal";
 
@@ -31,13 +31,14 @@ export function StudyRequestBoard({
   const [search, setSearch] = useState("");
   const [votingId, setVotingId] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const searchRef = useRef(search);
 
   const loadRequests = useCallback(async (overrides = {}) => {
     setLoading(true);
     setError(null);
     const nextCat = overrides.category ?? category;
     const nextStatus = overrides.status ?? statusFilter;
-    const nextSearch = overrides.search ?? search;
+    const nextSearch = overrides.search ?? searchRef.current;
     try {
       const params = {};
       if (nextCat && nextCat !== "Semua") params.category = nextCat;
@@ -53,11 +54,15 @@ export function StudyRequestBoard({
     } finally {
       setLoading(false);
     }
-  }, [category, statusFilter, search]);
+  }, [category, statusFilter]);
 
   useEffect(() => {
-    loadRequests();
-  }, [category, statusFilter, isAuthenticated]);
+    const run = async () => {
+      await loadRequests();
+    };
+    void isAuthenticated;
+    run();
+  }, [loadRequests, isAuthenticated]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -138,7 +143,11 @@ export function StudyRequestBoard({
                 id="sr-board-search"
                 type="search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  searchRef.current = val;
+                  setSearch(val);
+                }}
                 placeholder="Cari usulan mata kuliah atau topik..."
                 autoCorrect="off"
                 autoCapitalize="none"

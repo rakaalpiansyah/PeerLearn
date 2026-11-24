@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   X,
   MapPin,
@@ -101,8 +101,18 @@ export function CreateGroupModal({
   const [error, setError] = useState(null);
   const pending = useRef(false);
   const { errors, validate, clearError, clearErrors } = useFormValidation();
+  const [prevSync, setPrevSync] = useState({
+    isOpen: false,
+    editingGroup: null,
+    prefillRequest: null,
+  });
 
-  useEffect(() => {
+  if (
+    isOpen !== prevSync.isOpen ||
+    editingGroup !== prevSync.editingGroup ||
+    prefillRequest !== prevSync.prefillRequest
+  ) {
+    setPrevSync({ isOpen, editingGroup, prefillRequest });
     clearErrors();
     setError(null);
     setMapResolveSuccess(null);
@@ -110,68 +120,68 @@ export function CreateGroupModal({
     setLocatingError(null);
     setNewAgendaItem("");
 
-    if (!isOpen) return;
-
-    if (editingGroup) {
-      const startParts = toLocalDateAndTime(editingGroup.start_time);
-      const endParts = toLocalDateAndTime(editingGroup.end_time);
-      setTitle(editingGroup.title || "");
-      setDescription(editingGroup.description || "");
-      setCategory(editingGroup.category || "Teknologi");
-      setFormat(editingGroup.format || "online");
-      setLocationOrLink(editingGroup.location_or_link || "");
-      setBuildingDetails(editingGroup.building_details || "");
-      setLatitude(
-        editingGroup.latitude != null ? String(editingGroup.latitude) : ""
-      );
-      setLongitude(
-        editingGroup.longitude != null ? String(editingGroup.longitude) : ""
-      );
-      setMapInputLink("");
-      setAgenda(
-        Array.isArray(editingGroup.agenda) && editingGroup.agenda.length > 0
-          ? editingGroup.agenda
-          : DEFAULT_AGENDA
-      );
-      setPrerequisites(editingGroup.prerequisites || "");
-      setDate(startParts.date);
-      setStartTime(startParts.time || "14:00");
-      setEndTime(endParts.time || "16:00");
-      setMaxCapacity(editingGroup.max_capacity || 5);
-    } else if (prefillRequest) {
-      setTitle(prefillRequest.title || "");
-      setDescription(prefillRequest.description || "");
-      setCategory(prefillRequest.category || "Teknologi");
-      setFormat(prefillRequest.preferred_format || "online");
-      setLocationOrLink("");
-      setBuildingDetails("");
-      setLatitude("");
-      setLongitude("");
-      setMapInputLink("");
-      setAgenda(DEFAULT_AGENDA);
-      setPrerequisites("");
-      setDate("");
-      setStartTime("14:00");
-      setEndTime("16:00");
-      setMaxCapacity(10);
-    } else {
-      setTitle("");
-      setDescription("");
-      setCategory("Teknologi");
-      setFormat("online");
-      setLocationOrLink("");
-      setBuildingDetails("");
-      setLatitude("");
-      setLongitude("");
-      setMapInputLink("");
-      setAgenda(DEFAULT_AGENDA);
-      setPrerequisites("");
-      setDate("");
-      setStartTime("14:00");
-      setEndTime("16:00");
-      setMaxCapacity(5);
+    if (isOpen) {
+      if (editingGroup) {
+        const startParts = toLocalDateAndTime(editingGroup.start_time);
+        const endParts = toLocalDateAndTime(editingGroup.end_time);
+        setTitle(editingGroup.title || "");
+        setDescription(editingGroup.description || "");
+        setCategory(editingGroup.category || "Teknologi");
+        setFormat(editingGroup.format || "online");
+        setLocationOrLink(editingGroup.location_or_link || "");
+        setBuildingDetails(editingGroup.building_details || "");
+        setLatitude(
+          editingGroup.latitude != null ? String(editingGroup.latitude) : ""
+        );
+        setLongitude(
+          editingGroup.longitude != null ? String(editingGroup.longitude) : ""
+        );
+        setMapInputLink("");
+        setAgenda(
+          Array.isArray(editingGroup.agenda) && editingGroup.agenda.length > 0
+            ? editingGroup.agenda
+            : DEFAULT_AGENDA
+        );
+        setPrerequisites(editingGroup.prerequisites || "");
+        setDate(startParts.date);
+        setStartTime(startParts.time || "14:00");
+        setEndTime(endParts.time || "16:00");
+        setMaxCapacity(editingGroup.max_capacity || 5);
+      } else if (prefillRequest) {
+        setTitle(prefillRequest.title || "");
+        setDescription(prefillRequest.description || "");
+        setCategory(prefillRequest.category || "Teknologi");
+        setFormat(prefillRequest.preferred_format || "online");
+        setLocationOrLink("");
+        setBuildingDetails("");
+        setLatitude("");
+        setLongitude("");
+        setMapInputLink("");
+        setAgenda(DEFAULT_AGENDA);
+        setPrerequisites("");
+        setDate("");
+        setStartTime("14:00");
+        setEndTime("16:00");
+        setMaxCapacity(10);
+      } else {
+        setTitle("");
+        setDescription("");
+        setCategory("Teknologi");
+        setFormat("online");
+        setLocationOrLink("");
+        setBuildingDetails("");
+        setLatitude("");
+        setLongitude("");
+        setMapInputLink("");
+        setAgenda(DEFAULT_AGENDA);
+        setPrerequisites("");
+        setDate("");
+        setStartTime("14:00");
+        setEndTime("16:00");
+        setMaxCapacity(5);
+      }
     }
-  }, [isOpen, editingGroup, prefillRequest, clearErrors]);
+  }
 
   const handlePresetChange = (e) => {
     const selected = CAMPUS_PRESETS.find((p) => p.name === e.target.value);

@@ -1,21 +1,18 @@
 import React, {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
 } from "react";
 import { authApi, userApi } from "../api/client";
-
-const AuthContext = createContext(null);
+import { AuthContext } from "./useAuth";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() =>
     localStorage.getItem("peerlearn_token"),
   );
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(token));
   const [profileError, setProfileError] = useState(null);
   const tokenRef = useRef(token);
   const profileRequest = useRef(0);
@@ -74,8 +71,12 @@ export function AuthProvider({ children }) {
   }, [refreshProfile]);
 
   useEffect(() => {
-    if (token) retryProfile();
-    else setLoading(false);
+    if (token) {
+      const run = async () => {
+        await retryProfile();
+      };
+      run();
+    }
     return () => {
       sessionVersion.current += 1;
       profileRequest.current += 1;
@@ -134,10 +135,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
-  return context;
 }

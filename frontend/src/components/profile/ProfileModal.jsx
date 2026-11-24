@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { X, User, Check, AlertCircle, Award, Upload, Trash2, CheckCircle2, Mail } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { UserAvatar } from "../ui/UserAvatar";
 import { authApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { useFormValidation } from "../../hooks/useFormValidation";
 import { compressImageFile } from "../../utils/imageCompressor";
 import { UIN_PROGRAM_OPTIONS } from "../../data/campusData";
@@ -29,8 +29,11 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
   const [confirmingVerify, setConfirmingVerify] = useState(false);
   const { errors, validate, clearError, clearErrors } = useFormValidation();
   const fileInputRef = useRef(null);
+  const [prevSync, setPrevSync] = useState({ isOpen: false, user: null });
 
-  useEffect(() => {
+  if (isOpen !== prevSync.isOpen || user !== prevSync.user) {
+    setPrevSync({ isOpen, user });
+    clearErrors();
     if (user && isOpen) {
       setFullName(user.full_name || "");
       setCampusName(user.campus_name || "");
@@ -40,11 +43,7 @@ export function ProfileModal({ isOpen, onClose, onOpenTutorSummary }) {
       setAvatarRemoved(false);
       setError(null);
     }
-  }, [user, isOpen]);
-
-  useEffect(() => {
-    clearErrors();
-  }, [isOpen, clearErrors]);
+  }
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];

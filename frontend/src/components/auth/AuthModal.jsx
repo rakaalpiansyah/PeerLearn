@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   X,
   GraduationCap,
@@ -12,7 +12,7 @@ import {
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { authApi } from "../../api/client";
 import { useFormValidation } from "../../hooks/useFormValidation";
 import { UIN_PROGRAM_OPTIONS } from "../../data/campusData";
@@ -40,8 +40,19 @@ export function AuthModal({
 
   const { login, register } = useAuth();
   const { errors, validate, clearError, clearErrors } = useFormValidation();
+  const [prevSync, setPrevSync] = useState({
+    isOpen,
+    initialMode,
+    initialResetToken,
+  });
+  const [prevMode, setPrevMode] = useState(mode);
 
-  useEffect(() => {
+  if (
+    isOpen !== prevSync.isOpen ||
+    initialMode !== prevSync.initialMode ||
+    initialResetToken !== prevSync.initialResetToken
+  ) {
+    setPrevSync({ isOpen, initialMode, initialResetToken });
     setMode(initialMode);
     if (initialResetToken) {
       setResetToken(initialResetToken);
@@ -50,12 +61,12 @@ export function AuthModal({
     setNotice(null);
     setDevResetToken("");
     setShowPassword(false);
-  }, [initialMode, initialResetToken, isOpen]);
-
-  useEffect(() => {
+    clearErrors();
+  } else if (mode !== prevMode) {
+    setPrevMode(mode);
     clearErrors();
     setShowPassword(false);
-  }, [mode, isOpen, clearErrors]);
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();

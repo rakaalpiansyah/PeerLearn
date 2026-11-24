@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import {
   CheckCircle2,
   XCircle,
@@ -99,21 +99,21 @@ export function AdminApprovalsPanel({
   const [mobileShowDetail, setMobileShowDetail] = useState(
     Boolean(initialSelectedId)
   );
-  const appliedInitialIdRef = useRef(null);
+  const [appliedInitialId, setAppliedInitialId] = useState(null);
 
   const [reviewNote, setReviewNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
 
-  useEffect(() => {
-    if (!initialSelectedId) {
-      appliedInitialIdRef.current = null;
-      return;
-    }
-    if (initialSelectedId === appliedInitialIdRef.current || groups.length === 0) {
-      return;
-    }
+  if (!initialSelectedId && appliedInitialId !== null) {
+    setAppliedInitialId(null);
+  } else if (
+    initialSelectedId &&
+    initialSelectedId !== appliedInitialId &&
+    groups.length > 0
+  ) {
+    setAppliedInitialId(initialSelectedId);
     const target = groups.find((g) => g.id === initialSelectedId);
     if (target) {
       setStatusFilter(
@@ -123,8 +123,7 @@ export function AdminApprovalsPanel({
     }
     setSelectedId(initialSelectedId);
     setMobileShowDetail(true);
-    appliedInitialIdRef.current = initialSelectedId;
-  }, [initialSelectedId, groups]);
+  }
 
   const filteredGroups = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

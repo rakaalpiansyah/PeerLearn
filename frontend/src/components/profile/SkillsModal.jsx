@@ -12,10 +12,9 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { Button } from "../ui/Button";
-import { Badge } from "../ui/Badge";
 import { Modal } from "../ui/Modal";
 import { userApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { SESSION_CATEGORIES } from "../../data/campusData";
 
 const CATEGORY_TABS = ["Semua", ...SESSION_CATEGORIES];

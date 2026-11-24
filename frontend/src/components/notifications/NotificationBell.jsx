@@ -28,6 +28,7 @@ export function NotificationBell({
   const [error, setError] = useState(null);
   const [markingAll, setMarkingAll] = useState(false);
   const containerRef = useRef(null);
+  const hasLoadedRef = useRef(false);
 
   const fetchNotifications = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -41,6 +42,7 @@ export function NotificationBell({
       setNotifications(res.data?.notifications || []);
       setUnreadCount(res.data?.unread_count || 0);
       setError(null);
+      hasLoadedRef.current = true;
     } catch (err) {
       setError(err?.message || "Gagal memuat daftar notifikasi.");
     } finally {
@@ -51,7 +53,10 @@ export function NotificationBell({
   }, []);
 
   useEffect(() => {
-    fetchNotifications({ silent: notifications.length > 0 });
+    const run = async () => {
+      await fetchNotifications({ silent: hasLoadedRef.current });
+    };
+    run();
   }, [fetchNotifications, refreshTrigger]);
 
   useEffect(() => {

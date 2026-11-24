@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import {
   X,
   Calendar,
@@ -38,7 +38,7 @@ import { Modal } from "../ui/Modal";
 import { UserAvatar } from "../ui/UserAvatar";
 import LinkifiedText from "../common/LinkifiedText";
 import { groupApi, membershipApi, userApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { buildSessionUrl } from "../../utils/sessionRoute";
 import { downloadGroupIcs } from "../../utils/calendarIcs";
 
@@ -106,6 +106,7 @@ export function GroupDetailModal({
       ? coHostOverride.items
       : group?.co_hosts || [];
 
+  const groupId = group?.id;
   const isHost = isAuthenticated && user?.id === group?.host_id;
   const isCoHost =
     isAuthenticated &&
@@ -138,25 +139,25 @@ export function GroupDetailModal({
     }
   };
 
-  const loadDetails = async () => {
-    if (!group?.id) return;
+  const loadDetails = useCallback(async () => {
+    if (!groupId) return;
     try {
       const [membersRes, feedbacksRes] = await Promise.all([
-        groupApi.getMembers(group.id),
-        groupApi.getFeedbacks(group.id),
+        groupApi.getMembers(groupId),
+        groupApi.getFeedbacks(groupId),
       ]);
       if (membersRes.success) setMembers(membersRes.data || []);
       if (feedbacksRes.success) setFeedbacks(feedbacksRes.data || []);
     } catch {
       // Fail gracefully
     }
-  };
+  }, [groupId]);
 
-  const loadMessages = async () => {
-    if (!group?.id || !hasAccessToPrivate) return;
+  const loadMessages = useCallback(async () => {
+    if (!groupId || !hasAccessToPrivate) return;
     setLoadingMessages(true);
     try {
-      const res = await groupApi.getMessages(group.id);
+      const res = await groupApi.getMessages(groupId);
       if (res.success) {
         setMessages(res.data || []);
       }
@@ -165,19 +166,19 @@ export function GroupDetailModal({
     } finally {
       setLoadingMessages(false);
     }
-  };
+  }, [groupId, hasAccessToPrivate]);
 
-  const silentPollMessages = async () => {
-    if (!group?.id || !hasAccessToPrivate) return;
+  const silentPollMessages = useCallback(async () => {
+    if (!groupId || !hasAccessToPrivate) return;
     try {
-      const res = await groupApi.getMessages(group.id);
+      const res = await groupApi.getMessages(groupId);
       if (res.success && res.data) {
         setMessages(res.data);
       }
     } catch {
       // Silent poll failover
     }
-  };
+  }, [groupId, hasAccessToPrivate]);
 
   const scrollToMessage = (msgId) => {
     const el = document.getElementById(`msg-${msgId}`);
@@ -208,12 +209,12 @@ export function GroupDetailModal({
     }
   };
 
-  const loadMaterials = async () => {
-    if (!group?.id || !hasAccessToPrivate) return;
+  const loadMaterials = useCallback(async () => {
+    if (!groupId || !hasAccessToPrivate) return;
     setLoadingMaterials(true);
     setMaterialsError(null);
     try {
-      const res = await groupApi.getMaterials(group.id);
+      const res = await groupApi.getMaterials(groupId);
       if (res?.success) {
         setMaterials(res.data || []);
       }
@@ -222,7 +223,7 @@ export function GroupDetailModal({
     } finally {
       setLoadingMaterials(false);
     }
-  };
+  }, [groupId, hasAccessToPrivate]);
 
   const handleSearchCoHosts = async (e) => {
     if (e) e.preventDefault();
@@ -358,21 +359,33 @@ export function GroupDetailModal({
     }
   };
 
-  useEffect(() => {
+  const modalSyncKey = `${isOpen}:${group?.id || ""}`;
+  const [prevModalSyncKey, setPrevModalSyncKey] = useState(modalSyncKey);
+  if (modalSyncKey !== prevModalSyncKey) {
+    setPrevModalSyncKey(modalSyncKey);
     if (isOpen && group) {
-      loadDetails();
       setActionError(null);
       setPendingGroupStatus(null);
       setActiveTab("info");
     }
-  }, [isOpen, group]);
+  }
 
   useEffect(() => {
-    if (isOpen && group && hasAccessToPrivate) {
-      loadMessages();
-      loadMaterials();
-    }
-  }, [isOpen, group?.id, hasAccessToPrivate, activeTab]);
+    if (!isOpen || !group?.id) return;
+    const run = async () => {
+      await loadDetails();
+    };
+    run();
+  }, [isOpen, group?.id, loadDetails]);
+
+  useEffect(() => {
+    if (!isOpen || !group?.id || !hasAccessToPrivate) return;
+    const run = async () => {
+      await Promise.all([loadMessages(), loadMaterials()]);
+    };
+    void activeTab;
+    run();
+  }, [isOpen, group?.id, hasAccessToPrivate, activeTab, loadMessages, loadMaterials]);
 
   useEffect(() => {
     if (!isOpen || !group?.id || !hasAccessToPrivate || activeTab !== "chat") {
@@ -382,7 +395,7 @@ export function GroupDetailModal({
       silentPollMessages();
     }, 4000);
     return () => clearInterval(interval);
-  }, [isOpen, group?.id, hasAccessToPrivate, activeTab]);
+  }, [isOpen, group?.id, hasAccessToPrivate, activeTab, silentPollMessages]);
 
   useEffect(() => {
     if (

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { UserAvatar } from "../components/ui/UserAvatar";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 const NAV_ITEMS = [
   {

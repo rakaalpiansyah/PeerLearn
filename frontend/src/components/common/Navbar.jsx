@@ -13,11 +13,10 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { UserAvatar } from "../ui/UserAvatar";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { NotificationBell } from "../notifications/NotificationBell";
 
 export function Navbar({
-  isBackendOnline,
   onOpenAuth,
   onOpenSkills,
   onOpenProfile,

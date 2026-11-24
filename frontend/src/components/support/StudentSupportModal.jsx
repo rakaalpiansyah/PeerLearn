@@ -13,7 +13,7 @@ import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { supportApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 export function StudentSupportModal({ isOpen, onClose }) {
   const { user, isAuthenticated } = useAuth();
@@ -51,7 +51,10 @@ export function StudentSupportModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (!isOpen || !isAuthenticated) return;
-    loadThread(false);
+    const run = async () => {
+      await loadThread(false);
+    };
+    run();
     const interval = setInterval(() => loadThread(true), 4000);
     return () => clearInterval(interval);
   }, [isOpen, isAuthenticated, loadThread]);

@@ -89,22 +89,25 @@ export function AdminDashboardPage({
     }
   }, []);
 
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
+  if (initialTab !== prevInitialTab) {
+    setPrevInitialTab(initialTab);
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }
+
   useEffect(() => {
     systemApi
       .getHealth()
       .then((res) => setIsBackendOnline(Boolean(res?.status === "healthy")))
       .catch(() => setIsBackendOnline(false));
 
-    fetchGroups();
-    fetchThreads(false);
-    fetchReports();
+    const loadAdminData = async () => {
+      await Promise.all([fetchGroups(), fetchThreads(false), fetchReports()]);
+    };
+    loadAdminData();
   }, [fetchGroups, fetchThreads, fetchReports]);
-
-  useEffect(() => {
-    if (initialTab) {
-      setActiveTab(initialTab);
-    }
-  }, [initialTab]);
 
   const handleTabChange = (tab) => {
     if (tab !== "approvals") {

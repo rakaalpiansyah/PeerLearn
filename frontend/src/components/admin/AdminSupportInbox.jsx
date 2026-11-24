@@ -15,7 +15,7 @@ import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { UserAvatar } from "../ui/UserAvatar";
 import { supportApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 const THREAD_FILTERS = [
   { id: "open", label: "Perlu Respons / Terbuka" },
@@ -89,13 +89,21 @@ export function AdminSupportInbox({
     }
   }, []);
 
-  useEffect(() => {
-    if (effectiveSelectedId) {
-      loadThreadMessages(effectiveSelectedId, false);
-    } else {
+  const [prevSelectedId, setPrevSelectedId] = useState(effectiveSelectedId);
+  if (effectiveSelectedId !== prevSelectedId) {
+    setPrevSelectedId(effectiveSelectedId);
+    if (!effectiveSelectedId) {
       setActiveThread(null);
       setMessages([]);
     }
+  }
+
+  useEffect(() => {
+    if (!effectiveSelectedId) return;
+    const run = async () => {
+      await loadThreadMessages(effectiveSelectedId, false);
+    };
+    run();
   }, [effectiveSelectedId, loadThreadMessages]);
 
   useEffect(() => {

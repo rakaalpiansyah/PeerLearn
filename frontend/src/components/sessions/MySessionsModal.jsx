@@ -32,7 +32,10 @@ export function MySessionsModal({ isOpen, onClose, onSelectGroup }) {
 
   useEffect(() => {
     if (!isOpen) return;
-    loadSessions();
+    const run = async () => {
+      await loadSessions();
+    };
+    run();
     return () => {
       // Closing or unmounting invalidates requests even if the API cannot abort them.
       requestSequence.current += 1;

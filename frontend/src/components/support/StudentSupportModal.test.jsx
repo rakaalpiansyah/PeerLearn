@@ -5,9 +5,9 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StudentSupportModal } from "./StudentSupportModal";
 import { supportApi } from "../../api/client";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
-vi.mock("../../context/AuthContext", () => ({ useAuth: vi.fn() }));
+vi.mock("../../context/useAuth", () => ({ useAuth: vi.fn() }));
 
 beforeEach(() => {
   vi.mocked(useAuth).mockReturnValue({

@@ -2,7 +2,8 @@
 import React, { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { AuthProvider, useAuth } from "./AuthContext";
+import { AuthProvider } from "./AuthContext";
+import { useAuth } from "./useAuth";
 import { authApi } from "../api/client";
 
 const accountA = { id: "user-a", full_name: "Sari" };
