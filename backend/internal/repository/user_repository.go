@@ -76,7 +76,7 @@ func (r *userRepository) Create(ctx context.Context, user *domain.User) error {
 
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
-		SELECT id, email, password_hash, full_name, role, campus_name, gender, bio, avatar_url, contribution_points, account_status, restriction_note, created_at, updated_at
+		SELECT id, email, password_hash, full_name, role, faculty_id, campus_name, gender, bio, avatar_url, contribution_points, account_status, restriction_note, created_at, updated_at
 		FROM users
 		WHERE LOWER(email) = LOWER($1)
 	`
@@ -87,6 +87,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 		&u.PasswordHash,
 		&u.FullName,
 		&u.Role,
+		&u.FacultyID,
 		&u.CampusName,
 		&u.Gender,
 		&u.Bio,
@@ -109,7 +110,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	query := `
-		SELECT id, email, password_hash, full_name, role, campus_name, gender, bio, avatar_url, contribution_points, account_status, restriction_note, created_at, updated_at
+		SELECT id, email, password_hash, full_name, role, faculty_id, campus_name, gender, bio, avatar_url, contribution_points, account_status, restriction_note, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -120,6 +121,7 @@ func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 		&u.PasswordHash,
 		&u.FullName,
 		&u.Role,
+		&u.FacultyID,
 		&u.CampusName,
 		&u.Gender,
 		&u.Bio,
