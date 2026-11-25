@@ -1,267 +1,234 @@
-# PeerLearn (FST UIN SGD Bandung Edition)
+# PeerLearn (UIN SGD Bandung Full Edition)
 
-> **Platform Pembelajaran Kolaboratif Sebaya (*Peer-Assisted Learning*) Bebas Biaya untuk Civitas Akademika Fakultas Sains dan Teknologi, Universitas Islam Negeri Sunan Gunung Djati Bandung.**
+Platform pembelajaran kolaboratif sebaya (*Peer-Assisted Learning*) tanpa biaya untuk mahasiswa di seluruh 9 Fakultas dan Pascasarjana (48 program studi pada Kampus 1 Cibiru dan Kampus 2 Cimencrang) Universitas Islam Negeri Sunan Gunung Djati Bandung.
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/peerlearn/backend)](https://golang.org)
-[![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](https://react.dev)
-[![Go](https://img.shields.io/badge/Backend-Go%201.24%20(Fiber%20v2)-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL%20(Neon%20Serverless)-336791?logo=postgresql&logoColor=white)](https://neon.tech)
-[![Tests](https://img.shields.io/badge/Vitest-186%2F186%20Passed%20(100%25)-success)](https://vitest.dev)
-[![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-blueviolet)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- Branch `uin-sgd-full`: Edisi lengkap lintas 9 Fakultas + Pascasarjana dengan fitur Co-Author (`Co-Tutor`), tab Materi Sesi, ekspor kalender `.ics`, antrean otomatis FIFO, Papan Usulan Topik, QR Code SKPI, verifikasi email kampus, dan pemulihan kata sandi.
+- Branch `main`: Edisi awal yang difokuskan pada lingkup Fakultas Sains dan Teknologi (FST).
 
 ---
 
-## Indeks Dokumentasi Resmi Proyek
+## 1. Kegunaan Aplikasi & Alur Pengguna
 
-Untuk mempermudah peninjauan teknis, akademik, dan arsitektural sistem, dokumentasi proyek dipisahkan secara terstruktur:
+PeerLearn menghubungkan mahasiswa yang membutuhkan pendampingan materi kuliah (*Learner*) dengan rekan mahasiswa atau asisten praktikum yang siap membimbing (*Peer Tutor*) secara terstruktur, terkurasi oleh admin akademik, dan terdokumentasi ke dalam portofolio SKPI.
 
-| Berkas Dokumentasi | Standar & Spesifikasi | Deskripsi & Cakupan |
-| :--- | :--- | :--- |
-| 📘 **[PRD.md](./PRD.md)** | Product Requirements Document v2.0 | Visi produk, latar belakang akademik FST, persona mahasiswa, modul fungsional FR-1 s/d FR-5, Entity-Relationship Diagram (ERD), dan kontrak endpoint REST API. |
-| 📑 **[docs/SRS.md](./docs/SRS.md)** | Software Requirements Specification (IEEE Std 830) | Spesifikasi formal rekayasa, use-case rinci SRS-FR-01 s/d 11 (prakondisi, alur normal, eksepsi, pascakondisi), kebutuhan non-fungsional, kamus data PostgreSQL, dan Traceability Matrix. |
+### A. Mahasiswa / Peserta (User)
+- **Katalog Lintas 20 Rumpun Ilmu:** Pencarian sesi daring maupun luring lengkap dengan filter rumpun keilmuan (Teknologi, Hukum & Syariah, Ekonomi & Bisnis Islam, Pendidikan & Tarbiyah, Psikologi, Ushuluddin, Komunikasi & Dakwah, MIPA, hingga Bahasa & Soft Skills).
+- **Rekomendasi Cerdas & Deteksi Bentrok Jadwal:** Penilaian relevansi berbasis kemiripan keahlian, kecocokan fakultas atau program studi (*cold-start*), pemeringkatan reputasi tutor, serta pengecualian sesi yang jadwalnya bertabrakan dengan sesi aktif pengguna.
+- **Antrean Otomatis FIFO (*Waitlist*):** Jika kapasitas sesi penuh, peserta dapat masuk daftar tunggu. Saat ada kursi kosong karena pembatalan atau penyesuaian peserta, sistem otomatis mempromosikan pengantre paling awal beserta notifikasi ke mahasiswa terkait dan penyelenggara.
+- **Papan Usulan Topik (*Study Request Board*):** Mahasiswa dapat mengusulkan topik atau mata kuliah yang dibutuhkan, memberi dukungan suara (*upvote*), dan mendorong penyelenggara membuka sesi resmi langsung dari usulan tersebut.
+- **Ekspor Kalender `.ics` & Google Calendar:** Peserta terkonfirmasi dapat mengunduh jadwal sesi berformat RFC 5545 (`.ics`) atau membuka pintasan Google Calendar dengan sanitasi tautan rapat privat untuk non-anggota.
+- **Ruang Diskusi Privat:** Percakapan internal antar-anggota terverifikasi dengan pembaruan latar belakang otomatis setiap 4 detik, balasan pesan (*reply*), reaksi emoji, dan sematan (*pin*) pengumuman penting.
+- **Verifikasi Email Kampus & Keamanan Akun:** Pengajuan lencana verifikasi untuk domain `@uinsgd.ac.id` dan `@student.uinsgd.ac.id`, serta alur lupa/atur ulang kata sandi berbasis token.
+- **Notifikasi & Bantuan Admin:** Lonceng notifikasi *in-app* untuk status keanggotaan, promosi antrean, pin chat, dan balasan layanan bantuan (*Student Support*).
 
----
+### B. Penyelenggara Sesi (Host Utama & Co-Author / Co-Tutor)
+- **Pembuatan Sesi Daring/Luring & 8 Preset Kampus:** Mendukung 8 titik temu kampus UIN SGD (Gedung FST & Lab Komputer Cibiru, Lab Terpadu MIPA, Perpustakaan Rachmat Djatnika, GKB Kampus 1, Student Center & Masjid Iqomah, Gedung Fakultas Kampus 1, Gedung Perkuliahan Kampus 2 Cimencrang, dan Student Center Kampus 2) serta smart resolver tautan Google Maps berproteksi anti-SSRF.
+- **Kolaborasi Multi-Author (`Co-Tutor`):** Host utama dapat menambahkan hingga 5 akun terdaftar sebagai Co-Author. Co-Author berhak menerima/menolak pendaftar, mencatat kehadiran (`attended`), mengelola tab `Materi Sesi`, menyematkan pesan diskusi, menjadwalkan ulang sesi, dan menerima catatan kontribusi `co_tutor` di SKPI, sedangkan penambahan/penghapusan Co-Author maupun pembatalan sesi tetap khusus bagi Host utama.
+- **Tab `Materi Sesi`:** Penyelenggara dan Co-Author dapat membagikan tautan materi, salindia, repositori kode, atau latihan soal dengan kontrol akses khusus anggota sesi.
+- **Jadwal Berkelanjutan (`+7 Hari`):** Penyelenggara dapat memajukan jadwal ke pekan berikutnya tanpa mengulang pendaftaran peserta yang sudah diterima.
+- **Sertifikat SKPI Resmi & QR Code Verifikasi:** Generator Surat Keterangan Kontribusi Tutor Sebaya siap cetak ukuran A4 yang memuat poin kontribusi, peran tutor/co-tutor, riwayat sesi terverifikasi, QR Code SVG native, serta tautan verifikasi publik `/verifikasi-skpi/:id`.
 
-## 1. Latar Belakang & Urgensi Produk
-
-Fakultas Sains dan Teknologi (FST) UIN Sunan Gunung Djati Bandung menaungi 8 Program Studi Sarjana (S1):
-1. **Teknik Informatika**
-2. **Teknik Elektro**
-3. **Teknik Lingkungan**
-4. **Matematika**
-5. **Fisika**
-6. **Kimia**
-7. **Biologi**
-8. **Agroteknologi**
-
-Dalam ekosistem akademik sains dan teknologi, mahasiswa menghadapi tantangan perkuliahan yang khas:
-* **Disparitas Pemahaman Awal:** Mata kuliah dasar komputasi dan sains fundamental (Algoritma & Pemrograman, Struktur Data, Kalkulus Integral, Fisika Dasar, Rangkaian Listrik) sering menjadi hambatan besar bagi mahasiswa baru.
-* **Kebutuhan Responsi Praktikum Laboratorium:** Mahasiswa wajib menjalani praktikum di **Laboratorium Komputer FST (Lt. 3 Gedung FST)** dan **Laboratorium Terpadu MIPA FST**. Sebelum tes awal (*pre-test*) atau responsi akhir praktikum, mahasiswa sangat membutuhkan kelompok belajar intensif untuk mereviu materi bersama asisten lab atau mahasiswa pembimbing (*peer tutor*).
-* **Belajar Berkelanjutan (*Continuous Cohort*):** Kelompok belajar akademik tidak selesai dalam satu kali pertemuan. Mahasiswa membutuhkan sistem yang memungkinkan sesi berlanjut setiap pekan (+7 hari) tanpa harus membuat grup baru atau mengulang proses pendaftaran peserta.
-* **Pengakuan Formal untuk SKPI:** Mahasiswa yang mendedikasikan waktunya menjadi tutor sebaya membutuhkan bukti rekam jejak resmi yang dapat dicetak dan divalidasi untuk perolehan poin **Surat Keterangan Pendamping Ijazah (SKPI)** pada borang kelulusan yudisium fakultas.
-
-**PeerLearn** hadir sebagai solusi rekayasa perangkat lunak tanpa biaya (*zero-fee*) yang menghubungkan pencari rekan belajar (*Learner*) dengan mahasiswa pembimbing (*Peer Tutor*) secara aman, terstruktur, dan terintegrasi dengan lingkungan fisik kampus FST UIN SGD Bandung.
+### C. Admin Akademik (`AdminDashboardPage`)
+- **Kurasi Sesi (`pending_approval` -> `open` / `rejected`):** Setiap sesi baru ditinjau terlebih dahulu oleh admin sebelum tampil di katalog publik, lengkap dengan catatan persetujuan atau revisi.
+- **Kotak Masuk Bantuan Bersama (*Shared Helpdesk Inbox*):** Seluruh admin dapat membalas pertanyaan dan kendala mahasiswa dari satu antrean terpadu dengan identitas penanggap tercatat jelas.
+- **Pusat Laporan & Moderasi:** Penanganan laporan pelanggaran pengguna, pembatasan akses akun bermasalah (`restricted`), dan pemulihan akun, disertai mode pratinjau katalog mahasiswa.
 
 ---
 
-## 2. Arsitektur Perangkat Lunak & Teknologi
+## 2. Arsitektur Sistem & Tech Stack
 
-PeerLearn menerapkan pemisahan tanggung jawab yang ketat (*Separation of Concerns*) berbasis **Clean Architecture** di sisi backend dan **Component-Driven Architecture** di sisi frontend:
+Backend menerapkan **Clean Architecture** dengan injeksi dependensi antar-lapisan (`Handler -> Service -> Repository -> PostgreSQL`), sedangkan frontend menggunakan **Component-Driven React SPA** dengan modal `<dialog>` natif dan manajemen state sesi JWT.
 
 ```mermaid
 graph TD
-    Client["React 18 SPA (Vite + Tailwind CSS)"]
-    APIClient["Axios REST Client & Error Interceptor"]
-    Router["Fiber v2 HTTP Router & Middleware (JWT, CORS, Logger)"]
-    Handler["Transport Layer: HTTP Handlers"]
-    Service["Domain Service Layer: Business Logic & Rules"]
-    Repo["Data Access Layer: PostgreSQL Repository"]
-    DB[("PostgreSQL on Neon Tech Serverless")]
+    Client["React 19.3 + Vite 8 + Tailwind CSS 4"]
+    APIClient["Axios REST Client"]
+    Router["Go 1.26 + Fiber v2.52 (JWT, CORS, Logger)"]
+    Handler["HTTP Transport Handlers"]
+    Service["Domain Services (Business Rules & Validation)"]
+    Repo["PostgreSQL Repositories (pgx v5.11)"]
+    Mailer["Mailer Service (SMTP / DevLog Fallback)"]
+    DB[("PostgreSQL on Neon Serverless")]
 
     Client --> APIClient
-    APIClient -->|JSON REST over HTTPS| Router
+    APIClient -->|JSON REST API| Router
     Router --> Handler
-    Handler -->|Dependency Injection| Service
-    Service -->|Interfaces| Repo
-    Repo -->|PgBouncer Pooled Connection| DB
+    Handler --> Service
+    Service --> Repo
+    Service --> Mailer
+    Repo -->|Pooled SQL| DB
 ```
 
-### Rincian Teknologi (*Tech Stack*):
-* **Backend:** Golang 1.24, Fiber v2, Stateless JWT (`golang-jwt`), Bcrypt Password Hashing, PGX v5 Driver.
-* **Basis Data:** PostgreSQL 16 di Neon Tech Serverless dengan PgBouncer Connection Pooling (wilayah Singapura `aws-ap-southeast-1`).
-* **Frontend:** React 18, Vite 8, Tailwind CSS, Lucide React Icons, Native Dialog Modal Accessibility (`<dialog>`).
-* **Pengujian Mutu:** Go Native Unit Testing (`go test`), Vitest (`@testing-library/react`), JSDOM Environment.
+### Rincian Tech Stack
+
+| Lapisan | Teknologi & Versi (sesuai Repositori) | Fungsi Utama |
+| :--- | :--- | :--- |
+| **Backend Runtime** | Go `1.26.3` (`peerlearn/backend`) | Kompilasi biner tunggal, konkurensi aman, dan *type safety* |
+| **HTTP Framework** | Fiber `v2.52.16` | Routing REST API (`111` handler aktif), middleware JWT, CORS, dan logger |
+| **Database & Driver** | PostgreSQL (Neon Tech Serverless), `pgx/v5 v5.11.0` | Kueri SQL terparametrisasi, koneksi *pooled* PgBouncer, migrasi otomatis (`000001` sampai `000012`) |
+| **Keamanan & Auth** | `golang-jwt/jwt/v5 v5.3.1`, `golang.org/x/crypto v0.58.0` | Autentikasi stateless JWT, hashing sandi Bcrypt, token verifikasi & reset ter-hash |
+| **Utilitas Backend** | `google/uuid v1.6.0`, `joho/godotenv v1.5.1`, `net/smtp` | UUID entitas, pemuatan variabel `.env`, pengiriman email opsional |
+| **Frontend Core** | React `19.3.1`, React DOM `19.3.1`, Vite `8.3.5` | Antarmuka SPA cepat dengan *lazy loading* modal berat |
+| **Styling & Ikon** | Tailwind CSS `4.3.3` (`@tailwindcss/vite`), `lucide-react v1.65.0` | Utilitas tata letak responsif (mobile `360px` hingga desktop) dan cetak A4 |
+| **HTTP & Utilitas UI** | Axios `1.21.0`, `qrcode v1.5.4` | Interseptor autentikasi JWT, pembuat QR Code SVG native untuk cetak SKPI |
+| **Kualitas & Uji** | `go test`, Vitest `5.0.5`, Testing Library React `16.3.3`, JSDOM `29.1.1`, Oxlint `1.89.0` | Pengujian unit/integrasi backend & frontend serta linting statis |
 
 ---
 
-## 3. Fitur Unggulan End-to-End
-
-### A. Mesin Kurikulum FST & Fitur "Pakai Ketik" Instan
-* **Katalog Bawaan 81+ Mata Kuliah:** Mencakup seluruh mata kuliah wajib 8 prodi FST UIN SGD Bandung (Algoritma, PBO, Basis Data, Rangkaian Listrik, Kimia Lingkungan, Kalkulus, Biologi Molekuler, dsb.).
-* **Bilah Aksi Cepat (*1-Click Quick Add*):** Mahasiswa dapat mengetikkan topik khusus (misal: *Responsi IoT Pak Eki*, *Analisis Spektroskopi FTIR*, *Koding Flutter UTS*). Bilah aksi seketika muncul untuk menambahkan materi tersebut sebagai **Dikuasai (Siap Tutor)** atau **Ingin Dipelajari** dengan satu klik tanpa formulir berbelit.
-
-### B. Preset Lokasi Kampus FST & Integrasi Google Maps
-* **1-Click Campus Chips:** Pilihan instan titik temu luring di lingkungan kampus:
-  * `🏛️ FST UIN SGD`: Kampus 1 Cipadung (Gedung FST Lt. 3 Lab Komputer).
-  * `🔬 Lab MIPA FST`: Laboratorium Terpadu MIPA FST (Fisika, Kimia, Biologi).
-  * `📚 Perpus UIN SGD`: Perpustakaan Utama Kampus 1 Cipadung.
-  * `🏢 GKB UIN SGD`: Gedung Kuliah Bersama Kampus 1 Cipadung.
-  * `📍 Kampus 2 Soetta`: Kampus 2 UIN SGD (Jl. Soekarno-Hatta).
-* **Smart Resolver Google Maps:** Pengguna dapat menempelkan tautan `maps.app.goo.gl` atau koordinat GPS mentah; backend secara otomatis membedah dan memetakan titik koordinatnya dengan proteksi SSRF.
-
-### C. Alur Sesi Berkelanjutan (*Cohort Scheduling +7 Hari*)
-* **Reschedule Pintar:** Host dapat memajukan jadwal ke pekan depan menggunakan tombol pintas **`+7 Hari`**.
-* **Keanggotaan Terjaga (*Retained Members*):** Seluruh peserta yang telah diterima otomatis tetap terdaftar di pertemuan berikutnya tanpa harus mendaftar ulang.
-* **Pembaruan Tempat & Materi:** Host dapat mengganti lokasi (misal dari Labkom ke Google Meet) dan memasukkan topik bahasan pekan depan yang otomatis terhubung ke agenda silabus.
-
-### D. Alur Pembatalan Transparan Dua Arah
-* **Batal Ikut oleh Peserta (*Leave / Cancel Participation*):** Peserta yang berhalangan hadir dapat membatalkan keikutsertaannya kapan saja melalui tombol **"Batal Ikut Sesi"** atau **"Tarik Permohonan"**. Kuota peserta otomatis langsung terlepas dan berkurang 1 secara *real-time*.
-* **Pembatalan oleh Host (*Cancel Session*):** Jika Host berhalangan total, sesi dapat diubah ke status `cancelled`. Banner merah peringatan langsung terpampang di seluruh akun peserta dan tombol pendaftaran dinonaktifkan.
-
-### E. Ruang Diskusi Koordinasi (*Live Auto-Polling 4s*)
-* Ruang obrolan privat antar-anggota terkonfirmasi dengan pembaruan otomatis setiap 4 detik (*silent background polling*) tanpa kedip layar.
-* Koordinasi persiapan praktikum, pembagian tautan Google Drive modul, dan diskusi kendala koding berlangsung terpusat.
-
-### F. Generator Dokumen Portofolio SKPI Resmi
-* Menerbitkan **Surat Keterangan Kontribusi Tutor Sebaya** dengan KOP resmi **Fakultas Sains & Teknologi • UIN Sunan Gunung Djati Bandung**.
-* Dilengkapi Nomor Registrasi Surat unik, kode *hash* validasi sistem, akumulasi poin kontribusi, daftar mata kuliah yang dibimbing, dan tata letak *print-ready* ramah kertas A4.
-
-### G. Ruang Kendali Admin Terpisah, Kurasi Sesi & Shared Helpdesk Inbox
-* **Gerbang Persetujuan Sesi (`pending_approval`):** Sesi baru yang dibuat mahasiswa masuk ke antrean verifikasi Admin terlebih dahulu. Admin memeriksa agenda, jadwal, lokasi kampus atau tautan daring, serta profil penyelenggara sebelum menyetujui (`open`) atau menolak dengan catatan revisi (`rejected`).
-* **Dashboard Admin Khusus (`AdminLayout` & `AdminDashboardPage`):** Akun dengan peran `admin` diarahkan otomatis ke ruang kerja terpisah dari beranda mahasiswa, berisi Ringkasan Ekosistem, Antrean Verifikasi Sesi, Kotak Masuk Bantuan Mahasiswa, serta Pusat Laporan & Moderasi (dilengkapi tombol pratinjau katalog publik).
-* **Shared Helpdesk Inbox:** Mahasiswa dapat menghubungi tim admin melalui dialog Bantuan Admin, dan admin mana pun yang sedang bertugas dapat membalas dari satu kotak masuk bersama dengan identitas pengirim admin tercatat jelas pada riwayat percakapan.
-
----
-
-## 4. Struktur Direktori Proyek
+## 3. Struktur Direktori Proyek
 
 ```text
-peerlearn/
-├── backend/                              # Layanan Backend Golang (Clean Architecture)
-│   ├── cmd/
-│   │   └── api/
-│   │       └── main.go                   # Dependency Injection & Bootstrapping Server
+sosio/
+├── backend/
+│   ├── cmd/api/main.go                         # Inisialisasi koneksi DB, DI container, & routing API
 │   ├── internal/
-│   │   ├── config/                       # Variabel Lingkungan & Database Config
-│   │   ├── database/                     # Koneksi PgBouncer & SQL Migrations
-│   │   │   └── migrations/
-│   │   │       ├── 000001_init_schema.sql
-│   │   │       ├── 000002_campus_features_expansion.sql
-│   │   │       ├── 000003_fst_uinsgd_academic_skills.sql
-│   │   │       ├── 000004_moderation_and_user_profile.sql
-│   │   │       ├── 000005_chat_reactions_and_pin.sql
-│   │   │       └── 000006_admin_approval_and_support_chat.sql
-│   │   ├── domain/                       # Entity Structs, Interfaces, & DTOs
-│   │   ├── handler/                      # HTTP Transport Controller (Fiber v2, incl. support_handler.go)
-│   │   ├── middleware/                   # JWT Auth, CORS, & Role Guard
-│   │   ├── repository/                   # Data Access Layer (SQL Queries on Neon, incl. support_repository.go)
-│   │   ├── security/                     # Token Signer & Bcrypt Hashing
-│   │   └── service/                      # Business Logic & Domain Validation Rules (incl. support_service.go)
+│   │   ├── config/config.go                    # Pemuatan env (.env / .env.local), CORS, & SMTP
+│   │   ├── database/
+│   │   │   ├── postgres.go                     # Koneksi pgxpool & eksekutor migrasi otomatis
+│   │   │   └── migrations/                     # 12 berkas migrasi SQL berurutan (000001 - 000012)
+│   │   ├── domain/                             # Struct entitas, DTO request/response, interface repo
+│   │   ├── handler/                            # Controller HTTP per domain (auth, group, membership, message, study_request, admin, dll.)
+│   │   ├── mailer/                             # Antarmuka Mailer (SMTPMailer & DevLogMailer)
+│   │   ├── middleware/                         # JWT auth guard, role guard admin, panic recovery
+│   │   ├── repository/                         # Implementasi kueri SQL PostgreSQL
+│   │   ├── security/                           # Pembuatan/validasi JWT, hashing Bcrypt, token hash
+│   │   └── service/                            # Aturan bisnis (kuota, waitlist FIFO, Co-Author, SKPI, rekomendasi, SSRF guard)
+│   ├── .env.example
 │   ├── go.mod
 │   └── go.sum
 │
-├── frontend/                             # Aplikasi Web React (Vite SPA)
+├── frontend/
 │   ├── src/
-│   │   ├── api/                          # Axios Client, Interceptors, & Endpoints
+│   │   ├── api/                                # Klien Axios & kontrak endpoint REST API
 │   │   ├── components/
-│   │   │   ├── admin/                    # AdminApprovalsPanel, AdminSupportInbox, AdminModerationPanel
-│   │   │   ├── auth/                     # AuthModal (Registrasi Prodi FST & Login)
-│   │   │   ├── common/                   # Navbar & Footer Bersih
-│   │   │   ├── groups/                   # CreateGroupModal, GroupCard, GroupDetailModal
-│   │   │   ├── profile/                  # ProfileModal, SkillsModal, TutorSummaryModal (SKPI)
-│   │   │   ├── sessions/                 # MySessionsModal (Riwayat Sesi Saya & Status Kurasi)
-│   │   │   ├── support/                  # StudentSupportModal (Chat Mahasiswa ke Admin)
-│   │   │   └── ui/                       # Primitives (Button, Badge, Modal, Input)
-│   │   ├── context/                      # AuthContext (Stateless JWT Session Manager)
-│   │   ├── layouts/                      # MainLayout & AdminLayout (Ruang Kendali Admin Terpisah)
-│   │   ├── pages/                        # HomePage & AdminDashboardPage
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── index.css                     # Tailwind Utility & Print Styles
+│   │   │   ├── admin/                          # AdminApprovalsPanel, AdminSupportInbox, AdminModerationPanel
+│   │   │   ├── auth/                           # AuthModal (Masuk, Daftar 48 prodi UIN SGD, Lupa & Reset Sandi)
+│   │   │   ├── common/                         # Navbar, Footer, InfoGuideModal, LinkifiedText
+│   │   │   ├── feedback/                       # FeedbackModal (rating & ulasan pasca-sesi)
+│   │   │   ├── groups/                         # CreateGroupModal, GroupCard, GroupDetailModal (Tab Info, Materi, Diskusi)
+│   │   │   ├── notifications/                  # NotificationBell (popover notifikasi & tanda sudah dibaca)
+│   │   │   ├── profile/                        # ProfileModal, PublicProfileModal, SkillsModal, TutorSummaryModal, SKPIQrCode
+│   │   │   ├── reports/                        # ReportModal (pelaporan sesi/pengguna)
+│   │   │   ├── requests/                       # StudyRequestBoard, CreateStudyRequestModal
+│   │   │   ├── sessions/                       # MySessionsModal (Sesi Diikuti, Diselenggarakan, & Co-Tutor)
+│   │   │   ├── support/                        # StudentSupportModal (tiket bantuan mahasiswa)
+│   │   │   └── ui/                             # Komponen dasar (Button, Badge, Input, Modal, UserAvatar, LoadError)
+│   │   ├── context/                            # AuthContext.jsx & useAuth.js
+│   │   ├── data/campusData.js                  # 9 Fakultas + Pascasarjana, 48 prodi, 20 rumpun ilmu, 8 preset kampus
+│   │   ├── hooks/                              # Custom hooks validasi form
+│   │   ├── layouts/                            # MainLayout & AdminLayout
+│   │   ├── pages/                              # HomePage, AdminDashboardPage, SKPIVerifyPage
+│   │   └── utils/                              # calendarIcs.js (.ics & link kalender), imageCompressor.js, sessionRoute.js
 │   ├── package.json
-│   ├── vite.config.js
-│   └── vitest.config.js
+│   └── vite.config.js
 │
-├── docs/                                 # Dokumentasi Spesifikasi & Panduan
-│   └── SRS.md                            # Software Requirements Specification Formal (IEEE 830)
-├── PRD.md                                # Product Requirements Document v2.0
-└── README.md                             # Berkas Panduan Utama Repositori
+├── docs/SRS.md                                 # Spesifikasi kebutuhan perangkat lunak (IEEE 830)
+├── PRD.md                                      # Product Requirements Document
+├── DESIGN.md                                   # Panduan desain visual & komponen UI
+├── AGENTS.md                                   # Aturan standar arsitektur, pengujian, dan penulisan kode
+└── README.md
 ```
 
 ---
 
-## 5. Panduan Instalasi & Menjalankan Lokal (*Getting Started*)
+## 4. Menjalankan Aplikasi Secara Lokal
 
-### Prasyarat Sistem:
-* **Golang:** Versi $\ge$ 1.22 (Direkomendasikan Go 1.24)
-* **Node.js:** Versi $\ge$ 18.x (Direkomendasikan Node.js 20 LTS) & npm
-* **PostgreSQL:** Akun Neon Tech PostgreSQL Serverless (atau PostgreSQL lokal)
+### Prasyarat
+- **Go:** versi `1.22` atau lebih baru (`go.mod` memakai Go `1.26.3`).
+- **Node.js & npm:** disarankan Node.js `20 LTS` atau lebih baru.
+- **PostgreSQL:** basis data Neon Tech Serverless (atau PostgreSQL lokal `>= 15`).
 
-### Langkah 1: Kloning & Persiapan Berkas Konfigurasi
+### 1. Kloning & Siapkan Konfigurasi Backend
 
 ```powershell
-# Kloning repositori
-git clone https://github.com/your-org/peerlearn.git
-cd peerlearn
+git clone https://github.com/rakaalpiansyah/PeerLearn.git
+cd PeerLearn
+git checkout uin-sgd-full
 
-# Salin contoh environment di backend
 cd backend
-Copy-Item .env.example .env  # Atur DATABASE_URL dan JWT_SECRET
+Copy-Item .env.example .env
 ```
 
-Isi berkas `backend/.env`:
+Lengkapi `backend/.env` dengan kredensial basis data Anda:
+
 ```env
 PORT=8080
-DATABASE_URL=postgres://username:password@ep-sample-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
-JWT_SECRET=rahasia_jwt_peerlearn_fst_uinsgd_2026
+DATABASE_URL=postgresql://user:password@ep-example-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+JWT_SECRET=ganti_dengan_secret_acak_yang_kuat
 APP_ENV=development
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+APP_BASE_URL=http://localhost:5173
+
+# Konfigurasi SMTP opsional (jika kosong dan APP_ENV=development, memakai DevLogMailer fallback)
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
 ```
 
-### Langkah 2: Menjalankan Backend Go
+### 2. Jalankan Server Backend (Port `8080`)
 
-Migrasi database (tabel skema, indeks, dan 81 mata kuliah FST UIN SGD) akan dieksekusi secara otomatis saat backend pertama kali dinyalakan:
+Seluruh 12 file migrasi SQL beserta katalog mata kuliah dan data demo dijalankan otomatis saat server aktif:
 
 ```powershell
 cd backend
-go run cmd/api/main.go
+go run ./cmd/api
 ```
-*Server Go Fiber akan aktif di `http://localhost:8080`*.
 
-### Langkah 3: Menjalankan Frontend React
+### 3. Jalankan Server Frontend (Port `5173`)
 
-Buka terminal baru:
+Buka terminal kedua:
 
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
-*Aplikasi frontend Vite akan aktif di `http://localhost:5173`*.
 
-### Kredensial Akun Demo (Seed Otomatis)
+Buka `http://localhost:5173/` pada browser Anda.
 
-Saat backend dijalankan pertama kali, migrasi `000004` dan `000006` otomatis menyiapkan akun pengujian berikut (kata sandi seluruh akun demo: `password123`):
+### Akun Uji Bawaan (*Database Seed*)
 
-| Peran | Email | Nama / Identitas | Keterangan |
+Seluruh akun bawaan menggunakan kata sandi `password123`:
+
+| Peran | Email | Identitas | Keterangan Penggunaan |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin.fst@uinsgd.ac.id` | Admin Akademik FST UIN SGD | Masuk ke Ruang Kendali Admin (ACC sesi, shared inbox, moderasi) |
-| **Admin** | `wakildekan3.fst@uinsgd.ac.id` | Koordinator Kemahasiswaan FST | Akun admin kedua untuk simulasi balasan multi-admin |
-| **Mahasiswa** | `nabila.azzahra@uinsgd.ac.id` | Nabila Azzahra (S1 Teknik Informatika) | Memiliki pengajuan sesi `pending_approval` dan chat bantuan terbuka |
-| **Mahasiswa** | `fajar.ramadhan@uinsgd.ac.id` | Fajar Ramadhan (S1 Teknik Elektro) | Pengajuan sesi Teknik Elektro & riwayat chat SKPI |
-| **Mahasiswa** | `angga.saputra@uinsgd.ac.id` | Angga Saputra (S1 Agroteknologi) | Akun berstatus `restricted` dan pengajuan `rejected` untuk simulasi moderasi |
+| **Admin** | `admin.fst@uinsgd.ac.id` | Admin Akademik UIN SGD | Akses `AdminDashboardPage` (ACC sesi, shared inbox bantuan, moderasi) |
+| **Admin** | `wakildekan3.fst@uinsgd.ac.id` | Koordinator Kemahasiswaan | Akun admin kedua untuk simulasi balasan *multi-admin* |
+| **Host / Mahasiswa** | `nabila.azzahra@uinsgd.ac.id` | Nabila Azzahra (Teknik Informatika) | Pemilik sesi aktif, pengelolaan Co-Author, materi, & SKPI ber-QR |
+| **Mahasiswa / Co-Tutor** | `fajar.ramadhan@uinsgd.ac.id` | Fajar Ramadhan (Teknik Elektro) | Pengujian pengajuan gabung, hak akses Co-Author, & Usulan Topik |
+| **Mahasiswa (Moderasi)** | `angga.saputra@uinsgd.ac.id` | Angga Saputra (Agroteknologi) | Akun berstatus `restricted` untuk simulasi pemulihan oleh admin |
 
 ---
 
-## 6. Protokol Verifikasi & Pengujian Mutu (*Quality Evidence*)
+## 5. Pengujian & Verifikasi Mutu
 
-Setiap perubahan kode di repositori ini diverifikasi menggunakan protokol ketat:
-
-### Pengujian Frontend (Vitest):
-```powershell
-cd frontend
-npm test
-```
-*Hasil:* **19 berkas uji coba, 186 pengujian unit lulus 100%** (mencakup Ruang Kendali Admin, Shared Inbox, dan Bantuan Mahasiswa).
-
-### Kompilasi Produksi Frontend:
-```powershell
-cd frontend
-npm run build
-```
-*Hasil:* Terkompilasi bersih tanpa peringatan (*clean bundle*) dalam **< 500ms**.
-
-### Pengujian Backend (Go Tests & Go Vet):
+### Backend (Go)
 ```powershell
 cd backend
-go test -v ./...
 go vet ./...
+go build ./...
+go test -count=1 ./...
 ```
-*Hasil:* **Seluruh paket pengujian lulus 100%**, `go vet` bersih dari kesalahan alokasi memori atau konkurensi.
+
+### Frontend (Vitest, Oxlint, Vite Build)
+```powershell
+cd frontend
+npm test -- --run
+npm run lint
+npm run build
+```
+
+Pada kondisi rilis cabang `uin-sgd-full` (`40a9020`), seluruh suite pengujian backend Go (`middleware`, `security`, `service`) dan `27` berkas uji frontend (`221` pengujian Vitest) lulus tanpa galat, dengan hasil `npm run lint` bersih (`0 warnings and 0 errors` pada `73` berkas).
 
 ---
 
-## 7. Lisensi & Kontributor
+## 6. Indeks Dokumentasi Lainnya
 
-Proyek ini dikembangkan secara nirlaba sebagai wadah kolaborasi akademik sebaya (*Peer-Assisted Learning*) untuk civitas akademika **Fakultas Sains dan Teknologi, UIN Sunan Gunung Djati Bandung**.
+- [PRD.md](./PRD.md) : Visi produk, modul fungsional, ERD, dan kontrak endpoint API.
+- [docs/SRS.md](./docs/SRS.md) : Software Requirements Specification (IEEE Std 830) dan kamus data.
+- [DESIGN.md](./DESIGN.md) : Standar desain antarmuka, palet warna, tipografi, dan hierarki komponen.
+- [AGENTS.md](./AGENTS.md) : Aturan arsitektur Go Clean Architecture, React SPA, dan disiplin verifikasi.
 
-Lisensi: [MIT License](LICENSE) — Bebas digunakan dan dikembangkan untuk kepentingan edukasi kampus.
+Dikembangkan untuk keperluan kolaborasi akademik non-komersial mahasiswa UIN Sunan Gunung Djati Bandung.
