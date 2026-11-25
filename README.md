@@ -1,12 +1,12 @@
 # PeerLearn (FST UIN SGD Bandung Edition)
 
-> **Platform Pembelajaran Kolaboratif Sebaya (*Peer-Assisted Learning*) Bebas Biaya untuk Civitas Akademika Fakultas Sains dan Teknologi, Universitas Islam Negeri Sunan Gunung Djati Bandung.**
+> **Platform Pembelajaran Kolaboratif Sebaya (_Peer-Assisted Learning_) Bebas Biaya untuk Civitas Akademika Fakultas Sains dan Teknologi, Universitas Islam Negeri Sunan Gunung Djati Bandung.**
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/peerlearn/backend)](https://golang.org)
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](https://react.dev)
-[![Go](https://img.shields.io/badge/Backend-Go%201.24%20(Fiber%20v2)-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL%20(Neon%20Serverless)-336791?logo=postgresql&logoColor=white)](https://neon.tech)
-[![Tests](https://img.shields.io/badge/Vitest-186%2F186%20Passed%20(100%25)-success)](https://vitest.dev)
+[![Go](<https://img.shields.io/badge/Backend-Go%201.24%20(Fiber%20v2)-00ADD8?logo=go&logoColor=white>)](https://go.dev)
+[![Database](<https://img.shields.io/badge/Database-PostgreSQL%20(Neon%20Serverless)-336791?logo=postgresql&logoColor=white>)](https://neon.tech)
+[![Tests](<https://img.shields.io/badge/Vitest-189%2F189%20Passed%20(100%25)-success>)](https://vitest.dev)
 [![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-blueviolet)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 
 ---
@@ -15,9 +15,9 @@
 
 Untuk mempermudah peninjauan teknis, akademik, dan arsitektural sistem, dokumentasi proyek dipisahkan secara terstruktur:
 
-| Berkas Dokumentasi | Standar & Spesifikasi | Deskripsi & Cakupan |
-| :--- | :--- | :--- |
-| 📘 **[PRD.md](./PRD.md)** | Product Requirements Document v2.0 | Visi produk, latar belakang akademik FST, persona mahasiswa, modul fungsional FR-1 s/d FR-5, Entity-Relationship Diagram (ERD), dan kontrak endpoint REST API. |
+| Berkas Dokumentasi                  | Standar & Spesifikasi                              | Deskripsi & Cakupan                                                                                                                                                                      |
+| :---------------------------------- | :------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 📘 **[PRD.md](./PRD.md)**           | Product Requirements Document v2.0                 | Visi produk, latar belakang akademik FST, persona mahasiswa, modul fungsional FR-1 s/d FR-5, Entity-Relationship Diagram (ERD), dan kontrak endpoint REST API.                           |
 | 📑 **[docs/SRS.md](./docs/SRS.md)** | Software Requirements Specification (IEEE Std 830) | Spesifikasi formal rekayasa, use-case rinci SRS-FR-01 s/d 11 (prakondisi, alur normal, eksepsi, pascakondisi), kebutuhan non-fungsional, kamus data PostgreSQL, dan Traceability Matrix. |
 
 ---
@@ -25,6 +25,7 @@ Untuk mempermudah peninjauan teknis, akademik, dan arsitektural sistem, dokument
 ## 1. Latar Belakang & Urgensi Produk
 
 Fakultas Sains dan Teknologi (FST) UIN Sunan Gunung Djati Bandung menaungi 8 Program Studi Sarjana (S1):
+
 1. **Teknik Informatika**
 2. **Teknik Elektro**
 3. **Teknik Lingkungan**
@@ -35,18 +36,19 @@ Fakultas Sains dan Teknologi (FST) UIN Sunan Gunung Djati Bandung menaungi 8 Pro
 8. **Agroteknologi**
 
 Dalam ekosistem akademik sains dan teknologi, mahasiswa menghadapi tantangan perkuliahan yang khas:
-* **Disparitas Pemahaman Awal:** Mata kuliah dasar komputasi dan sains fundamental (Algoritma & Pemrograman, Struktur Data, Kalkulus Integral, Fisika Dasar, Rangkaian Listrik) sering menjadi hambatan besar bagi mahasiswa baru.
-* **Kebutuhan Responsi Praktikum Laboratorium:** Mahasiswa wajib menjalani praktikum di **Laboratorium Komputer FST (Lt. 3 Gedung FST)** dan **Laboratorium Terpadu MIPA FST**. Sebelum tes awal (*pre-test*) atau responsi akhir praktikum, mahasiswa sangat membutuhkan kelompok belajar intensif untuk mereviu materi bersama asisten lab atau mahasiswa pembimbing (*peer tutor*).
-* **Belajar Berkelanjutan (*Continuous Cohort*):** Kelompok belajar akademik tidak selesai dalam satu kali pertemuan. Mahasiswa membutuhkan sistem yang memungkinkan sesi berlanjut setiap pekan (+7 hari) tanpa harus membuat grup baru atau mengulang proses pendaftaran peserta.
-* **Pengakuan Formal untuk SKPI:** Mahasiswa yang mendedikasikan waktunya menjadi tutor sebaya membutuhkan bukti rekam jejak resmi yang dapat dicetak dan divalidasi untuk perolehan poin **Surat Keterangan Pendamping Ijazah (SKPI)** pada borang kelulusan yudisium fakultas.
 
-**PeerLearn** hadir sebagai solusi rekayasa perangkat lunak tanpa biaya (*zero-fee*) yang menghubungkan pencari rekan belajar (*Learner*) dengan mahasiswa pembimbing (*Peer Tutor*) secara aman, terstruktur, dan terintegrasi dengan lingkungan fisik kampus FST UIN SGD Bandung.
+- **Disparitas Pemahaman Awal:** Mata kuliah dasar komputasi dan sains fundamental (Algoritma & Pemrograman, Struktur Data, Kalkulus Integral, Fisika Dasar, Rangkaian Listrik) sering menjadi hambatan besar bagi mahasiswa baru.
+- **Kebutuhan Responsi Praktikum Laboratorium:** Mahasiswa wajib menjalani praktikum di **Laboratorium Komputer FST (Lt. 3 Gedung FST)** dan **Laboratorium Terpadu MIPA FST**. Sebelum tes awal (_pre-test_) atau responsi akhir praktikum, mahasiswa sangat membutuhkan kelompok belajar intensif untuk mereviu materi bersama asisten lab atau mahasiswa pembimbing (_peer tutor_).
+- **Belajar Berkelanjutan (_Continuous Cohort_):** Kelompok belajar akademik tidak selesai dalam satu kali pertemuan. Mahasiswa membutuhkan sistem yang memungkinkan sesi berlanjut setiap pekan (+7 hari) tanpa harus membuat grup baru atau mengulang proses pendaftaran peserta.
+- **Pengakuan Formal untuk SKPI:** Mahasiswa yang mendedikasikan waktunya menjadi tutor sebaya membutuhkan bukti rekam jejak resmi yang dapat dicetak dan divalidasi untuk perolehan poin **Surat Keterangan Pendamping Ijazah (SKPI)** pada borang kelulusan yudisium fakultas.
+
+**PeerLearn** hadir sebagai solusi rekayasa perangkat lunak tanpa biaya (_zero-fee_) yang menghubungkan pencari rekan belajar (_Learner_) dengan mahasiswa pembimbing (_Peer Tutor_) secara aman, terstruktur, dan terintegrasi dengan lingkungan fisik kampus FST UIN SGD Bandung.
 
 ---
 
 ## 2. Arsitektur Perangkat Lunak & Teknologi
 
-PeerLearn menerapkan pemisahan tanggung jawab yang ketat (*Separation of Concerns*) berbasis **Clean Architecture** di sisi backend dan **Component-Driven Architecture** di sisi frontend:
+PeerLearn menerapkan pemisahan tanggung jawab yang ketat (_Separation of Concerns_) berbasis **Clean Architecture** di sisi backend dan **Component-Driven Architecture** di sisi frontend:
 
 ```mermaid
 graph TD
@@ -66,50 +68,75 @@ graph TD
     Repo -->|PgBouncer Pooled Connection| DB
 ```
 
-### Rincian Teknologi (*Tech Stack*):
-* **Backend:** Golang 1.24, Fiber v2, Stateless JWT (`golang-jwt`), Bcrypt Password Hashing, PGX v5 Driver.
-* **Basis Data:** PostgreSQL 16 di Neon Tech Serverless dengan PgBouncer Connection Pooling (wilayah Singapura `aws-ap-southeast-1`).
-* **Frontend:** React 18, Vite 8, Tailwind CSS, Lucide React Icons, Native Dialog Modal Accessibility (`<dialog>`).
-* **Pengujian Mutu:** Go Native Unit Testing (`go test`), Vitest (`@testing-library/react`), JSDOM Environment.
+### Rincian Teknologi (_Tech Stack_):
+
+- **Backend:** Golang 1.24, Fiber v2, Stateless JWT (`golang-jwt`), Bcrypt Password Hashing, PGX v5 Driver.
+- **Basis Data:** PostgreSQL 16 di Neon Tech Serverless dengan PgBouncer Connection Pooling (wilayah Singapura `aws-ap-southeast-1`).
+- **Frontend:** React 18, Vite 8, Tailwind CSS, Lucide React Icons, Native Dialog Modal Accessibility (`<dialog>`).
+- **Pengujian Mutu:** Go Native Unit Testing (`go test`), Vitest (`@testing-library/react`), JSDOM Environment.
 
 ---
 
 ## 3. Fitur Unggulan End-to-End
 
 ### A. Mesin Kurikulum FST & Fitur "Pakai Ketik" Instan
-* **Katalog Bawaan 81+ Mata Kuliah:** Mencakup seluruh mata kuliah wajib 8 prodi FST UIN SGD Bandung (Algoritma, PBO, Basis Data, Rangkaian Listrik, Kimia Lingkungan, Kalkulus, Biologi Molekuler, dsb.).
-* **Bilah Aksi Cepat (*1-Click Quick Add*):** Mahasiswa dapat mengetikkan topik khusus (misal: *Responsi IoT Pak Eki*, *Analisis Spektroskopi FTIR*, *Koding Flutter UTS*). Bilah aksi seketika muncul untuk menambahkan materi tersebut sebagai **Dikuasai (Siap Tutor)** atau **Ingin Dipelajari** dengan satu klik tanpa formulir berbelit.
+
+- **Katalog Bawaan 81+ Mata Kuliah:** Mencakup seluruh mata kuliah wajib 8 prodi FST UIN SGD Bandung (Algoritma, PBO, Basis Data, Rangkaian Listrik, Kimia Lingkungan, Kalkulus, Biologi Molekuler, dsb.).
+- **Bilah Aksi Cepat (_1-Click Quick Add_):** Mahasiswa dapat mengetikkan topik khusus (misal: _Responsi IoT Pak Eki_, _Analisis Spektroskopi FTIR_, _Koding Flutter UTS_). Bilah aksi seketika muncul untuk menambahkan materi tersebut sebagai **Dikuasai (Siap Tutor)** atau **Ingin Dipelajari** dengan satu klik tanpa formulir berbelit.
 
 ### B. Preset Lokasi Kampus FST & Integrasi Google Maps
-* **1-Click Campus Chips:** Pilihan instan titik temu luring di lingkungan kampus:
-  * `🏛️ FST UIN SGD`: Kampus 1 Cipadung (Gedung FST Lt. 3 Lab Komputer).
-  * `🔬 Lab MIPA FST`: Laboratorium Terpadu MIPA FST (Fisika, Kimia, Biologi).
-  * `📚 Perpus UIN SGD`: Perpustakaan Utama Kampus 1 Cipadung.
-  * `🏢 GKB UIN SGD`: Gedung Kuliah Bersama Kampus 1 Cipadung.
-  * `📍 Kampus 2 Soetta`: Kampus 2 UIN SGD (Jl. Soekarno-Hatta).
-* **Smart Resolver Google Maps:** Pengguna dapat menempelkan tautan `maps.app.goo.gl` atau koordinat GPS mentah; backend secara otomatis membedah dan memetakan titik koordinatnya dengan proteksi SSRF.
 
-### C. Alur Sesi Berkelanjutan (*Cohort Scheduling +7 Hari*)
-* **Reschedule Pintar:** Host dapat memajukan jadwal ke pekan depan menggunakan tombol pintas **`+7 Hari`**.
-* **Keanggotaan Terjaga (*Retained Members*):** Seluruh peserta yang telah diterima otomatis tetap terdaftar di pertemuan berikutnya tanpa harus mendaftar ulang.
-* **Pembaruan Tempat & Materi:** Host dapat mengganti lokasi (misal dari Labkom ke Google Meet) dan memasukkan topik bahasan pekan depan yang otomatis terhubung ke agenda silabus.
+- **1-Click Campus Chips:** Pilihan instan titik temu luring di lingkungan kampus:
+  - `🏛️ FST UIN SGD`: Kampus 1 Cipadung (Gedung FST Lt. 3 Lab Komputer).
+  - `🔬 Lab MIPA FST`: Laboratorium Terpadu MIPA FST (Fisika, Kimia, Biologi).
+  - `📚 Perpus UIN SGD`: Perpustakaan Utama Kampus 1 Cipadung.
+  - `🏢 GKB UIN SGD`: Gedung Kuliah Bersama Kampus 1 Cipadung.
+  - `📍 Kampus 2 Soetta`: Kampus 2 UIN SGD (Jl. Soekarno-Hatta).
+- **Smart Resolver Google Maps:** Pengguna dapat menempelkan tautan `maps.app.goo.gl` atau koordinat GPS mentah; backend secara otomatis membedah dan memetakan titik koordinatnya dengan proteksi SSRF.
+
+### C. Alur Sesi Berkelanjutan (_Cohort Scheduling +7 Hari_)
+
+- **Reschedule Pintar:** Host dapat memajukan jadwal ke pekan depan menggunakan tombol pintas **`+7 Hari`**.
+- **Keanggotaan Terjaga (_Retained Members_):** Seluruh peserta yang telah diterima otomatis tetap terdaftar di pertemuan berikutnya tanpa harus mendaftar ulang.
+- **Pembaruan Tempat & Materi:** Host dapat mengganti lokasi (misal dari Labkom ke Google Meet) dan memasukkan topik bahasan pekan depan yang otomatis terhubung ke agenda silabus.
 
 ### D. Alur Pembatalan Transparan Dua Arah
-* **Batal Ikut oleh Peserta (*Leave / Cancel Participation*):** Peserta yang berhalangan hadir dapat membatalkan keikutsertaannya kapan saja melalui tombol **"Batal Ikut Sesi"** atau **"Tarik Permohonan"**. Kuota peserta otomatis langsung terlepas dan berkurang 1 secara *real-time*.
-* **Pembatalan oleh Host (*Cancel Session*):** Jika Host berhalangan total, sesi dapat diubah ke status `cancelled`. Banner merah peringatan langsung terpampang di seluruh akun peserta dan tombol pendaftaran dinonaktifkan.
 
-### E. Ruang Diskusi Koordinasi (*Live Auto-Polling 4s*)
-* Ruang obrolan privat antar-anggota terkonfirmasi dengan pembaruan otomatis setiap 4 detik (*silent background polling*) tanpa kedip layar.
-* Koordinasi persiapan praktikum, pembagian tautan Google Drive modul, dan diskusi kendala koding berlangsung terpusat.
+- **Batal Ikut oleh Peserta (_Leave / Cancel Participation_):** Peserta yang berhalangan hadir dapat membatalkan keikutsertaannya kapan saja melalui tombol **"Batal Ikut Sesi"** atau **"Tarik Permohonan"**. Kuota peserta otomatis langsung terlepas dan berkurang 1 secara _real-time_.
+- **Pembatalan oleh Host (_Cancel Session_):** Jika Host berhalangan total, sesi dapat diubah ke status `cancelled`. Banner merah peringatan langsung terpampang di seluruh akun peserta dan tombol pendaftaran dinonaktifkan.
+
+### E. Ruang Diskusi Koordinasi (_Live Auto-Polling 4s_)
+
+- Ruang obrolan privat antar-anggota terkonfirmasi dengan pembaruan otomatis setiap 4 detik (_silent background polling_) tanpa kedip layar.
+- Koordinasi persiapan praktikum, pembagian tautan Google Drive modul, dan diskusi kendala koding berlangsung terpusat.
 
 ### F. Generator Dokumen Portofolio SKPI Resmi
-* Menerbitkan **Surat Keterangan Kontribusi Tutor Sebaya** dengan KOP resmi **Fakultas Sains & Teknologi • UIN Sunan Gunung Djati Bandung**.
-* Dilengkapi Nomor Registrasi Surat unik, kode *hash* validasi sistem, akumulasi poin kontribusi, daftar mata kuliah yang dibimbing, dan tata letak *print-ready* ramah kertas A4.
+
+- Menerbitkan **Surat Keterangan Kontribusi Tutor Sebaya** dengan KOP resmi **Fakultas Sains & Teknologi • UIN Sunan Gunung Djati Bandung**.
+- Dilengkapi Nomor Registrasi Surat unik, kode _hash_ validasi sistem, akumulasi poin kontribusi, daftar mata kuliah yang dibimbing, dan tata letak _print-ready_ ramah kertas A4.
 
 ### G. Ruang Kendali Admin Terpisah, Kurasi Sesi & Shared Helpdesk Inbox
-* **Gerbang Persetujuan Sesi (`pending_approval`):** Sesi baru yang dibuat mahasiswa masuk ke antrean verifikasi Admin terlebih dahulu. Admin memeriksa agenda, jadwal, lokasi kampus atau tautan daring, serta profil penyelenggara sebelum menyetujui (`open`) atau menolak dengan catatan revisi (`rejected`).
-* **Dashboard Admin Khusus (`AdminLayout` & `AdminDashboardPage`):** Akun dengan peran `admin` diarahkan otomatis ke ruang kerja terpisah dari beranda mahasiswa, berisi Ringkasan Ekosistem, Antrean Verifikasi Sesi, Kotak Masuk Bantuan Mahasiswa, serta Pusat Laporan & Moderasi (dilengkapi tombol pratinjau katalog publik).
-* **Shared Helpdesk Inbox:** Mahasiswa dapat menghubungi tim admin melalui dialog Bantuan Admin, dan admin mana pun yang sedang bertugas dapat membalas dari satu kotak masuk bersama dengan identitas pengirim admin tercatat jelas pada riwayat percakapan.
+
+- **Gerbang Persetujuan Sesi (`pending_approval`):** Sesi baru yang dibuat mahasiswa masuk ke antrean verifikasi Admin terlebih dahulu. Admin memeriksa agenda, jadwal, lokasi kampus atau tautan daring, serta profil penyelenggara sebelum menyetujui (`open`) atau menolak dengan catatan revisi (`rejected`).
+- **Dashboard Admin Khusus (`AdminLayout` & `AdminDashboardPage`):** Akun dengan peran `admin` diarahkan otomatis ke ruang kerja terpisah dari beranda mahasiswa, berisi Ringkasan Ekosistem, Antrean Verifikasi Sesi, Kotak Masuk Bantuan Mahasiswa, serta Pusat Laporan & Moderasi (dilengkapi tombol pratinjau katalog publik).
+- **Shared Helpdesk Inbox:** Mahasiswa dapat menghubungi tim admin melalui dialog Bantuan Admin, dan admin mana pun yang sedang bertugas dapat membalas dari satu kotak masuk bersama dengan identitas pengirim admin tercatat jelas pada riwayat percakapan.
+
+### H. Arsitektur Multi-Fakultas & Tata Kelola Terlingkup (_Scoped Governance_)
+
+- **Master Data Dinamis:** Tabel `faculties`, `departments`, dan `campus_locations` memuat data FST UIN SGD (8 prodi, 5 titik kampus) serta kategori `UMUM` (Lintas Fakultas) yang dapat diperluas tanpa mengubah kode.
+- **Filter Fakultas di Katalog:** Mahasiswa dapat menyaring sesi belajar berdasarkan fakultas langsung dari beranda (`GET /api/v1/groups?faculty_id=...`).
+- **Pemisahan Peran Admin:** Mendukung peran `faculty_admin` (hanya melihat dan meninjau/ACC sesi milik fakultasnya sendiri) dan `super_admin` (akses penuh lintas fakultas).
+
+### I. Pemulihan Kata Sandi (OTP 6 Digit & SMTP Mailer)
+
+- Alur _Lupa Kata Sandi_ menerbitkan kode OTP 6 digit sekali pakai (masa berlaku 15 menit, tersimpan ter-hash di basis data).
+- Pengiriman email otomatis menggunakan `net/smtp` saat variabel `SMTP_*` diisi di `.env`, dengan _fallback_ cetak kode `[DEV OTP]` di log terminal saat mode `development`.
+
+### J. Kolaborasi Multi-Tutor (_Co-Host_) & Rulebook Komunitas
+
+- **Maksimal 3 Co-Tutor per Sesi:** Penyelenggara utama (_Primary Host_) dapat mengundang hingga 3 rekan mahasiswa sebagai Co-Tutor lewat email. Undangan dapat diterima atau ditolak langsung dari modal **Sesi Belajar Saya** maupun detail sesi.
+- **Hak Akses & Poin Bersama:** Co-Tutor aktif dapat menyetujui/menolak peserta, mengubah jadwal/detail sesi, dan ikut memperoleh poin kontribusi SKPI (+2 poin), namun pembatalan sesi tetap eksklusif milik Primary Host.
+- **Kepatuhan Rulebook & Panduan SKPI:** Pendaftaran akun mewajibkan persetujuan Rulebook Komunitas, dilengkapi akses cepat ke Panduan SKPI di bilah navigasi.
 
 ---
 
@@ -131,8 +158,11 @@ peerlearn/
 │   │   │       ├── 000004_moderation_and_user_profile.sql
 │   │   │       ├── 000005_chat_reactions_and_pin.sql
 │   │   │       └── 000006_admin_approval_and_support_chat.sql
+│   │   │       ├── 000007_multi_faculty_governance.sql
+│   │   │       └── 000008_password_reset_and_cohosts.sql
 │   │   ├── domain/                       # Entity Structs, Interfaces, & DTOs
-│   │   ├── handler/                      # HTTP Transport Controller (Fiber v2, incl. support_handler.go)
+│   │   ├── handler/                      # HTTP Transport Controller (Fiber v2)
+│   │   ├── mailer/                       # SMTP OTP Mailer (net/smtp + fallback dev)
 │   │   ├── middleware/                   # JWT Auth, CORS, & Role Guard
 │   │   ├── repository/                   # Data Access Layer (SQL Queries on Neon, incl. support_repository.go)
 │   │   ├── security/                     # Token Signer & Bcrypt Hashing
@@ -170,12 +200,13 @@ peerlearn/
 
 ---
 
-## 5. Panduan Instalasi & Menjalankan Lokal (*Getting Started*)
+## 5. Panduan Instalasi & Menjalankan Lokal (_Getting Started_)
 
 ### Prasyarat Sistem:
-* **Golang:** Versi $\ge$ 1.22 (Direkomendasikan Go 1.24)
-* **Node.js:** Versi $\ge$ 18.x (Direkomendasikan Node.js 20 LTS) & npm
-* **PostgreSQL:** Akun Neon Tech PostgreSQL Serverless (atau PostgreSQL lokal)
+
+- **Golang:** Versi $\ge$ 1.22 (Direkomendasikan Go 1.24)
+- **Node.js:** Versi $\ge$ 18.x (Direkomendasikan Node.js 20 LTS) & npm
+- **PostgreSQL:** Akun Neon Tech PostgreSQL Serverless (atau PostgreSQL lokal)
 
 ### Langkah 1: Kloning & Persiapan Berkas Konfigurasi
 
@@ -190,11 +221,21 @@ Copy-Item .env.example .env  # Atur DATABASE_URL dan JWT_SECRET
 ```
 
 Isi berkas `backend/.env`:
+
 ```env
 PORT=8080
 DATABASE_URL=postgres://username:password@ep-sample-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
 JWT_SECRET=rahasia_jwt_peerlearn_fst_uinsgd_2026
 APP_ENV=development
+
+ALLOWED_ORIGINS=http://localhost:5173
+
+# Optional SMTP Email Delivery (kosongkan di lokal untuk mode [DEV OTP] di terminal)
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
 ```
 
 ### Langkah 2: Menjalankan Backend Go
@@ -205,7 +246,8 @@ Migrasi database (tabel skema, indeks, dan 81 mata kuliah FST UIN SGD) akan diek
 cd backend
 go run cmd/api/main.go
 ```
-*Server Go Fiber akan aktif di `http://localhost:8080`*.
+
+_Server Go Fiber akan aktif di `http://localhost:8080`_.
 
 ### Langkah 3: Menjalankan Frontend React
 
@@ -216,52 +258,61 @@ cd frontend
 npm install
 npm run dev
 ```
-*Aplikasi frontend Vite akan aktif di `http://localhost:5173`*.
+
+_Aplikasi frontend Vite akan aktif di `http://localhost:5173`_.
 
 ### Kredensial Akun Demo (Seed Otomatis)
 
 Saat backend dijalankan pertama kali, migrasi `000004` dan `000006` otomatis menyiapkan akun pengujian berikut (kata sandi seluruh akun demo: `password123`):
 
-| Peran | Email | Nama / Identitas | Keterangan |
-| :--- | :--- | :--- | :--- |
-| **Admin** | `admin.fst@uinsgd.ac.id` | Admin Akademik FST UIN SGD | Masuk ke Ruang Kendali Admin (ACC sesi, shared inbox, moderasi) |
-| **Admin** | `wakildekan3.fst@uinsgd.ac.id` | Koordinator Kemahasiswaan FST | Akun admin kedua untuk simulasi balasan multi-admin |
-| **Mahasiswa** | `nabila.azzahra@uinsgd.ac.id` | Nabila Azzahra (S1 Teknik Informatika) | Memiliki pengajuan sesi `pending_approval` dan chat bantuan terbuka |
-| **Mahasiswa** | `fajar.ramadhan@uinsgd.ac.id` | Fajar Ramadhan (S1 Teknik Elektro) | Pengajuan sesi Teknik Elektro & riwayat chat SKPI |
-| **Mahasiswa** | `angga.saputra@uinsgd.ac.id` | Angga Saputra (S1 Agroteknologi) | Akun berstatus `restricted` dan pengajuan `rejected` untuk simulasi moderasi |
+| Peran         | Email                          | Nama / Identitas                       | Keterangan                                                                   |
+| :------------ | :----------------------------- | :------------------------------------- | :--------------------------------------------------------------------------- |
+| **Admin**     | `admin.fst@uinsgd.ac.id`       | Admin Akademik FST UIN SGD             | Masuk ke Ruang Kendali Admin (ACC sesi, shared inbox, moderasi)              |
+| **Admin**     | `wakildekan3.fst@uinsgd.ac.id` | Koordinator Kemahasiswaan FST          | Akun admin kedua untuk simulasi balasan multi-admin                          |
+| **Mahasiswa** | `nabila.azzahra@uinsgd.ac.id`  | Nabila Azzahra (S1 Teknik Informatika) | Memiliki pengajuan sesi `pending_approval` dan chat bantuan terbuka          |
+| **Mahasiswa** | `fajar.ramadhan@uinsgd.ac.id`  | Fajar Ramadhan (S1 Teknik Elektro)     | Pengajuan sesi Teknik Elektro & riwayat chat SKPI                            |
+| **Mahasiswa** | `angga.saputra@uinsgd.ac.id`   | Angga Saputra (S1 Agroteknologi)       | Akun berstatus `restricted` dan pengajuan `rejected` untuk simulasi moderasi |
+
+> **Catatan Penetapan Role Admin:** Pendaftaran publik memblokir peran admin demi keamanan. Untuk menetapkan akun sebagai `super_admin` atau `faculty_admin`, perbarui kolom `role` dan `faculty_id` pada tabel `users` melalui SQL Editor Neon Console.
 
 ---
 
-## 6. Protokol Verifikasi & Pengujian Mutu (*Quality Evidence*)
+## 6. Protokol Verifikasi & Pengujian Mutu (_Quality Evidence_)
 
 Setiap perubahan kode di repositori ini diverifikasi menggunakan protokol ketat:
 
 ### Pengujian Frontend (Vitest):
+
 ```powershell
 cd frontend
 npm test
 ```
-*Hasil:* **19 berkas uji coba, 186 pengujian unit lulus 100%** (mencakup Ruang Kendali Admin, Shared Inbox, dan Bantuan Mahasiswa).
+
+_Hasil:_ **19 berkas uji coba, 189 pengujian unit lulus 100%** (mencakup Ruang Kendali Admin, Shared Inbox, dan Bantuan Mahasiswa).
 
 ### Kompilasi Produksi Frontend:
+
 ```powershell
 cd frontend
 npm run build
 ```
-*Hasil:* Terkompilasi bersih tanpa peringatan (*clean bundle*) dalam **< 500ms**.
+
+_Hasil:_ Terkompilasi bersih tanpa peringatan (_clean bundle_) dalam **< 500ms**.
 
 ### Pengujian Backend (Go Tests & Go Vet):
+
 ```powershell
 cd backend
 go test -v ./...
 go vet ./...
 ```
-*Hasil:* **Seluruh paket pengujian lulus 100%**, `go vet` bersih dari kesalahan alokasi memori atau konkurensi.
+
+_Hasil:_ **Seluruh paket pengujian lulus 100%**, `go vet` bersih dari kesalahan alokasi memori atau konkurensi.
 
 ---
 
 ## 7. Lisensi & Kontributor
 
-Proyek ini dikembangkan secara nirlaba sebagai wadah kolaborasi akademik sebaya (*Peer-Assisted Learning*) untuk civitas akademika **Fakultas Sains dan Teknologi, UIN Sunan Gunung Djati Bandung**.
+Proyek ini dikembangkan secara nirlaba sebagai wadah kolaborasi akademik sebaya (_Peer-Assisted Learning_) untuk civitas akademika **Fakultas Sains dan Teknologi, UIN Sunan Gunung Djati Bandung**.
 
 Lisensi: [MIT License](LICENSE) — Bebas digunakan dan dikembangkan untuk kepentingan edukasi kampus.
