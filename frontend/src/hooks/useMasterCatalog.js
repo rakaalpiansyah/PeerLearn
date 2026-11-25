@@ -39,8 +39,7 @@ export function useMasterCatalog(enabled = true) {
     if (!enabled || cachedCatalog) return;
     let cancelled = false;
 
-    masterApi
-      .getFaculties()
+    Promise.resolve(masterApi?.getFaculties?.())
       .then((res) => {
         if (cancelled) return;
         if (res?.success && res?.data?.faculties?.length > 0) {

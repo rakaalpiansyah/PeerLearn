@@ -82,6 +82,13 @@ func (s *groupService) Create(ctx context.Context, hostID uuid.UUID, req domain.
 		}
 	}
 
+	facultyID := req.FacultyID
+	if facultyID == nil && s.userRepo != nil {
+		if hostUser, err := s.userRepo.FindByID(ctx, hostID); err == nil && hostUser != nil {
+			facultyID = hostUser.FacultyID
+		}
+	}
+
 	req.Title = strings.TrimSpace(req.Title)
 	req.Description = strings.TrimSpace(req.Description)
 	req.LocationOrLink = strings.TrimSpace(req.LocationOrLink)
@@ -130,6 +137,7 @@ func (s *groupService) Create(ctx context.Context, hostID uuid.UUID, req domain.
 		EndTime:         req.EndTime,
 		MaxCapacity:     req.MaxCapacity,
 		Status:          domain.StatusPendingApproval,
+		FacultyID:       facultyID,
 	}
 
 	if err := s.groupRepo.Create(ctx, group); err != nil {
@@ -154,12 +162,34 @@ func (s *groupService) List(ctx context.Context, filter domain.GroupFilter, curr
 
 func (s *groupService) ListForAdmin(ctx context.Context, filter domain.GroupFilter) ([]domain.GroupResponse, error) {
 	filter.IncludeUnapproved = true
+	if filter.AdminUserID != nil && s.userRepo != nil {
+		if adminUser, err := s.userRepo.FindByID(ctx, *filter.AdminUserID); err == nil && adminUser != nil {
+			if adminUser.Role == domain.RoleFacultyAdmin && adminUser.FacultyID != nil {
+				filter.FacultyID = adminUser.FacultyID.String()
+			}
+		}
+	}
 	return s.groupRepo.List(ctx, filter, nil)
 }
 
 func (s *groupService) ReviewGroup(ctx context.Context, adminID, groupID uuid.UUID, req domain.ReviewGroupRequest) (*domain.GroupResponse, error) {
 	if _, err := s.groupRepo.FindByID(ctx, groupID); err != nil {
 		return nil, fmt.Errorf("groupService.ReviewGroup: %w", err)
+	}
+
+	group, err := s.groupRepo.FindByID(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("groupService.ReviewGroup: %w", err)
+	}
+
+	if s.userRepo != nil {
+		if adminUser, err := s.userRepo.FindByID(ctx, adminID); err == nil && adminUser != nil {
+			if adminUser.Role == domain.RoleFacultyAdmin && adminUser.FacultyID != nil {
+				if group.FacultyID == nil || *group.FacultyID != *adminUser.FacultyID {
+					return nil, fmt.Errorf("%w: Admin Fakultas hanya dapat meninjau sesi milik fakultasnya sendiri", ErrUnauthorizedAction)
+				}
+			}
+		}
 	}
 
 	note := strings.TrimSpace(req.Note)

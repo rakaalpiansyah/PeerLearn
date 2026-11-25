@@ -16,6 +16,7 @@ import { CatalogFilterBar } from "../components/home/CatalogFilterBar";
 import { IntegrityPillarsSection } from "../components/home/IntegrityPillarsSection";
 import { groupApi, systemApi } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useMasterCatalog } from "../hooks/useMasterCatalog";
 
 const CATEGORIES = [
   "Semua",
@@ -58,6 +59,8 @@ export function HomePage({
   const groupsRequest = useRef(0);
   const [category, setCategory] = useState("Semua");
   const [format, setFormat] = useState("all");
+  const [facultyId, setFacultyId] = useState("all");
+  const masterCatalog = useMasterCatalog(true);
   const [search, setSearch] = useState("");
   const [catalogView, setCatalogView] = useState("all");
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
@@ -75,6 +78,7 @@ export function HomePage({
         category: category !== "Semua" ? category : undefined,
         format: format !== "all" ? format : undefined,
         search: search.trim() || undefined,
+        ...(facultyId !== "all" ? { faculty_id: facultyId } : {}),
       });
       if (requestId !== groupsRequest.current) return;
       if (!res.success) throw new Error("Catalog request failed");
@@ -122,7 +126,7 @@ export function HomePage({
     return () => {
       groupsRequest.current += 1;
     };
-  }, [category, format]);
+  }, [category, format, facultyId]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -195,6 +199,40 @@ export function HomePage({
           onToggleCategories={() => setIsCategoriesExpanded((prev) => !prev)}
           hiddenCategoryCount={hiddenCategoryCount}
         />
+
+        {catalogView === "all" && masterCatalog.faculties?.length > 0 && (
+          <div
+            role="group"
+            aria-label="Filter fakultas"
+            className="flex items-center gap-2 overflow-x-auto pb-1"
+          >
+            <button
+              type="button"
+              onClick={() => setFacultyId("all")}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${
+                facultyId === "all"
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              Semua Fakultas
+            </button>
+            {masterCatalog.faculties.map((fac) => (
+              <button
+                key={fac.id}
+                type="button"
+                onClick={() => setFacultyId(fac.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${
+                  facultyId === fac.id
+                    ? "bg-emerald-700 text-white border-emerald-700"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-800"
+                }`}
+              >
+                {fac.code} — {fac.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {catalogView === "recommendations" ? (
           <div className="space-y-4">
@@ -364,6 +402,7 @@ export function HomePage({
                     setCategory("Semua");
                     setFormat("all");
                     setSearch("");
+                    setFacultyId("all");
                   }}
                   className="border-slate-300 text-slate-700 hover:bg-slate-50"
                 >

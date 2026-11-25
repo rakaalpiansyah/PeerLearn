@@ -73,6 +73,7 @@ func (h *GroupHandler) List(c *fiber.Ctx) error {
 		Format:   domain.GroupFormat(c.Query("format")),
 		Status:   domain.GroupStatus(c.Query("status")),
 		Search:   c.Query("search"),
+		FacultyID: c.Query("faculty_id"),
 	}
 
 	groups, err := h.groupService.List(c.Context(), filter, currentUserID)
@@ -270,13 +271,19 @@ func (h *GroupHandler) ResolveMapLink(c *fiber.Ctx) error {
 }
 
 func (h *GroupHandler) AdminList(c *fiber.Ctx) error {
-	filter := domain.GroupFilter{
-		Category: c.Query("category"),
-		Format:   domain.GroupFormat(c.Query("format")),
-		Status:   domain.GroupStatus(c.Query("status")),
-		Search:   c.Query("search"),
+	var adminUserID *uuid.UUID
+	if uid, ok := c.Locals("userID").(uuid.UUID); ok {
+		adminUserID = &uid
 	}
 
+	filter := domain.GroupFilter{
+		Category:    c.Query("category"),
+		Format:      domain.GroupFormat(c.Query("format")),
+		Status:      domain.GroupStatus(c.Query("status")),
+		Search:      c.Query("search"),
+		FacultyID:   c.Query("faculty_id"),
+		AdminUserID: adminUserID,
+	}
 	groups, err := h.groupService.ListForAdmin(c.Context(), filter)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(domain.FailureResponse(
@@ -326,6 +333,13 @@ func (h *GroupHandler) AdminReview(c *fiber.Ctx) error {
 		if errors.Is(err, service.ErrInvalidInput) {
 			return c.Status(fiber.StatusUnprocessableEntity).JSON(domain.FailureResponse(
 				"VALIDATION_FAILED",
+				err.Error(),
+				nil,
+			))
+		}
+		if errors.Is(err, service.ErrUnauthorizedAction) {
+			return c.Status(fiber.StatusForbidden).JSON(domain.FailureResponse(
+				"FORBIDDEN",
 				err.Error(),
 				nil,
 			))

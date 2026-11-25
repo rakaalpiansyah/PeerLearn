@@ -20,6 +20,7 @@ type CreateGroupRequest struct {
 	StartTime       time.Time   `json:"start_time"`
 	EndTime         time.Time   `json:"end_time"`
 	MaxCapacity     int         `json:"max_capacity"`
+	FacultyID 		*uuid.UUID 	`json:"faculty_id,omitempty"`
 }
 
 type UpdateGroupRequest struct {
@@ -44,11 +45,14 @@ type GroupFilter struct {
 	Status            GroupStatus `json:"status"`
 	Search            string      `json:"search"`
 	IncludeUnapproved bool        `json:"-"`
+	FacultyID   	string     `json:"faculty_id,omitempty"`
+	AdminUserID 	*uuid.UUID 	`json:"-"`
 }
 
 type GroupResponse struct {
 	ID              uuid.UUID         `json:"id"`
 	HostID          uuid.UUID         `json:"host_id"`
+	FacultyID       *uuid.UUID        `json:"faculty_id,omitempty"`
 	Title           string            `json:"title"`
 	Description     string            `json:"description"`
 	Category        string            `json:"category"`

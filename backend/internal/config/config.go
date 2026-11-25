@@ -12,6 +12,11 @@ type Config struct {
 	AppEnv         string
 	JWTSecret      string
 	AllowedOrigins string
+	SMTPHost       string
+	SMTPPort       string
+	SMTPUser       string
+	SMTPPass       string
+	SMTPFrom       string
 }
 
 func LoadConfig() *Config {
@@ -40,11 +45,28 @@ func LoadConfig() *Config {
 		allowedOrigins = "http://localhost:5173,http://localhost:4173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:4173"
 	}
 
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort := os.Getenv("SMTP_PORT")
+	if smtpPort == "" {
+		smtpPort = "587"
+	}
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASS")
+	smtpFrom := os.Getenv("SMTP_FROM")
+	if smtpFrom == "" {
+		smtpFrom = smtpUser
+	}
+
 	return &Config{
 		Port:           port,
 		DatabaseURL:    dbURL,
 		AppEnv:         appEnv,
 		JWTSecret:      jwtSecret,
 		AllowedOrigins: allowedOrigins,
+		SMTPHost:       smtpHost,
+		SMTPPort:       smtpPort,
+		SMTPUser:       smtpUser,
+		SMTPPass:       smtpPass,
+		SMTPFrom:       smtpFrom,
 	}
 }

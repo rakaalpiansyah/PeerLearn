@@ -47,9 +47,9 @@ func (r *groupRepository) Create(ctx context.Context, g *domain.LearningGroup) e
 		INSERT INTO learning_groups (
 			id, host_id, title, description, category, format,
 			location_or_link, latitude, longitude, building_details, agenda, prerequisites,
-			start_time, end_time, max_capacity, status, created_at, updated_at
+			start_time, end_time, max_capacity, status, created_at, updated_at, faculty_id
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 	`
 	if g.ID == uuid.Nil {
 		g.ID = uuid.New()
@@ -80,6 +80,7 @@ func (r *groupRepository) Create(ctx context.Context, g *domain.LearningGroup) e
 		g.Status,
 		g.CreatedAt,
 		g.UpdatedAt,
+		g.FacultyID,
 	)
 
 	if err != nil {
@@ -93,7 +94,7 @@ func (r *groupRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.G
 		SELECT 
 			g.id, g.host_id, g.title, g.description, g.category, g.format,
 			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
-			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
+			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at, g.faculty_id,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
 			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
 		FROM learning_groups g
@@ -135,6 +136,7 @@ func (r *groupRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.G
 		&host.ContributionPoints,
 		&host.CreatedAt,
 		&resp.CurrentMembers,
+		&resp.FacultyID,
 	)
 
 	if err != nil {
@@ -164,7 +166,7 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 		SELECT 
 			g.id, g.host_id, g.title, g.description, g.category, g.format,
 			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
-			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
+			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at, g.faculty_id,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
 			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
 	`)
@@ -205,6 +207,14 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 		sb.WriteString(fmt.Sprintf(" AND g.status = $%d", argIdx))
 		args = append(args, filter.Status)
 		argIdx++
+	}
+
+	if filter.FacultyID != "" && filter.FacultyID != "all" {
+		if parsedFacID, err := uuid.Parse(filter.FacultyID); err == nil {
+			sb.WriteString(fmt.Sprintf(" AND (g.faculty_id = $%d OR (g.faculty_id IS NULL AND u.faculty_id = $%d))", argIdx, argIdx))
+			args = append(args, parsedFacID)
+			argIdx++
+		}
 	}
 
 	if filter.Search != "" {
@@ -270,6 +280,7 @@ func (r *groupRepository) List(ctx context.Context, filter domain.GroupFilter, c
 			&host.CreatedAt,
 			&resp.CurrentMembers,
 			&userMembership,
+			&resp.FacultyID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("groupRepository.List.Scan: %w", err)
@@ -373,7 +384,7 @@ func (r *groupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) ([]d
 		SELECT 
 			g.id, g.host_id, g.title, g.description, g.category, g.format,
 			g.location_or_link, g.latitude, g.longitude, COALESCE(g.building_details, ''), g.agenda, COALESCE(g.prerequisites, ''),
-			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at,
+			g.start_time, g.end_time, g.max_capacity, g.status, COALESCE(g.review_note, ''), g.reviewed_by, g.reviewed_at, g.created_at, g.faculty_id,
 			u.id, u.email, u.full_name, u.role, u.campus_name, u.bio, u.avatar_url, u.contribution_points, u.created_at,
 			(SELECT COUNT(*) FROM memberships m WHERE m.group_id = g.id AND m.status = 'accepted') as member_count
 		FROM learning_groups g
@@ -423,6 +434,7 @@ func (r *groupRepository) ListByHost(ctx context.Context, hostID uuid.UUID) ([]d
 			&host.ContributionPoints,
 			&host.CreatedAt,
 			&g.CurrentMembers,
+			&g.FacultyID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("groupRepository.ListByHost.Scan: %w", err)

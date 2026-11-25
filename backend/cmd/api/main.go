@@ -13,6 +13,7 @@ import (
 	"peerlearn/backend/internal/config"
 	"peerlearn/backend/internal/database"
 	"peerlearn/backend/internal/handler"
+	"peerlearn/backend/internal/mailer"
 	"peerlearn/backend/internal/middleware"
 	"peerlearn/backend/internal/repository"
 	"peerlearn/backend/internal/service"
@@ -76,7 +77,14 @@ func main() {
 	messageService := service.NewMessageService(messageRepo, groupRepo, membershipRepo)
 	supportService := service.NewSupportService(supportRepo, userRepo)
 	masterService := service.NewMasterService(masterRepo)
-	passwordResetService := service.NewPasswordResetService(userRepo, passwordResetRepo, cfg.AppEnv)
+
+	smtpMailer := mailer.NewSMTPMailer(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
+if smtpMailer.IsConfigured() {
+	log.Printf("[Mailer] SMTP aktif melalui %s:%s", cfg.SMTPHost, cfg.SMTPPort)
+} else {
+	log.Println("[Mailer] SMTP belum dikonfigurasi; OTP akan dicetak ke log terminal saat mode development")
+}
+passwordResetService := service.NewPasswordResetService(userRepo, passwordResetRepo, cfg.AppEnv, smtpMailer)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(healthService)

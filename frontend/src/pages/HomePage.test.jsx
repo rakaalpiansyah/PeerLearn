@@ -17,6 +17,9 @@ import { useAuth } from "../context/AuthContext";
 vi.mock("../api/client", () => ({
   groupApi: { list: vi.fn(), getRecommendations: vi.fn() },
   systemApi: { getHealth: vi.fn() },
+  masterApi: {
+    getFaculties: vi.fn().mockResolvedValue({ success: false }),
+  },
 }));
 vi.mock("../context/AuthContext", () => ({ useAuth: vi.fn() }));
 

@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"peerlearn/backend/internal/domain"
+	"peerlearn/backend/internal/mailer"
 	"peerlearn/backend/internal/repository"
 	"peerlearn/backend/internal/security"
 )
@@ -36,17 +37,24 @@ type passwordResetService struct {
 	userRepo  repository.UserRepository
 	resetRepo repository.PasswordResetRepository
 	appEnv    string
+	mailer    mailer.Mailer
 }
 
 func NewPasswordResetService(
 	userRepo repository.UserRepository,
 	resetRepo repository.PasswordResetRepository,
 	appEnv string,
+	mailers ...mailer.Mailer,
 ) PasswordResetService {
+	var m mailer.Mailer
+	if len(mailers) > 0 {
+		m = mailers[0]
+	}
 	return &passwordResetService{
 		userRepo:  userRepo,
 		resetRepo: resetRepo,
 		appEnv:    appEnv,
+		mailer:    m,
 	}
 }
 
@@ -97,6 +105,15 @@ func (s *passwordResetService) RequestReset(ctx context.Context, req domain.Forg
 	}
 	if err := s.resetRepo.CreateOTP(ctx, record); err != nil {
 		return nil, err
+	}
+
+	if s.mailer != nil {
+		if err := s.mailer.SendPasswordResetOTP(ctx, email, otpCode, otpTTLMinutes); err != nil {
+			log.Printf("[Auth][Mailer] Gagal mengirim email OTP ke %s: %v", email, err)
+			if !strings.EqualFold(s.appEnv, "development") {
+				return nil, fmt.Errorf("passwordResetService.RequestReset send email: %w", err)
+			}
+		}
 	}
 
 	if strings.EqualFold(s.appEnv, "development") {

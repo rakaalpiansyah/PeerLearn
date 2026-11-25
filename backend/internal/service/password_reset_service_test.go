@@ -135,3 +135,41 @@ func TestPasswordResetService_Flow(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, ErrInvalidOTP)
 }
+
+type mockMailer struct {
+	lastEmail string
+	lastOTP   string
+	calls     int
+}
+
+func (m *mockMailer) SendPasswordResetOTP(ctx context.Context, toEmail, otpCode string, ttlMinutes int) error {
+	m.lastEmail = toEmail
+	m.lastOTP = otpCode
+	m.calls++
+	return nil
+}
+
+func TestPasswordResetService_SendsEmailViaMailer(t *testing.T) {
+	uid := uuid.New()
+	userRepo := &mockResetUserRepo{
+		users: map[string]*domain.User{
+			"salman@uinsgd.ac.id": {ID: uid, Email: "salman@uinsgd.ac.id"},
+		},
+	}
+	resetRepo := &mockPasswordResetRepo{
+		activeByUser: make(map[uuid.UUID]*domain.PasswordResetOTP),
+		updatedHash:  make(map[uuid.UUID]string),
+	}
+	fakeMailer := &mockMailer{}
+
+	svc := NewPasswordResetService(userRepo, resetRepo, "production", fakeMailer)
+
+	resp, err := svc.RequestReset(context.Background(), domain.ForgotPasswordRequest{
+		Email: "salman@uinsgd.ac.id",
+	})
+	require.NoError(t, err)
+	assert.Empty(t, resp.DevOTP) // Mode production tidak boleh membocorkan OTP ke respons JSON
+	assert.Equal(t, 1, fakeMailer.calls)
+	assert.Equal(t, "salman@uinsgd.ac.id", fakeMailer.lastEmail)
+	assert.Len(t, fakeMailer.lastOTP, 6)
+}
